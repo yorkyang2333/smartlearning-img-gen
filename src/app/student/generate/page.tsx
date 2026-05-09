@@ -20,7 +20,7 @@ export default function GenerateChatPage() {
     {
       id: 'welcome',
       role: 'agent',
-      content: '您好，我是您的视觉创作助手。请描述您想要生成的画面。您也可以在底部调整生成参数。'
+      content: '您好，我是您的视觉创作助手。请在下方描述您想要的画面，或上传参考图片以进行图生图创作。'
     }
   ]);
   
@@ -32,9 +32,10 @@ export default function GenerateChatPage() {
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,18 +68,28 @@ export default function GenerateChatPage() {
       const file = e.target.files[0];
       setImage(file);
       setImagePreview(URL.createObjectURL(file));
+      setActiveTab('i2i'); // Automatically switch to image-to-image mode
     }
+  };
+  
+  const removeImage = () => {
+     setImage(null);
+     setImagePreview(null);
+     if (activeTab === 'i2i') setActiveTab('t2i');
   };
 
   const handleSend = async () => {
     if (!prompt.trim() && !image) return;
     if (activeTab === 'i2i' && !image) {
-      alert('图生图模式下请先上传参考图片。');
+      alert('图生图模式下请先上传参考图片。点击左下角的 + 号上传。');
       return;
     }
 
     const currentPrompt = prompt;
     setPrompt('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'; // Reset textarea height
+    }
     
     // Add User Message
     const userMsgId = Date.now().toString();
@@ -88,6 +99,10 @@ export default function GenerateChatPage() {
       content: currentPrompt,
       image: imagePreview || undefined
     }]);
+    
+    // Clear the current image preview from the input box once sent
+    setImage(null);
+    setImagePreview(null);
 
     setIsGenerating(true);
     
@@ -174,6 +189,12 @@ export default function GenerateChatPage() {
       }
     }
   };
+  
+  const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setPrompt(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+  };
 
   return (
     <div className="chat-layout">
@@ -184,14 +205,14 @@ export default function GenerateChatPage() {
             <div key={msg.id} className={`message-row ${msg.role}`}>
               <div className="message-avatar">
                 {msg.role === 'agent' ? (
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 ) : (
-                  <div className="user-avatar-placeholder">U</div>
+                  <div className="user-avatar-placeholder">您</div>
                 )}
               </div>
               
               <div className="message-content">
-                <div className="message-sender">{msg.role === 'agent' ? 'AI 助手' : '您'}</div>
+                <div className="message-sender">{msg.role === 'agent' ? 'AI 视觉助手' : '我'}</div>
                 
                 {/* Agent Loading State */}
                 {msg.progress !== undefined && msg.progress < 100 && (
@@ -244,74 +265,102 @@ export default function GenerateChatPage() {
         </div>
       </div>
 
-      {/* Bottom Input Area */}
+      {/* Bottom Input Area (ChatGPT Style) */}
       <div className="input-area-container">
-        <div className="input-card">
+        <div className="chat-input-wrapper">
           
-          {/* Settings Bar */}
-          <div className="settings-bar">
-            <div className="category-tabs">
-              <button className={`category-tab ${activeTab === 't2i' ? 'active' : ''}`} onClick={() => setActiveTab('t2i')}>文生图</button>
-              <button className={`category-tab ${activeTab === 'i2i' ? 'active' : ''}`} onClick={() => setActiveTab('i2i')}>图生图</button>
-            </div>
-            
-            <button className="settings-toggle" onClick={() => setShowSettings(!showSettings)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-              参数设置
-            </button>
-          </div>
-
-          {showSettings && (
-            <div className="settings-panel">
-              <div className="settings-row">
-                <div className="form-group flex-1">
-                  <label className="form-label">模型</label>
-                  <select className="text-input text-input-sm" value={modelId} onChange={(e) => setModelId(e.target.value)}>
-                    {availableModels.map((m: any) => <option key={m.id} value={m.modelId}>{m.name}</option>)}
-                  </select>
-                </div>
-                {config.sizes && (
-                  <div className="form-group flex-1">
-                    <label className="form-label">尺寸</label>
-                    <select className="text-input text-input-sm" value={size} onChange={(e) => setSize(e.target.value)}>
-                      {config.sizes.map((s: string) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                )}
+          {/* Image Preview inside input if uploaded */}
+          {imagePreview && (
+            <div className="input-image-preview">
+              <div className="preview-container">
+                 {/* eslint-disable-next-line @next/next/no-img-element */}
+                 <img src={imagePreview} alt="upload preview" />
+                 <button className="remove-image-btn" onClick={removeImage}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                 </button>
               </div>
             </div>
           )}
 
-          {activeTab === 'i2i' && (
-             <div className="image-upload-row">
-                <input type="file" accept="image/*" onChange={handleImageChange} id="image-upload-chat" className="hidden-input" />
-                <label htmlFor="image-upload-chat" className="upload-pill">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                  {image ? '已选参考图 (点击更换)' : '添加参考图'}
-                </label>
-                {imagePreview && (
-                   // eslint-disable-next-line @next/next/no-img-element
-                   <img src={imagePreview} alt="thumb" className="upload-thumb" />
-                )}
-             </div>
-          )}
+          <textarea
+            ref={textareaRef}
+            className="chat-textarea"
+            placeholder="描述您想要的画面，或上传参考图片..."
+            value={prompt}
+            onChange={handleTextareaInput}
+            onKeyDown={handleKeyDown}
+            rows={1}
+          />
+          
+          <div className="chat-controls-row">
+            <div className="controls-left">
+              {/* Add Image Button */}
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageChange} 
+                ref={fileInputRef} 
+                className="hidden-input" 
+              />
+              <button 
+                className="control-icon-btn" 
+                onClick={() => fileInputRef.current?.click()}
+                title="上传参考图片"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              </button>
 
-          <div className="input-row">
-            <textarea
-              className="chat-textarea"
-              placeholder="发送给 AI 助手..."
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onKeyDown={handleKeyDown}
-              rows={1}
-            />
-            <button 
-              className="send-btn" 
-              onClick={handleSend}
-              disabled={isGenerating || (!prompt.trim() && !image)}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-            </button>
+              {/* Mode Toggle (Image icon) */}
+              <button 
+                className={`control-text-btn ${activeTab === 'i2i' ? 'active-primary' : ''}`}
+                onClick={() => setActiveTab(activeTab === 't2i' ? 'i2i' : 't2i')}
+                title={activeTab === 'i2i' ? "图生图模式" : "文生图模式"}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                   <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                   <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                <span>Image</span>
+              </button>
+
+              {/* Model Selector */}
+              <div className="inline-select-wrapper">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="inline-icon"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                <span className="current-value-text">{availableModels.find((m:any) => m.modelId === modelId)?.name || '选择模型'}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="dropdown-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                <select className="hidden-select" value={modelId} onChange={(e) => setModelId(e.target.value)}>
+                  {availableModels.map((m: any) => <option key={m.id} value={m.modelId}>{m.name}</option>)}
+                </select>
+              </div>
+
+              {/* Size Selector (if config available) */}
+              {config.sizes && config.sizes.length > 0 && (
+                <div className="inline-select-wrapper">
+                  <span className="inline-label">尺寸</span>
+                  <span className="current-value-text">{size}</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="dropdown-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  <select className="hidden-select" value={size} onChange={(e) => setSize(e.target.value)}>
+                    {config.sizes.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="controls-right">
+              {/* Send Button */}
+              <button 
+                className="send-circular-btn" 
+                onClick={handleSend}
+                disabled={isGenerating || (!prompt.trim() && !image)}
+              >
+                {isGenerating ? (
+                   <span className="status-indicator active" style={{ background: 'white', boxShadow: 'none' }}></span>
+                ) : (
+                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                )}
+              </button>
+            </div>
           </div>
         </div>
         <div className="disclaimer">AI 可能生成不准确的图像。请在分享前核实。</div>
@@ -322,7 +371,7 @@ export default function GenerateChatPage() {
           display: flex;
           flex-direction: column;
           height: calc(100vh - 48px);
-          max-width: 900px;
+          max-width: 800px;
           margin: 0 auto;
           position: relative;
         }
@@ -330,7 +379,7 @@ export default function GenerateChatPage() {
         .messages-container {
           flex: 1;
           overflow-y: auto;
-          padding: 24px 24px 140px 24px;
+          padding: 24px 24px 160px 24px;
         }
 
         .messages-list {
@@ -345,10 +394,11 @@ export default function GenerateChatPage() {
         }
 
         .message-avatar {
-          width: 36px;
-          height: 36px;
-          border-radius: var(--radius-sm);
-          background: var(--surface-card);
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          border: 1px solid var(--hairline);
+          background: var(--canvas);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -359,23 +409,27 @@ export default function GenerateChatPage() {
         .user-avatar-placeholder {
           font-family: var(--font-inter);
           font-weight: 500;
+          font-size: 13px;
         }
 
         .message-content {
           flex: 1;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 6px;
+          padding-top: 4px;
         }
 
         .message-sender {
+          font-family: var(--font-inter);
           font-weight: 600;
           font-size: 14px;
           color: var(--ink);
         }
 
         .bubble {
-          font-size: 16px;
+          font-family: var(--font-inter);
+          font-size: 15px;
           line-height: 1.6;
           color: var(--ink);
         }
@@ -393,6 +447,7 @@ export default function GenerateChatPage() {
           padding-top: 4px;
         }
 
+        /* Loading state */
         .loading-container {
           display: flex;
           flex-direction: column;
@@ -403,26 +458,25 @@ export default function GenerateChatPage() {
 
         .progress-bar-bg {
           height: 4px;
-          background: var(--surface-card);
+          background: var(--hairline);
           border-radius: 2px;
           overflow: hidden;
         }
 
         .progress-bar-fill {
           height: 100%;
-          background: var(--accent-teal);
+          background: var(--primary);
           border-radius: 2px;
           transition: width 0.3s ease;
         }
 
         .loading-text {
-          font-family: 'JetBrains Mono', monospace;
+          font-family: var(--font-mono);
           font-size: 13px;
           color: var(--muted);
           display: flex;
           align-items: center;
           gap: 6px;
-          animation: pulse 1.5s infinite;
         }
 
         .status-indicator {
@@ -433,15 +487,18 @@ export default function GenerateChatPage() {
         }
 
         .status-indicator.active {
-          background: var(--accent-teal);
-          box-shadow: 0 0 6px var(--accent-teal);
+          background: var(--primary);
+          box-shadow: 0 0 6px rgba(204, 120, 92, 0.4);
+          animation: pulse 1.5s infinite;
         }
 
+        /* Images */
         .image-result-card {
           margin-top: 8px;
-          background: var(--surface-dark);
-          padding: 16px;
+          background: var(--surface-card);
+          padding: 12px;
           border-radius: var(--radius-lg);
+          border: 1px solid var(--hairline);
           display: inline-block;
         }
 
@@ -455,21 +512,22 @@ export default function GenerateChatPage() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          font-family: 'JetBrains Mono', monospace;
+          font-family: var(--font-mono);
           font-size: 13px;
-          color: var(--on-dark-soft);
+          color: var(--muted);
         }
 
         .download-btn {
-          color: var(--on-dark);
-          background: var(--surface-dark-elevated);
+          color: var(--ink);
+          background: var(--canvas);
+          border: 1px solid var(--hairline);
           padding: 4px 12px;
           border-radius: var(--radius-sm);
           text-decoration: none;
           transition: background 0.2s;
         }
         
-        .download-btn:hover { background: #33302c; }
+        .download-btn:hover { background: var(--surface-soft); }
 
         .user-ref-image {
           margin-top: 8px;
@@ -478,7 +536,7 @@ export default function GenerateChatPage() {
         }
 
         .ref-image {
-          height: 120px;
+          height: 160px;
           border-radius: var(--radius-md);
           border: 1px solid var(--hairline);
         }
@@ -490,171 +548,230 @@ export default function GenerateChatPage() {
           background: rgba(20,20,19,0.7);
           color: white;
           font-size: 11px;
-          padding: 2px 6px;
-          border-radius: 4px;
+          padding: 4px 8px;
+          border-radius: 6px;
+          backdrop-filter: blur(4px);
         }
 
-        /* Input Area */
+        /* ChatGPT Style Input Area */
         .input-area-container {
           position: absolute;
           bottom: 0;
           left: 0;
           right: 0;
           padding: 24px;
-          background: linear-gradient(to top, var(--canvas) 80%, transparent);
-        }
-
-        .input-card {
-          background: var(--surface-card);
-          border: 1px solid var(--hairline);
-          border-radius: var(--radius-lg);
-          padding: 12px;
-          box-shadow: 0 4px 20px rgba(20,20,19,0.04);
-        }
-
-        .settings-bar {
+          background: linear-gradient(to top, var(--canvas) 70%, transparent);
           display: flex;
-          justify-content: space-between;
-          margin-bottom: 12px;
-        }
-
-        .category-tabs {
-          display: flex;
-          gap: 4px;
-        }
-
-        .category-tab {
-          font-size: 13px;
-          padding: 4px 12px;
-          border-radius: var(--radius-sm);
-          color: var(--muted);
-        }
-
-        .category-tab:hover { color: var(--ink); }
-        .category-tab.active {
-          background: var(--canvas);
-          color: var(--ink);
-          font-weight: 500;
-        }
-
-        .settings-toggle {
-          display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 6px;
-          font-size: 13px;
-          color: var(--muted);
-          padding: 4px 8px;
-          border-radius: var(--radius-sm);
+        }
+
+        .chat-input-wrapper {
+          background: var(--canvas);
+          border: 1px solid var(--hairline);
+          border-radius: 24px;
+          width: 100%;
+          padding: 16px 16px 12px 16px;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.03);
+          display: flex;
+          flex-direction: column;
+          transition: border-color 0.2s, box-shadow 0.2s;
         }
         
-        .settings-toggle:hover { background: var(--canvas); color: var(--ink); }
+        .chat-input-wrapper:focus-within {
+          border-color: var(--hairline-soft);
+          box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+        }
 
-        .settings-panel {
-          padding: 12px;
-          background: var(--canvas);
+        .input-image-preview {
+          padding: 0 8px 8px 8px;
+        }
+        
+        .preview-container {
+          position: relative;
+          display: inline-block;
+        }
+        
+        .preview-container img {
+          height: 64px;
+          width: 64px;
+          object-fit: cover;
           border-radius: var(--radius-md);
-          margin-bottom: 12px;
-        }
-
-        .settings-row {
-          display: flex;
-          gap: 16px;
-        }
-
-        .flex-1 { flex: 1; }
-
-        .form-label {
-          display: block;
-          font-size: 12px;
-          font-weight: 500;
-          color: var(--muted);
-          margin-bottom: 4px;
-        }
-
-        .text-input-sm {
-          height: 32px;
-          padding: 4px 8px;
-          font-size: 13px;
-        }
-
-        .input-row {
-          display: flex;
-          align-items: flex-end;
-          gap: 12px;
-          background: var(--canvas);
           border: 1px solid var(--hairline);
-          border-radius: var(--radius-md);
-          padding: 8px 12px;
+        }
+        
+        .remove-image-btn {
+          position: absolute;
+          top: -6px;
+          right: -6px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: var(--ink);
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 2px solid var(--canvas);
+          cursor: pointer;
         }
 
         .chat-textarea {
-          flex: 1;
+          width: 100%;
           border: none;
           background: transparent;
+          font-family: var(--font-inter);
           font-size: 15px;
+          line-height: 1.5;
           color: var(--ink);
           resize: none;
-          padding: 4px 0;
+          padding: 8px 8px 16px 8px;
+          min-height: 60px;
           max-height: 200px;
           outline: none;
+          margin-bottom: 8px;
         }
 
         .chat-textarea::placeholder { color: var(--muted-soft); }
 
-        .send-btn {
-          width: 32px;
-          height: 32px;
-          border-radius: var(--radius-sm);
-          background: var(--primary);
-          color: var(--on-primary);
+        .chat-controls-row {
           display: flex;
+          justify-content: space-between;
           align-items: center;
-          justify-content: center;
-          transition: background 0.2s;
+          padding: 0 4px;
         }
 
-        .send-btn:hover:not(:disabled) { background: var(--primary-active); }
-        .send-btn:disabled { background: var(--primary-disabled); color: var(--muted); cursor: not-allowed; }
-
-        .image-upload-row {
+        .controls-left {
           display: flex;
           align-items: center;
-          gap: 12px;
-          margin-bottom: 12px;
+          gap: 6px;
+        }
+
+        .controls-right {
+          display: flex;
+          align-items: center;
         }
 
         .hidden-input { display: none; }
 
-        .upload-pill {
+        .control-icon-btn {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          color: var(--muted);
+          transition: all 0.2s;
+        }
+        
+        .control-icon-btn:hover {
+          background: var(--surface-card);
+          color: var(--ink);
+        }
+
+        .control-text-btn {
           display: flex;
           align-items: center;
           gap: 6px;
+          height: 32px;
+          padding: 0 10px;
+          border-radius: 16px;
+          font-family: var(--font-inter);
           font-size: 13px;
-          color: var(--ink);
-          background: var(--canvas);
-          border: 1px solid var(--hairline);
-          padding: 6px 12px;
-          border-radius: var(--radius-pill);
-          cursor: pointer;
-          transition: border-color 0.2s;
+          font-weight: 500;
+          color: var(--muted);
+          transition: all 0.2s;
         }
 
-        .upload-pill:hover { border-color: var(--primary); }
+        .control-text-btn:hover { background: var(--surface-card); color: var(--ink); }
+        
+        .active-primary {
+          color: var(--primary);
+        }
+        
+        .active-primary:hover {
+          background: rgba(204, 120, 92, 0.08);
+          color: var(--primary);
+        }
 
-        .upload-thumb {
-          height: 28px;
-          border-radius: 4px;
-          border: 1px solid var(--hairline);
+        .inline-select-wrapper {
+          display: flex;
+          align-items: center;
+          height: 32px;
+          padding: 0 10px 0 12px;
+          border-radius: 16px;
+          transition: background 0.2s;
+          color: var(--muted);
+          position: relative;
+        }
+
+        .inline-select-wrapper:hover {
+          background: var(--surface-card);
+          color: var(--ink);
+        }
+
+        .inline-icon { margin-right: 6px; flex-shrink: 0; }
+        .inline-label { font-size: 13px; font-weight: 500; margin-right: 6px; flex-shrink: 0; }
+        
+        .current-value-text {
+          font-family: var(--font-inter);
+          font-size: 13px;
+          font-weight: 500;
+          margin-right: 4px;
+          white-space: nowrap;
+          color: inherit;
+        }
+
+        .dropdown-arrow {
+          flex-shrink: 0;
+        }
+
+        .hidden-select {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          opacity: 0;
+          cursor: pointer;
+        }
+
+        .send-circular-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: var(--ink);
+          color: white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .send-circular-btn:hover:not(:disabled) {
+          opacity: 0.9;
+        }
+        
+        .send-circular-btn:active:not(:disabled) {
+          transform: scale(0.95);
+        }
+
+        .send-circular-btn:disabled {
+          background: var(--hairline);
+          color: white;
+          cursor: not-allowed;
         }
 
         .disclaimer {
           text-align: center;
+          font-family: var(--font-inter);
           font-size: 12px;
           color: var(--muted-soft);
           margin-top: 12px;
         }
 
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
       `}</style>
     </div>
   );
