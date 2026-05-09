@@ -35,6 +35,8 @@ model Model {
   config      String   // JSON string containing sizes, max prompt len, etc
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
+  apiUrl      String?
+  apiKey      String?
   createdAt   DateTime @default(now())
 
   teacherConfigs TeacherModelConfig[]

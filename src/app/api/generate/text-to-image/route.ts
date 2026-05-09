@@ -68,7 +68,9 @@ export async function POST(req: Request) {
       model: modelId,
       size,
       n,
-      quality
+      quality,
+      customApiUrl: model.apiUrl || undefined,
+      customApiKey: model.apiKey || undefined,
     });
 
     const durationMs = Date.now() - startTime;

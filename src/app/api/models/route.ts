@@ -48,6 +48,49 @@ export async function POST(req: Request) {
        return NextResponse.json({ success: true });
     }
 
+    if (body.action === 'create') {
+      const { name, modelId, type, provider, description, config, apiUrl, apiKey } = body.data;
+      const newModel = await prisma.model.create({
+        data: {
+          name,
+          modelId,
+          type,
+          provider,
+          description,
+          config: config || '{}',
+          apiUrl: apiUrl || null,
+          apiKey: apiKey || null,
+        }
+      });
+      return NextResponse.json({ success: true, data: newModel });
+    }
+
+    if (body.action === 'update') {
+      const { id, name, modelId, type, provider, description, config, apiUrl, apiKey } = body.data;
+      const updatedModel = await prisma.model.update({
+        where: { id },
+        data: {
+          name,
+          modelId,
+          type,
+          provider,
+          description,
+          config: config || '{}',
+          apiUrl: apiUrl || null,
+          apiKey: apiKey || null,
+        }
+      });
+      return NextResponse.json({ success: true, data: updatedModel });
+    }
+
+    if (body.action === 'delete') {
+      const { id } = body;
+      await prisma.model.delete({
+        where: { id }
+      });
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -6,6 +6,8 @@ export interface TextToImageParams {
   size?: string;
   n?: number;
   quality?: string;
+  customApiUrl?: string;
+  customApiKey?: string;
 }
 
 export interface ImageToImageParams {
@@ -13,6 +15,8 @@ export interface ImageToImageParams {
   prompt: string;
   model: string;
   size?: string;
+  customApiUrl?: string;
+  customApiKey?: string;
 }
 
 export interface ChatAnywhereResponse {
@@ -22,16 +26,28 @@ export interface ChatAnywhereResponse {
   choices?: Array<{ message: { content: string } }>; // For gemini models using chat completion
 }
 
-const getApiKey = () => {
+const getApiKey = (customKey?: string) => {
+  if (customKey) return customKey;
   const key = process.env.CHATANYWHERE_API_KEY;
   if (!key) {
-    throw new Error('CHATANYWHERE_API_KEY is not configured');
+    throw new Error('CHATANYWHERE_API_KEY is not configured and no custom key provided');
   }
   return key;
 };
 
+const getBaseUrl = (customUrl?: string) => {
+  if (customUrl) {
+    // Ensure it doesn't end with a trailing slash for consistency
+    return customUrl.endsWith('/') ? customUrl.slice(0, -1) : customUrl;
+  }
+  return API_BASE_URL;
+};
+
 export async function textToImage(params: TextToImageParams): Promise<ChatAnywhereResponse> {
-  const { prompt, model, size = '1024x1024', n = 1, quality } = params;
+  const { prompt, model, size = '1024x1024', n = 1, quality, customApiUrl, customApiKey } = params;
+
+  const baseUrl = getBaseUrl(customApiUrl);
+  const apiKey = getApiKey(customApiKey);
 
   // Handle Gemini and other models that use chat completions endpoint
   if (model.includes('gemini') || model.includes('gpt-4o-mini') || model.includes('deepseek')) {
@@ -40,11 +56,11 @@ export async function textToImage(params: TextToImageParams): Promise<ChatAnywhe
       messages: [{ role: 'user', content: prompt }],
     };
 
-    const res = await fetch(`${API_BASE_URL}/v1/chat/completions`, {
+    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${getApiKey()}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(payload),
     });
@@ -70,11 +86,11 @@ export async function textToImage(params: TextToImageParams): Promise<ChatAnywhe
     payload.quality = quality;
   }
 
-  const res = await fetch(`${API_BASE_URL}/v1/images/generations`, {
+  const res = await fetch(`${baseUrl}/v1/images/generations`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${getApiKey()}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify(payload),
   });
@@ -88,7 +104,10 @@ export async function textToImage(params: TextToImageParams): Promise<ChatAnywhe
 }
 
 export async function imageToImage(params: ImageToImageParams): Promise<ChatAnywhereResponse> {
-  const { image, prompt, model, size = '1024x1024' } = params;
+  const { image, prompt, model, size = '1024x1024', customApiUrl, customApiKey } = params;
+
+  const baseUrl = getBaseUrl(customApiUrl);
+  const apiKey = getApiKey(customApiKey);
 
   const formData = new FormData();
   formData.append('image', image);
@@ -96,10 +115,10 @@ export async function imageToImage(params: ImageToImageParams): Promise<ChatAnyw
   formData.append('model', model);
   formData.append('size', size);
 
-  const res = await fetch(`${API_BASE_URL}/v1/images/edits`, {
+  const res = await fetch(`${baseUrl}/v1/images/edits`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${getApiKey()}`,
+      Authorization: `Bearer ${apiKey}`,
       // Do not set Content-Type, fetch handles multipart boundary automatically
     },
     body: formData,
