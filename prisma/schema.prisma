@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  displayName  String
+  role         String   @default("STUDENT") // "TEACHER" | "STUDENT"
+  teacherId    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  teacher      User?    @relation("TeacherStudents", fields: [teacherId], references: [id])
+  students     User[]   @relation("TeacherStudents")
+  
+  generations  Generation[]
+  modelConfigs TeacherModelConfig[]
+  modelOverrides StudentModelOverride[]
+}
+
+model Model {
+  id          String   @id @default(uuid())
+  name        String
+  modelId     String   @unique
+  type        String   // "TEXT_TO_IMAGE" | "IMAGE_TO_IMAGE" | "BOTH"
+  provider    String   // "openai" | "gemini"等
+  description String?
+  config      String   // JSON string containing sizes, max prompt len, etc
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  teacherConfigs TeacherModelConfig[]
+  studentOverrides StudentModelOverride[]
+  generations    Generation[]
+}
+
+model TeacherModelConfig {
+  id        String  @id @default(uuid())
+  teacherId String
+  modelId   String
+  enabled   Boolean @default(true)
+
+  teacher   User  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  model     Model @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, modelId])
+}
+
+model StudentModelOverride {
+  id        String  @id @default(uuid())
+  studentId String
+  modelId   String
+  allowed   Boolean
+
+  student   User  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  model     Model @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, modelId])
+}
+
+model Generation {
+  id             String   @id @default(uuid())
+  userId         String
+  modelId        String
+  type           String   // "TEXT_TO_IMAGE" | "IMAGE_TO_IMAGE"
+  prompt         String
+  inputImageUrl  String?
+  outputImageUrl String?
+  size           String?
+  quality        String?
+  durationMs     Int?
+  apiResponse    String?  // JSON string
+  createdAt      DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model Model @relation(fields: [modelId], references: [id], onDelete: Restrict)
+}
