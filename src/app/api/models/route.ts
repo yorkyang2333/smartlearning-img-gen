@@ -11,7 +11,8 @@ export async function GET() {
     }
 
     const models = await prisma.model.findMany({
-      orderBy: { sortOrder: 'asc' }
+      orderBy: { sortOrder: 'asc' },
+      include: { apiEndpoint: true }
     });
 
     const teacherConfigs = await prisma.teacherModelConfig.findMany({
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
     }
 
     if (body.action === 'create') {
-      const { name, modelId, type, provider, description, config, apiUrl, apiKey } = body.data;
+      const { name, modelId, type, provider, description, config, apiEndpointId } = body.data;
       const newModel = await prisma.model.create({
         data: {
           name,
@@ -58,15 +59,14 @@ export async function POST(req: Request) {
           provider,
           description,
           config: config || '{}',
-          apiUrl: apiUrl || null,
-          apiKey: apiKey || null,
+          apiEndpointId: apiEndpointId || null,
         }
       });
       return NextResponse.json({ success: true, data: newModel });
     }
 
     if (body.action === 'update') {
-      const { id, name, modelId, type, provider, description, config, apiUrl, apiKey } = body.data;
+      const { id, name, modelId, type, provider, description, config, apiEndpointId } = body.data;
       const updatedModel = await prisma.model.update({
         where: { id },
         data: {
@@ -76,8 +76,7 @@ export async function POST(req: Request) {
           provider,
           description,
           config: config || '{}',
-          apiUrl: apiUrl || null,
-          apiKey: apiKey || null,
+          apiEndpointId: apiEndpointId || null,
         }
       });
       return NextResponse.json({ success: true, data: updatedModel });

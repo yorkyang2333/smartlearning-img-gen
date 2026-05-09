@@ -35,9 +35,10 @@ model Model {
   config      String   // JSON string containing sizes, max prompt len, etc
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
-  apiUrl      String?
-  apiKey      String?
   createdAt   DateTime @default(now())
+  
+  apiEndpointId String?
+  apiEndpoint   ApiEndpoint? @relation(fields: [apiEndpointId], references: [id], onDelete: SetNull)
 
   teacherConfigs TeacherModelConfig[]
   studentOverrides StudentModelOverride[]
@@ -84,4 +85,15 @@ model Generation {
 
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   model Model @relation(fields: [modelId], references: [id], onDelete: Restrict)
+}
+
+model ApiEndpoint {
+  id        String   @id @default(uuid())
+  name      String
+  baseUrl   String
+  apiKey    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  models    Model[]
 }

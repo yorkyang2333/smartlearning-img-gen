@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { imageToImage } from '@/lib/chatanywhere';
+import { imageToImage } from '@/lib/api-client';
 
 export async function POST(req: Request) {
   try {
@@ -23,11 +23,16 @@ export async function POST(req: Request) {
 
     // Validation: Check if model exists and is enabled
     const model = await prisma.model.findUnique({
-      where: { modelId }
+      where: { modelId },
+      include: { apiEndpoint: true }
     });
 
     if (!model || !model.isActive || model.type === 'TEXT_TO_IMAGE') {
       return NextResponse.json({ error: 'Invalid or disabled model for image-to-image' }, { status: 400 });
+    }
+    
+    if (!model.apiEndpoint) {
+      return NextResponse.json({ error: '此模型尚未配置 API 渠道，无法生成。' }, { status: 400 });
     }
 
     // Validation: Check permissions (simplified for brevity, identical to text-to-image)
@@ -55,14 +60,14 @@ export async function POST(req: Request) {
 
     const startTime = Date.now();
     
-    // Call ChatAnywhere API
+    // Call API Endpoint
     const response = await imageToImage({
       image,
       prompt,
       model: modelId,
       size,
-      customApiUrl: model.apiUrl || undefined,
-      customApiKey: model.apiKey || undefined,
+      apiUrl: model.apiEndpoint.baseUrl,
+      apiKey: model.apiEndpoint.apiKey,
     });
 
     const durationMs = Date.now() - startTime;

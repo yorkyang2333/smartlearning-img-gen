@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { textToImage } from '@/lib/chatanywhere';
+import { textToImage } from '@/lib/api-client';
 
 export async function POST(req: Request) {
   try {
@@ -20,11 +20,16 @@ export async function POST(req: Request) {
 
     // Validation: Check if model exists and is enabled
     const model = await prisma.model.findUnique({
-      where: { modelId }
+      where: { modelId },
+      include: { apiEndpoint: true }
     });
 
     if (!model || !model.isActive || model.type === 'IMAGE_TO_IMAGE') {
       return NextResponse.json({ error: 'Invalid or disabled model' }, { status: 400 });
+    }
+    
+    if (!model.apiEndpoint) {
+      return NextResponse.json({ error: '此模型尚未配置 API 渠道，无法生成。' }, { status: 400 });
     }
 
     // Validation: Check if student has permission for this model
@@ -62,15 +67,15 @@ export async function POST(req: Request) {
 
     const startTime = Date.now();
     
-    // Call ChatAnywhere API
+    // Call API Endpoint
     const response = await textToImage({
       prompt,
       model: modelId,
       size,
       n,
       quality,
-      customApiUrl: model.apiUrl || undefined,
-      customApiKey: model.apiKey || undefined,
+      apiUrl: model.apiEndpoint.baseUrl,
+      apiKey: model.apiEndpoint.apiKey,
     });
 
     const durationMs = Date.now() - startTime;
