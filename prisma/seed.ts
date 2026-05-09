@@ -13,7 +13,7 @@ const models = [
     sortOrder: 1,
     config: JSON.stringify({
       endpoint: '/v1/images/generations', // For variations/edits will be handled differently
-      sizes: ['1024x1024', '1536x1024', '1024x1536'],
+      sizes: ['1024x1024', '1024x1792', '1792x1024', '768x1024', '1024x768', '1536x1024', '1024x1536'],
       supportsN: false,
     })
   },
@@ -25,7 +25,7 @@ const models = [
     description: '均衡性能',
     sortOrder: 2,
     config: JSON.stringify({
-      sizes: ['1024x1024', '1536x1024', '1024x1536'],
+      sizes: ['1024x1024', '1024x1792', '1792x1024', '768x1024', '1024x768', '1536x1024', '1024x1536'],
       supportsN: false,
     })
   },
@@ -37,7 +37,7 @@ const models = [
     description: '经典模型',
     sortOrder: 3,
     config: JSON.stringify({
-      sizes: ['1024x1024', '1536x1024', '1024x1536'],
+      sizes: ['1024x1024', '1024x1792', '1792x1024', '768x1024', '1024x768', '1536x1024', '1024x1536'],
       supportsN: false,
     })
   },
@@ -49,7 +49,7 @@ const models = [
     description: '低成本版',
     sortOrder: 4,
     config: JSON.stringify({
-      sizes: ['1024x1024', '1536x1024', '1024x1536'],
+      sizes: ['1024x1024', '1024x1792', '1792x1024', '768x1024', '1024x768', '1536x1024', '1024x1536'],
       supportsN: false,
     })
   },

@@ -43,7 +43,8 @@ export async function POST(req: Request) {
     }
 
     if (body.action === 'update') {
-      const { id, name, baseUrl, apiKey } = body.data;
+      const { id } = body;
+      const { name, baseUrl, apiKey } = body.data;
       const updatedEndpoint = await prisma.apiEndpoint.update({
         where: { id },
         data: { name, baseUrl, apiKey }

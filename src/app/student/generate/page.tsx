@@ -25,7 +25,6 @@ export default function GenerateChatPage() {
   ]);
   
   const [prompt, setPrompt] = useState('');
-  const [activeTab, setActiveTab] = useState<'t2i' | 'i2i'>('t2i');
   const [modelId, setModelId] = useState('');
   const [size, setSize] = useState('1024x1024');
   const [n, setN] = useState(1);
@@ -48,9 +47,11 @@ export default function GenerateChatPage() {
   const { data: modelsResponse, isLoading: modelsLoading } = useSWR('/api/student-models', fetcher);
   const models = modelsResponse?.data || [];
 
+  const currentMode = image ? 'i2i' : 't2i';
+
   const availableModels = models.filter((m: any) => {
-     if (activeTab === 't2i') return m.type === 'TEXT_TO_IMAGE' || m.type === 'BOTH';
-     if (activeTab === 'i2i') return m.type === 'IMAGE_TO_IMAGE' || m.type === 'BOTH';
+     if (currentMode === 't2i') return m.type === 'TEXT_TO_IMAGE' || m.type === 'BOTH';
+     if (currentMode === 'i2i') return m.type === 'IMAGE_TO_IMAGE' || m.type === 'BOTH';
      return false;
   });
 
@@ -58,7 +59,7 @@ export default function GenerateChatPage() {
     if (availableModels.length > 0 && !availableModels.find((m:any) => m.modelId === modelId)) {
       setModelId(availableModels[0].modelId);
     }
-  }, [availableModels, modelId]);
+  }, [availableModels, modelId, currentMode]);
 
   const selectedModel = availableModels.find((m: any) => m.modelId === modelId);
   const config = selectedModel ? JSON.parse(selectedModel.config) : {};
@@ -68,22 +69,16 @@ export default function GenerateChatPage() {
       const file = e.target.files[0];
       setImage(file);
       setImagePreview(URL.createObjectURL(file));
-      setActiveTab('i2i'); // Automatically switch to image-to-image mode
     }
   };
   
   const removeImage = () => {
      setImage(null);
      setImagePreview(null);
-     if (activeTab === 'i2i') setActiveTab('t2i');
   };
 
   const handleSend = async () => {
     if (!prompt.trim() && !image) return;
-    if (activeTab === 'i2i' && !image) {
-      alert('图生图模式下请先上传参考图片。点击左下角的 + 号上传。');
-      return;
-    }
 
     const currentPrompt = prompt;
     setPrompt('');
@@ -126,11 +121,11 @@ export default function GenerateChatPage() {
     }, 500);
 
     try {
-      const endpoint = activeTab === 't2i' ? '/api/generate/text-to-image' : '/api/generate/image-to-image';
+      const endpoint = currentMode === 't2i' ? '/api/generate/text-to-image' : '/api/generate/image-to-image';
       let body: string | FormData;
       let headers: HeadersInit = {};
 
-      if (activeTab === 't2i') {
+      if (currentMode === 't2i') {
         body = JSON.stringify({ prompt: currentPrompt, modelId, size, n });
         headers['Content-Type'] = 'application/json';
       } else {
@@ -194,6 +189,37 @@ export default function GenerateChatPage() {
     setPrompt(e.target.value);
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
+  };
+
+  const formatSize = (sizeStr: string) => {
+    const ratioMap: Record<string, string> = {
+      '1024x1024': '1:1',
+      '512x512': '1:1',
+      '256x256': '1:1',
+      '1024x1792': '9:16',
+      '576x1024': '9:16',
+      '1792x1024': '16:9',
+      '1024x576': '16:9',
+      '768x1024': '3:4',
+      '1024x768': '4:3',
+      '1536x1024': '3:2',
+      '1024x1536': '2:3',
+      '512x1024': '1:2',
+      '1024x512': '2:1',
+    };
+    if (ratioMap[sizeStr]) return `${ratioMap[sizeStr]} (${sizeStr})`;
+    
+    const parts = sizeStr.split('x');
+    if (parts.length === 2) {
+      const w = parseInt(parts[0], 10);
+      const h = parseInt(parts[1], 10);
+      if (!isNaN(w) && !isNaN(h)) {
+        const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
+        const divisor = gcd(w, h);
+        return `${w/divisor}:${h/divisor} (${sizeStr})`;
+      }
+    }
+    return sizeStr;
   };
 
   return (
@@ -305,23 +331,9 @@ export default function GenerateChatPage() {
               <button 
                 className="control-icon-btn" 
                 onClick={() => fileInputRef.current?.click()}
-                title="上传参考图片"
+                title="上传参考图片以开启图生图"
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
-
-              {/* Mode Toggle (Image icon) */}
-              <button 
-                className={`control-text-btn ${activeTab === 'i2i' ? 'active-primary' : ''}`}
-                onClick={() => setActiveTab(activeTab === 't2i' ? 'i2i' : 't2i')}
-                title={activeTab === 'i2i' ? "图生图模式" : "文生图模式"}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                   <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                   <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                   <polyline points="21 15 16 10 5 21"></polyline>
-                </svg>
-                <span>Image</span>
               </button>
 
               {/* Model Selector */}
@@ -338,10 +350,10 @@ export default function GenerateChatPage() {
               {config.sizes && config.sizes.length > 0 && (
                 <div className="inline-select-wrapper">
                   <span className="inline-label">尺寸</span>
-                  <span className="current-value-text">{size}</span>
+                  <span className="current-value-text">{formatSize(size)}</span>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="dropdown-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
                   <select className="hidden-select" value={size} onChange={(e) => setSize(e.target.value)}>
-                    {config.sizes.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                    {config.sizes.map((s: string) => <option key={s} value={s}>{formatSize(s)}</option>)}
                   </select>
                 </div>
               )}

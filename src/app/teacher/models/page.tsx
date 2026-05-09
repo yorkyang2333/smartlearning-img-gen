@@ -94,14 +94,21 @@ export default function ModelsPage() {
       }
     };
 
-    await fetch('/api/models', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    setIsModelModalOpen(false);
-    mutateModels();
+    try {
+      const res = await fetch('/api/models', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || '请求失败');
+      }
+      setIsModelModalOpen(false);
+      mutateModels();
+    } catch (err: any) {
+      alert(`保存失败: ${err.message}`);
+    }
   };
 
   // --- ENDPOINT HANDLERS ---
@@ -149,14 +156,21 @@ export default function ModelsPage() {
       data: endpointFormData
     };
 
-    await fetch('/api/endpoints', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    setIsEndpointModalOpen(false);
-    mutateEndpoints();
+    try {
+      const res = await fetch('/api/endpoints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || '请求失败');
+      }
+      setIsEndpointModalOpen(false);
+      mutateEndpoints();
+    } catch (err: any) {
+      alert(`保存失败: ${err.message}`);
+    }
   };
 
   if (modelsLoading || endpointsLoading) return (
