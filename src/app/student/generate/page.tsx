@@ -382,7 +382,7 @@ export default function GenerateChatPage() {
         .chat-layout {
           display: flex;
           flex-direction: column;
-          height: calc(100vh - 48px);
+          height: 100%;
           max-width: 800px;
           margin: 0 auto;
           position: relative;
