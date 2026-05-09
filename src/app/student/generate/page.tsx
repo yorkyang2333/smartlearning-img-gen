@@ -1,39 +1,58 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function GeneratePage() {
-  const [activeTab, setActiveTab] = useState<'t2i' | 'i2i'>('t2i');
+type Message = {
+  id: string;
+  role: 'user' | 'agent';
+  content?: string;
+  image?: string;
+  progress?: number;
+  loadingText?: string;
+  timeMs?: number;
+};
+
+export default function GenerateChatPage() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: 'welcome',
+      role: 'agent',
+      content: '您好，我是您的视觉创作助手。请描述您想要生成的画面。您也可以在底部调整生成参数。'
+    }
+  ]);
   
-  // Form state
   const [prompt, setPrompt] = useState('');
+  const [activeTab, setActiveTab] = useState<'t2i' | 'i2i'>('t2i');
   const [modelId, setModelId] = useState('');
   const [size, setSize] = useState('1024x1024');
   const [n, setN] = useState(1);
   const [image, setImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  
-  // Result state
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [resultImage, setResultImage] = useState('');
-  const [generationTime, setGenerationTime] = useState<number | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
-  // Fetch allowed models
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   const { data: modelsResponse, isLoading: modelsLoading } = useSWR('/api/student-models', fetcher);
   const models = modelsResponse?.data || [];
 
-  // Filter models based on active tab
   const availableModels = models.filter((m: any) => {
      if (activeTab === 't2i') return m.type === 'TEXT_TO_IMAGE' || m.type === 'BOTH';
      if (activeTab === 'i2i') return m.type === 'IMAGE_TO_IMAGE' || m.type === 'BOTH';
      return false;
   });
 
-  // Set default model when available models change
   useEffect(() => {
     if (availableModels.length > 0 && !availableModels.find((m:any) => m.modelId === modelId)) {
       setModelId(availableModels[0].modelId);
@@ -51,34 +70,57 @@ export default function GeneratePage() {
     }
   };
 
-  const handleGenerate = async () => {
-    if (!prompt) {
-      setError('请输入提示词');
-      return;
-    }
-
+  const handleSend = async () => {
+    if (!prompt.trim() && !image) return;
     if (activeTab === 'i2i' && !image) {
-      setError('请上传参考图片');
+      alert('图生图模式下请先上传参考图片。');
       return;
     }
 
-    setLoading(true);
-    setError('');
-    setResultImage('');
-    setGenerationTime(null);
+    const currentPrompt = prompt;
+    setPrompt('');
+    
+    // Add User Message
+    const userMsgId = Date.now().toString();
+    setMessages(prev => [...prev, {
+      id: userMsgId,
+      role: 'user',
+      content: currentPrompt,
+      image: imagePreview || undefined
+    }]);
+
+    setIsGenerating(true);
+    
+    // Add Agent Loading Message
+    const agentMsgId = (Date.now() + 1).toString();
+    setMessages(prev => [...prev, {
+      id: agentMsgId,
+      role: 'agent',
+      progress: 0,
+      loadingText: '正在构思视觉元素...'
+    }]);
+
+    // Simulate progress
+    let currentProgress = 0;
+    const progressInterval = setInterval(() => {
+      currentProgress += (90 - currentProgress) * 0.1;
+      if (currentProgress > 90) currentProgress = 90;
+      setMessages(prev => prev.map(msg => 
+        msg.id === agentMsgId ? { ...msg, progress: currentProgress } : msg
+      ));
+    }, 500);
 
     try {
       const endpoint = activeTab === 't2i' ? '/api/generate/text-to-image' : '/api/generate/image-to-image';
-      
       let body: string | FormData;
       let headers: HeadersInit = {};
 
       if (activeTab === 't2i') {
-        body = JSON.stringify({ prompt, modelId, size, n });
+        body = JSON.stringify({ prompt: currentPrompt, modelId, size, n });
         headers['Content-Type'] = 'application/json';
       } else {
         const formData = new FormData();
-        formData.append('prompt', prompt);
+        formData.append('prompt', currentPrompt);
         formData.append('modelId', modelId);
         formData.append('size', size);
         formData.append('image', image as File);
@@ -92,523 +134,527 @@ export default function GeneratePage() {
       });
 
       const data = await res.json();
+      clearInterval(progressInterval);
 
       if (!res.ok || data.error) {
         throw new Error(data.error || '生成失败');
       }
 
-      setResultImage(data.rawUrl);
-      setGenerationTime(data.data.durationMs);
+      // Update agent message with success
+      setMessages(prev => prev.map(msg => 
+        msg.id === agentMsgId ? { 
+          ...msg, 
+          progress: 100, 
+          loadingText: undefined,
+          image: data.rawUrl,
+          timeMs: data.data?.durationMs
+        } : msg
+      ));
+
     } catch (err: any) {
-      setError(err.message);
+      clearInterval(progressInterval);
+      setMessages(prev => prev.map(msg => 
+        msg.id === agentMsgId ? { 
+          ...msg, 
+          progress: undefined,
+          loadingText: undefined,
+          content: `生成出错: ${err.message}`
+        } : msg
+      ));
     } finally {
-      setLoading(false);
+      setIsGenerating(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!isGenerating) {
+        handleSend();
+      }
     }
   };
 
   return (
-    <div className="page-container">
-      {/* Editorial Hero Header */}
-      <div className="hero-band">
-        <h1 className="hero-title">创作中心</h1>
-        <p className="hero-subtitle">在此描述您的想法，AI 将为您呈现惊艳的视觉画面。</p>
+    <div className="chat-layout">
+      {/* Messages Area */}
+      <div className="messages-container">
+        <div className="messages-list">
+          {messages.map((msg) => (
+            <div key={msg.id} className={`message-row ${msg.role}`}>
+              <div className="message-avatar">
+                {msg.role === 'agent' ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                ) : (
+                  <div className="user-avatar-placeholder">U</div>
+                )}
+              </div>
+              
+              <div className="message-content">
+                <div className="message-sender">{msg.role === 'agent' ? 'AI 助手' : '您'}</div>
+                
+                {/* Agent Loading State */}
+                {msg.progress !== undefined && msg.progress < 100 && (
+                  <div className="loading-container">
+                     <div className="progress-bar-bg">
+                        <div className="progress-bar-fill" style={{ width: `${msg.progress}%` }}></div>
+                     </div>
+                     <div className="loading-text">
+                        <span className="status-indicator active"></span>
+                        {msg.loadingText} {Math.floor(msg.progress)}%
+                     </div>
+                  </div>
+                )}
+
+                {/* Text Content */}
+                {msg.content && (
+                  <div className={`bubble ${msg.role === 'user' ? 'bubble-user' : 'bubble-agent'}`}>
+                    {msg.content}
+                  </div>
+                )}
+
+                {/* Image Content */}
+                {msg.image && msg.role === 'agent' && (
+                  <div className="image-result-card">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={msg.image} alt="Generated result" className="generated-image" />
+                    {msg.timeMs && (
+                      <div className="image-meta">
+                        用时: {(msg.timeMs / 1000).toFixed(2)}s
+                        <a href={msg.image} download="ai-generation.png" target="_blank" className="download-btn" rel="noreferrer">
+                          下载大图
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* User Reference Image */}
+                {msg.image && msg.role === 'user' && (
+                  <div className="user-ref-image">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={msg.image} alt="Reference" className="ref-image" />
+                    <span className="ref-label">参考图片</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
       </div>
 
-      <div className="content-grid">
-        {/* 左侧控制区: Feature Card Style */}
-        <div className="control-card">
+      {/* Bottom Input Area */}
+      <div className="input-area-container">
+        <div className="input-card">
           
-          {/* Tabs: Category Tab Style */}
-          <div className="category-tabs">
-            <button 
-              className={`category-tab ${activeTab === 't2i' ? 'active' : ''}`}
-              onClick={() => setActiveTab('t2i')}
-            >
-              文生图
-            </button>
-            <button 
-              className={`category-tab ${activeTab === 'i2i' ? 'active' : ''}`}
-              onClick={() => setActiveTab('i2i')}
-            >
-              图生图
+          {/* Settings Bar */}
+          <div className="settings-bar">
+            <div className="category-tabs">
+              <button className={`category-tab ${activeTab === 't2i' ? 'active' : ''}`} onClick={() => setActiveTab('t2i')}>文生图</button>
+              <button className={`category-tab ${activeTab === 'i2i' ? 'active' : ''}`} onClick={() => setActiveTab('i2i')}>图生图</button>
+            </div>
+            
+            <button className="settings-toggle" onClick={() => setShowSettings(!showSettings)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              参数设置
             </button>
           </div>
 
-          <div className="form-group mt-6">
-            <label className="form-label">模型</label>
-            {modelsLoading ? (
-              <div className="skeleton-input" />
-            ) : (
-              <div className="select-wrapper">
-                <select className="text-input" value={modelId} onChange={(e) => setModelId(e.target.value)}>
-                  {availableModels.map((m: any) => (
-                    <option key={m.id} value={m.modelId}>{m.name}</option>
-                  ))}
-                </select>
-                <svg className="select-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              </div>
-            )}
-          </div>
-
-          <div className="flex-row">
-            {config.sizes && (
-              <div className="form-group" style={{ flex: 1 }}>
-                <label className="form-label">尺寸</label>
-                <div className="select-wrapper">
-                  <select className="text-input" value={size} onChange={(e) => setSize(e.target.value)}>
-                    {config.sizes.map((s: string) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
+          {showSettings && (
+            <div className="settings-panel">
+              <div className="settings-row">
+                <div className="form-group flex-1">
+                  <label className="form-label">模型</label>
+                  <select className="text-input text-input-sm" value={modelId} onChange={(e) => setModelId(e.target.value)}>
+                    {availableModels.map((m: any) => <option key={m.id} value={m.modelId}>{m.name}</option>)}
                   </select>
-                  <svg className="select-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </div>
+                {config.sizes && (
+                  <div className="form-group flex-1">
+                    <label className="form-label">尺寸</label>
+                    <select className="text-input text-input-sm" value={size} onChange={(e) => setSize(e.target.value)}>
+                      {config.sizes.map((s: string) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
-            )}
-
-            {config.supportsN && (
-              <div className="form-group" style={{ flex: 1 }}>
-                 <label className="form-label">数量</label>
-                 <input className="text-input" type="number" min="1" max={config.maxN || 4} value={n} onChange={(e) => setN(parseInt(e.target.value))} />
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {activeTab === 'i2i' && (
-            <div className="form-group">
-               <label className="form-label">参考图片</label>
-               <div className="upload-dropzone">
-                  <input type="file" accept="image/*" onChange={handleImageChange} id="image-upload" className="hidden-input" />
-                  <label htmlFor="image-upload" className="upload-label">
-                     {imagePreview ? (
-                        <div className="preview-container">
-                          <img src={imagePreview} alt="Preview" className="image-preview" />
-                          <div className="preview-overlay">点击更换</div>
-                        </div>
-                     ) : (
-                        <div className="upload-placeholder">
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '8px', color: 'var(--muted)' }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                          <p className="upload-text">点击上传图片</p>
-                        </div>
-                     )}
-                  </label>
-               </div>
-            </div>
+             <div className="image-upload-row">
+                <input type="file" accept="image/*" onChange={handleImageChange} id="image-upload-chat" className="hidden-input" />
+                <label htmlFor="image-upload-chat" className="upload-pill">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  {image ? '已选参考图 (点击更换)' : '添加参考图'}
+                </label>
+                {imagePreview && (
+                   // eslint-disable-next-line @next/next/no-img-element
+                   <img src={imagePreview} alt="thumb" className="upload-thumb" />
+                )}
+             </div>
           )}
 
-          <div className="form-group">
-            <label className="form-label">
-               {activeTab === 't2i' ? '提示词' : '编辑指令'}
-            </label>
-            <textarea 
-              className="text-input textarea-input"
-              value={prompt} 
-              onChange={(e) => setPrompt(e.target.value)} 
-              rows={5} 
-              placeholder="详细描述画面..."
+          <div className="input-row">
+            <textarea
+              className="chat-textarea"
+              placeholder="发送给 AI 助手..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={1}
             />
+            <button 
+              className="send-btn" 
+              onClick={handleSend}
+              disabled={isGenerating || (!prompt.trim() && !image)}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
           </div>
-
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
-
-          <div className="spacer"></div>
-
-          <button 
-            className="button-primary" 
-            onClick={handleGenerate}
-            disabled={loading || modelsLoading || availableModels.length === 0}
-          >
-            {loading ? '生成中...' : '开始生成'}
-          </button>
         </div>
-
-        {/* 右侧结果区: Product Mockup Card Dark Style */}
-        <div className="mockup-card-dark">
-           <div className="mockup-header">
-             <h2 className="mockup-title">终端输出</h2>
-             {generationTime && (
-               <span className="generation-badge">
-                 {(generationTime / 1000).toFixed(2)}s
-               </span>
-             )}
-           </div>
-           
-           <div className="mockup-content">
-              {loading ? (
-                 <div className="loading-state">
-                    <div className="status-indicator active"></div>
-                    <p className="loading-text">正在处理生成请求...</p>
-                 </div>
-              ) : resultImage ? (
-                 <div className="result-image-wrapper fade-in">
-                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                   <img src={resultImage} alt="Generated" className="result-img" />
-                   <div className="result-actions">
-                     <a href={resultImage} download="generated-image.png" target="_blank" className="button-secondary-on-dark" rel="noreferrer">
-                       保存图片
-                     </a>
-                   </div>
-                 </div>
-              ) : (
-                 <div className="empty-state">
-                    <div className="status-indicator"></div>
-                    <p className="empty-text">系统就绪，等待指令输入</p>
-                 </div>
-              )}
-           </div>
-        </div>
+        <div className="disclaimer">AI 可能生成不准确的图像。请在分享前核实。</div>
       </div>
 
       <style jsx>{`
-        .page-container {
-          max-width: 1200px;
+        .chat-layout {
+          display: flex;
+          flex-direction: column;
+          height: calc(100vh - 48px);
+          max-width: 900px;
           margin: 0 auto;
-          display: flex;
-          flex-direction: column;
-          gap: var(--spacing-xl, 32px);
-          padding-bottom: 96px;
-        }
-
-        .hero-band {
-          padding-top: 48px;
-          padding-bottom: 24px;
-        }
-
-        .hero-title {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: 48px;
-          font-weight: 400;
-          line-height: 1.1;
-          letter-spacing: -1px;
-          color: var(--ink);
-          margin-bottom: 16px;
-        }
-
-        .hero-subtitle {
-          font-size: 18px;
-          color: var(--body-strong);
-          font-weight: 400;
-        }
-
-        .content-grid {
-          display: flex;
-          gap: 32px;
-          min-height: calc(100vh - 250px);
-        }
-
-        .control-card {
-          flex: 0 0 380px;
-          background: var(--surface-card);
-          border-radius: var(--radius-lg, 12px);
-          padding: 32px;
-          display: flex;
-          flex-direction: column;
-          height: fit-content;
-        }
-
-        .mockup-card-dark {
-          flex: 1;
-          background: var(--surface-dark);
-          border-radius: var(--radius-lg, 12px);
-          padding: 32px;
-          display: flex;
-          flex-direction: column;
-          min-height: 600px;
-        }
-
-        /* Category Tabs */
-        .category-tabs {
-          display: flex;
-          gap: 8px;
-          margin-bottom: 8px;
-        }
-
-        .category-tab {
-          background: transparent;
-          color: var(--muted);
-          font-size: 14px;
-          font-weight: 500;
-          padding: 8px 14px;
-          border-radius: var(--radius-md, 8px);
-          transition: background 0.2s, color 0.2s;
-        }
-
-        .category-tab:hover {
-          color: var(--ink);
-        }
-
-        .category-tab.active {
-          background: var(--canvas);
-          color: var(--ink);
-        }
-
-        .mt-6 { margin-top: 24px; }
-        .flex-row { display: flex; gap: 16px; }
-        .spacer { flex: 1; min-height: 24px; }
-
-        /* Forms */
-        .form-group {
-          margin-bottom: 20px;
-        }
-
-        .form-label {
-          display: block;
-          font-size: 14px;
-          font-weight: 500;
-          color: var(--ink);
-          margin-bottom: 8px;
-        }
-
-        .select-wrapper {
           position: relative;
         }
 
-        .select-icon {
-          position: absolute;
-          right: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--muted);
-          pointer-events: none;
+        .messages-container {
+          flex: 1;
+          overflow-y: auto;
+          padding: 24px 24px 140px 24px;
         }
 
-        .text-input {
-          width: 100%;
-          background: var(--canvas);
-          border: 1px solid var(--hairline);
-          border-radius: var(--radius-md, 8px);
-          padding: 10px 14px;
-          font-size: 16px;
+        .messages-list {
+          display: flex;
+          flex-direction: column;
+          gap: 32px;
+        }
+
+        .message-row {
+          display: flex;
+          gap: 16px;
+        }
+
+        .message-avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: var(--radius-sm);
+          background: var(--surface-card);
+          display: flex;
+          align-items: center;
+          justify-content: center;
           color: var(--ink);
-          height: 40px;
-          transition: border-color 0.2s;
-          appearance: none;
+          flex-shrink: 0;
         }
 
-        .text-input:focus {
-          border-color: var(--primary);
-          outline: none;
+        .user-avatar-placeholder {
+          font-family: var(--font-inter);
+          font-weight: 500;
         }
 
-        .textarea-input {
-          height: auto;
-          resize: none;
-          line-height: 1.55;
+        .message-content {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
         }
 
-        /* Upload Dropzone */
-        .upload-dropzone {
-          border: 1px dashed var(--muted-soft);
-          border-radius: var(--radius-md, 8px);
-          background: var(--canvas);
-          transition: border-color 0.2s;
+        .message-sender {
+          font-weight: 600;
+          font-size: 14px;
+          color: var(--ink);
+        }
+
+        .bubble {
+          font-size: 16px;
+          line-height: 1.6;
+          color: var(--ink);
+        }
+
+        .bubble-user {
+          background: var(--surface-card);
+          padding: 12px 16px;
+          border-radius: var(--radius-lg);
+          border-top-left-radius: 4px;
+          display: inline-block;
+          max-width: fit-content;
+        }
+
+        .bubble-agent {
+          padding-top: 4px;
+        }
+
+        .loading-container {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          max-width: 300px;
+          margin-top: 8px;
+        }
+
+        .progress-bar-bg {
+          height: 4px;
+          background: var(--surface-card);
+          border-radius: 2px;
           overflow: hidden;
         }
 
-        .upload-dropzone:hover {
-          border-color: var(--primary);
+        .progress-bar-fill {
+          height: 100%;
+          background: var(--accent-teal);
+          border-radius: 2px;
+          transition: width 0.3s ease;
         }
 
-        .hidden-input { display: none; }
-        .upload-label { display: block; width: 100%; cursor: pointer; }
-
-        .upload-placeholder {
-          padding: 24px 16px;
-          text-align: center;
-        }
-
-        .upload-text {
-          font-size: 14px;
-          color: var(--ink);
-          font-weight: 500;
-        }
-
-        .preview-container {
-          position: relative;
-          width: 100%;
-          padding-top: 56.25%;
-        }
-
-        .image-preview {
-          position: absolute;
-          top: 0; left: 0; width: 100%; height: 100%;
-          object-fit: cover;
-        }
-
-        .preview-overlay {
-          position: absolute;
-          top: 0; left: 0; width: 100%; height: 100%;
-          background: rgba(20, 20, 19, 0.6);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          opacity: 0;
-          transition: opacity 0.2s;
-          color: var(--on-dark);
-          font-size: 14px;
-          font-weight: 500;
-        }
-
-        .preview-container:hover .preview-overlay { opacity: 1; }
-
-        /* Error Message */
-        .error-message {
-          color: var(--error);
-          font-size: 14px;
-          margin-bottom: 16px;
-        }
-
-        /* Buttons */
-        .button-primary {
-          width: 100%;
-          background: var(--primary);
-          color: var(--on-primary);
-          font-size: 14px;
-          font-weight: 500;
-          border-radius: var(--radius-md, 8px);
-          padding: 12px 20px;
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: background 0.2s;
-        }
-
-        .button-primary:hover:not(:disabled) {
-          background: var(--primary-active);
-        }
-
-        .button-primary:disabled {
-          background: var(--primary-disabled);
-          color: var(--muted);
-          cursor: not-allowed;
-        }
-
-        .button-secondary-on-dark {
-          background: var(--surface-dark-elevated);
-          color: var(--on-dark);
-          font-size: 14px;
-          font-weight: 500;
-          border-radius: var(--radius-md, 8px);
-          padding: 12px 20px;
-          transition: background 0.2s;
-        }
-        
-        .button-secondary-on-dark:hover {
-          background: #33302c; /* slightly lighter than elevated */
-        }
-
-        /* Result Area */
-        .mockup-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 24px;
-        }
-
-        .mockup-title {
-          font-family: 'Cormorant Garamond', serif;
-          font-size: 28px;
-          font-weight: 400;
-          color: var(--on-dark);
-          letter-spacing: -0.3px;
-          margin: 0;
-        }
-
-        .generation-badge {
-          background: var(--surface-dark-soft);
-          color: var(--on-dark-soft);
+        .loading-text {
           font-family: 'JetBrains Mono', monospace;
           font-size: 13px;
-          padding: 4px 12px;
-          border-radius: var(--radius-pill, 9999px);
-        }
-
-        .mockup-content {
-          flex: 1;
-          background: var(--surface-dark-soft);
-          border-radius: var(--radius-lg, 12px);
+          color: var(--muted);
           display: flex;
           align-items: center;
-          justify-content: center;
-          position: relative;
-          overflow: hidden;
-          padding: 24px;
-        }
-
-        .status-indicator {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: var(--muted);
-          margin-right: 8px;
-          display: inline-block;
-        }
-        
-        .status-indicator.active {
-          background: var(--accent-teal);
-          box-shadow: 0 0 8px var(--accent-teal);
-          animation: blink 1.5s infinite;
-        }
-
-        .empty-state, .loading-state {
-          display: flex;
-          align-items: center;
-          color: var(--on-dark-soft);
-          font-family: 'JetBrains Mono', monospace;
-          font-size: 14px;
-        }
-
-        .result-image-wrapper {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .result-img {
-          max-width: 100%;
-          max-height: 100%;
-          object-fit: contain;
-          border-radius: var(--radius-md, 8px);
-        }
-
-        .result-actions {
-          position: absolute;
-          bottom: 16px;
-          right: 16px;
-          opacity: 0;
-          transition: opacity 0.3s;
-        }
-
-        .result-image-wrapper:hover .result-actions {
-          opacity: 1;
-        }
-
-        .skeleton-input {
-          height: 40px;
-          border-radius: var(--radius-md, 8px);
-          background: var(--hairline);
+          gap: 6px;
           animation: pulse 1.5s infinite;
         }
 
-        /* Animations */
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        .fade-in { animation: fadeIn 0.4s ease forwards; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        /* Responsive */
-        @media (max-width: 900px) {
-          .content-grid { flex-direction: column; }
-          .control-card { flex: none; width: 100%; }
-          .mockup-card-dark { min-height: 400px; }
+        .status-indicator {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: var(--muted);
         }
+
+        .status-indicator.active {
+          background: var(--accent-teal);
+          box-shadow: 0 0 6px var(--accent-teal);
+        }
+
+        .image-result-card {
+          margin-top: 8px;
+          background: var(--surface-dark);
+          padding: 16px;
+          border-radius: var(--radius-lg);
+          display: inline-block;
+        }
+
+        .generated-image {
+          max-width: 100%;
+          border-radius: var(--radius-md);
+        }
+
+        .image-meta {
+          margin-top: 12px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-family: 'JetBrains Mono', monospace;
+          font-size: 13px;
+          color: var(--on-dark-soft);
+        }
+
+        .download-btn {
+          color: var(--on-dark);
+          background: var(--surface-dark-elevated);
+          padding: 4px 12px;
+          border-radius: var(--radius-sm);
+          text-decoration: none;
+          transition: background 0.2s;
+        }
+        
+        .download-btn:hover { background: #33302c; }
+
+        .user-ref-image {
+          margin-top: 8px;
+          position: relative;
+          display: inline-block;
+        }
+
+        .ref-image {
+          height: 120px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--hairline);
+        }
+
+        .ref-label {
+          position: absolute;
+          bottom: 8px;
+          left: 8px;
+          background: rgba(20,20,19,0.7);
+          color: white;
+          font-size: 11px;
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+
+        /* Input Area */
+        .input-area-container {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          padding: 24px;
+          background: linear-gradient(to top, var(--canvas) 80%, transparent);
+        }
+
+        .input-card {
+          background: var(--surface-card);
+          border: 1px solid var(--hairline);
+          border-radius: var(--radius-lg);
+          padding: 12px;
+          box-shadow: 0 4px 20px rgba(20,20,19,0.04);
+        }
+
+        .settings-bar {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 12px;
+        }
+
+        .category-tabs {
+          display: flex;
+          gap: 4px;
+        }
+
+        .category-tab {
+          font-size: 13px;
+          padding: 4px 12px;
+          border-radius: var(--radius-sm);
+          color: var(--muted);
+        }
+
+        .category-tab:hover { color: var(--ink); }
+        .category-tab.active {
+          background: var(--canvas);
+          color: var(--ink);
+          font-weight: 500;
+        }
+
+        .settings-toggle {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 13px;
+          color: var(--muted);
+          padding: 4px 8px;
+          border-radius: var(--radius-sm);
+        }
+        
+        .settings-toggle:hover { background: var(--canvas); color: var(--ink); }
+
+        .settings-panel {
+          padding: 12px;
+          background: var(--canvas);
+          border-radius: var(--radius-md);
+          margin-bottom: 12px;
+        }
+
+        .settings-row {
+          display: flex;
+          gap: 16px;
+        }
+
+        .flex-1 { flex: 1; }
+
+        .form-label {
+          display: block;
+          font-size: 12px;
+          font-weight: 500;
+          color: var(--muted);
+          margin-bottom: 4px;
+        }
+
+        .text-input-sm {
+          height: 32px;
+          padding: 4px 8px;
+          font-size: 13px;
+        }
+
+        .input-row {
+          display: flex;
+          align-items: flex-end;
+          gap: 12px;
+          background: var(--canvas);
+          border: 1px solid var(--hairline);
+          border-radius: var(--radius-md);
+          padding: 8px 12px;
+        }
+
+        .chat-textarea {
+          flex: 1;
+          border: none;
+          background: transparent;
+          font-size: 15px;
+          color: var(--ink);
+          resize: none;
+          padding: 4px 0;
+          max-height: 200px;
+          outline: none;
+        }
+
+        .chat-textarea::placeholder { color: var(--muted-soft); }
+
+        .send-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: var(--radius-sm);
+          background: var(--primary);
+          color: var(--on-primary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background 0.2s;
+        }
+
+        .send-btn:hover:not(:disabled) { background: var(--primary-active); }
+        .send-btn:disabled { background: var(--primary-disabled); color: var(--muted); cursor: not-allowed; }
+
+        .image-upload-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 12px;
+        }
+
+        .hidden-input { display: none; }
+
+        .upload-pill {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 13px;
+          color: var(--ink);
+          background: var(--canvas);
+          border: 1px solid var(--hairline);
+          padding: 6px 12px;
+          border-radius: var(--radius-pill);
+          cursor: pointer;
+          transition: border-color 0.2s;
+        }
+
+        .upload-pill:hover { border-color: var(--primary); }
+
+        .upload-thumb {
+          height: 28px;
+          border-radius: 4px;
+          border: 1px solid var(--hairline);
+        }
+
+        .disclaimer {
+          text-align: center;
+          font-size: 12px;
+          color: var(--muted-soft);
+          margin-top: 12px;
+        }
+
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
       `}</style>
     </div>
   );
