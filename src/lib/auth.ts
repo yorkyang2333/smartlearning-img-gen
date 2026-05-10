@@ -24,6 +24,10 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        if (user.isActive === false) {
+          throw new Error('该账号已被停用，请联系您的老师');
+        }
+
         const isPasswordValid = await bcrypt.compare(credentials.password, user.passwordHash);
 
         if (!isPasswordValid) {

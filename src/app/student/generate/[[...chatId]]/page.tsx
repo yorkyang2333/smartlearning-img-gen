@@ -711,7 +711,7 @@ export default function WorkspacePage() {
 
         /* Right Sidebar */
         .workspace-sidebar {
-          width: 380px;
+          width: 480px;
           flex-shrink: 0;
           display: flex;
           flex-direction: column;
@@ -735,7 +735,7 @@ export default function WorkspacePage() {
           display: flex;
           flex-direction: column;
           overflow: hidden;
-          width: 348px; 
+          width: 448px; 
           transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
@@ -867,7 +867,9 @@ export default function WorkspacePage() {
           overflow-y: auto;
         }
         
-        .sizes-menu { width: 100%; }
+        .sizes-menu { 
+          width: 200px; 
+        }
 
         @keyframes menuSlideDown {
           from { opacity: 0; transform: translateY(-8px) scale(0.98); }
@@ -930,6 +932,7 @@ export default function WorkspacePage() {
           display: flex;
           flex-direction: column;
           gap: 2px;
+          min-width: 0; /* allows text truncation if needed */
         }
 
         .menu-item-name {
@@ -939,11 +942,13 @@ export default function WorkspacePage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
+          white-space: nowrap;
         }
 
         .menu-item-desc {
           font-size: 11px;
           color: var(--muted);
+          white-space: nowrap;
         }
 
         .check-icon {
