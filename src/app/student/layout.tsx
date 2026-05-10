@@ -46,6 +46,12 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           >
             个人画廊
           </Link>
+          <Link 
+            href="/student/assignments" 
+            className={`${styles.navItem} ${pathname.startsWith('/student/assignments') ? styles.active : ''}`}
+          >
+            📋 教学任务
+          </Link>
         </nav>
 
         <div className={styles.conversationsHeader}>

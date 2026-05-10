@@ -57,6 +57,23 @@ export async function POST(req: Request) {
          const teacherConfig = student.teacher.modelConfigs.find(c => c.modelId === model.id);
          if (teacherConfig && !teacherConfig.enabled) return NextResponse.json({ error: 'Model disabled by teacher' }, { status: 403 });
       }
+
+      // Quota Check
+      const quota = await prisma.quotaConfig.findUnique({ where: { teacherId: student.teacherId } });
+      if (quota) {
+        // Daily Limit
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const count = await prisma.generation.count({
+          where: {
+            userId: session.user.id,
+            createdAt: { gte: today }
+          }
+        });
+        if (count >= quota.dailyLimit) {
+          return NextResponse.json({ error: `已达到每日生成上限 (${quota.dailyLimit}次)` }, { status: 403 });
+        }
+      }
     }
 
     const startTime = Date.now();

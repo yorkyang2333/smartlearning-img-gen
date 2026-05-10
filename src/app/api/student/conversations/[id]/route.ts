@@ -38,12 +38,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       });
 
       // Agent message
+      let analysisResult = undefined;
+      let hasError = false;
+      if (gen.apiResponse) {
+         try {
+            const parsed = JSON.parse(gen.apiResponse);
+            if (parsed.analysis) analysisResult = parsed.analysis;
+            if (parsed.error || gen.apiResponse.includes('"error"')) hasError = true;
+         } catch (e) {
+            if (gen.apiResponse.includes('"error"')) hasError = true;
+         }
+      }
+
       messages.push({
         id: `a-${gen.id}`,
         role: 'agent',
         image: gen.outputImageUrl || undefined,
         timeMs: gen.durationMs || undefined,
-        content: gen.apiResponse && gen.apiResponse.includes('"error"') ? '生成出错' : undefined
+        content: hasError ? '生成出错' : undefined,
+        analysis: analysisResult
       });
     }
 

@@ -122,3 +122,50 @@ export async function imageToImage(params: ImageToImageParams): Promise<ApiClien
 
   return await res.json();
 }
+
+export async function analyzePromptWithGemini(prompt: string, apiUrl: string, apiKey: string) {
+  const baseUrl = getBaseUrl(apiUrl);
+  
+  const systemPrompt = `你是一个专业的 AI 图像生成提示词教学助手。
+学生刚用以下提示词生成了一张图片，请进行分析和优化。
+要求返回纯 JSON 格式数据，不要有任何 markdown 代码块标记，直接返回 JSON 对象：
+{
+  "optimized": "优化后的提示词（补充画面细节、光影、风格、构图等）",
+  "tips": [
+    { "dimension": "主体细节", "explanation": "..." },
+    { "dimension": "场景环境", "explanation": "..." },
+    { "dimension": "光影氛围", "explanation": "..." }
+  ]
+}
+注意：tips 数组长度保持在 3-4 个左右，针对学生原提示词缺失的维度进行指导。`;
+
+  const payload = {
+    model: 'gemini-3.1-flash-lite-preview', // 对应文档中的 Gemini 3.1 flash 文本模型
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `原提示词: "${prompt}"` }
+    ],
+    response_format: { type: "json_object" }
+  };
+
+  const res = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    throw new Error('Analysis API failed');
+  }
+
+  const data = await res.json();
+  const content = data.choices[0].message.content;
+  try {
+    return JSON.parse(content.replace(/```json/g, '').replace(/```/g, '').trim());
+  } catch (e) {
+    return null;
+  }
+}

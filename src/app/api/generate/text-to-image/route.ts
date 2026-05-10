@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { textToImage } from '@/lib/api-client';
+import { textToImage, analyzePromptWithGemini } from '@/lib/api-client';
 
 export async function POST(req: Request) {
   try {
@@ -63,20 +63,64 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Model not enabled by teacher' }, { status: 403 });
          }
       }
+
+      // Quota Check and Blocked Words Check
+      const quota = await prisma.quotaConfig.findUnique({ where: { teacherId: student.teacherId } });
+      if (quota) {
+        // Blocked words
+        if (quota.blockedWords) {
+          const blocked = JSON.parse(quota.blockedWords);
+          for (const word of blocked) {
+            if (prompt.toLowerCase().includes(word.toLowerCase())) {
+              return NextResponse.json({ error: `提示词包含不当内容 (${word})，请修改后重试。` }, { status: 400 });
+            }
+          }
+        }
+
+        // Daily Limit
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const count = await prisma.generation.count({
+          where: {
+            userId: session.user.id,
+            createdAt: { gte: today }
+          }
+        });
+        if (count >= quota.dailyLimit) {
+          return NextResponse.json({ error: `已达到每日生成上限 (${quota.dailyLimit}次)` }, { status: 403 });
+        }
+      }
     }
 
     const startTime = Date.now();
     
-    // Call API Endpoint
-    const response = await textToImage({
-      prompt,
-      model: modelId,
-      size,
-      n,
-      quality,
-      apiUrl: model.apiEndpoint.baseUrl,
-      apiKey: model.apiEndpoint.apiKey,
+    // Find a chat model to use for analysis (Prefer Gemini 3.1 flash or any gemini/gpt)
+    const chatModel = await prisma.model.findFirst({
+       where: { type: 'TEXT_TO_IMAGE', provider: 'gemini' }, // or any we can use for chat. We'll use the first available endpoint
+       include: { apiEndpoint: true }
     });
+    
+    let analysisPromise = Promise.resolve(null);
+    if (chatModel && chatModel.apiEndpoint) {
+       // We'll use this endpoint to analyze prompt parallel to image generation
+       analysisPromise = analyzePromptWithGemini(prompt, chatModel.apiEndpoint.baseUrl, chatModel.apiEndpoint.apiKey).catch(e => {
+          console.error("Prompt analysis failed:", e);
+          return null; // fallback gracefully
+       });
+    }
+
+    const [response, analysisResult] = await Promise.all([
+      textToImage({
+        prompt,
+        model: modelId,
+        size,
+        n,
+        quality,
+        apiUrl: model.apiEndpoint.baseUrl,
+        apiKey: model.apiEndpoint.apiKey,
+      }),
+      analysisPromise
+    ]);
 
     const durationMs = Date.now() - startTime;
 
@@ -130,11 +174,17 @@ export async function POST(req: Request) {
         quality,
         outputImageUrl,
         durationMs,
-        apiResponse: JSON.stringify(response),
+        apiResponse: JSON.stringify({ response, analysis: analysisResult }),
       }
     });
 
-    return NextResponse.json({ success: true, data: generation, rawUrl: outputImageUrl, conversationId: targetConversationId });
+    return NextResponse.json({ 
+      success: true, 
+      data: generation, 
+      rawUrl: outputImageUrl, 
+      conversationId: targetConversationId,
+      analysis: analysisResult 
+    });
   } catch (error: any) {
     console.error('Text to Image Error:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });

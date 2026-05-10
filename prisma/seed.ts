@@ -145,6 +145,59 @@ async function main() {
     },
   });
 
+  const admin = await prisma.user.findUnique({ where: { username: 'admin' } });
+
+  if (admin) {
+    console.log('Seeding default smart learning data...');
+    
+    // Default Quota
+    await prisma.quotaConfig.upsert({
+      where: { teacherId: admin.id },
+      update: {},
+      create: {
+        teacherId: admin.id,
+        dailyLimit: 20,
+        blockedWords: JSON.stringify(['血腥', '暴力', '色情', 'nsfw']),
+      }
+    });
+
+    // Default Templates
+    const templatesCount = await prisma.promptTemplate.count({ where: { teacherId: admin.id } });
+    if (templatesCount === 0) {
+      await prisma.promptTemplate.createMany({
+        data: [
+          {
+            teacherId: admin.id,
+            title: '基础风景构建',
+            category: '风景',
+            template: '一幅{季节}的{场景}风景画，天气是{天气}，采用{风格}风格，光线{光线}',
+            description: '帮助学生学习如何描述一个完整的自然场景'
+          },
+          {
+            teacherId: admin.id,
+            title: '人物肖像',
+            category: '人物',
+            template: '一位{外貌特征}的{职业/角色}，穿着{服装}，背景是{背景}，采用{摄影风格}，{光影特征}光影',
+            description: '用于训练细节描写和人物摄影风格'
+          }
+        ]
+      });
+    }
+
+    // Default Assignment
+    const assignmentsCount = await prisma.assignment.count({ where: { teacherId: admin.id } });
+    if (assignmentsCount === 0) {
+      await prisma.assignment.create({
+        data: {
+          teacherId: admin.id,
+          title: '第一次挑战：设计你的专属头像',
+          description: '请使用文生图功能，为自己设计一个独特的卡通头像。要求必须是正面、背景干净。',
+          requirements: JSON.stringify({ theme: '卡通头像', keywords: ['正面', '卡通', '干净背景'] }),
+        }
+      });
+    }
+  }
+
   console.log('Database seeded successfully!');
 }
 

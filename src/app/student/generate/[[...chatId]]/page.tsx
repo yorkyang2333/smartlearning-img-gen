@@ -14,6 +14,10 @@ type Message = {
   progress?: number;
   loadingText?: string;
   timeMs?: number;
+  analysis?: {
+    optimized: string;
+    tips: Array<{ dimension: string; explanation: string }>;
+  };
 };
 
 export default function GenerateChatPage() {
@@ -336,6 +340,42 @@ export default function GenerateChatPage() {
                         </a>
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Agent AI Analysis (Feature 7) */}
+                {msg.analysis && msg.role === 'agent' && (
+                  <div className="ai-analysis-card">
+                     <div className="analysis-header">
+                        <span className="analysis-icon">✨</span>
+                        <span className="analysis-title">提示词学习卡片</span>
+                     </div>
+                     
+                     <div className="analysis-section">
+                        <div className="section-title">优化建议:</div>
+                        <div className="optimized-prompt">{msg.analysis.optimized}</div>
+                     </div>
+
+                     <div className="analysis-section">
+                        <div className="section-title">💡 学习要点:</div>
+                        <ul className="learning-tips">
+                           {msg.analysis.tips.map((tip, idx) => (
+                              <li key={idx}>
+                                 <span className="tip-dimension">[{tip.dimension}]</span> {tip.explanation}
+                              </li>
+                           ))}
+                        </ul>
+                     </div>
+
+                     <button 
+                        className="retry-optimized-btn"
+                        onClick={() => {
+                           setPrompt(msg.analysis!.optimized);
+                           if (textareaRef.current) textareaRef.current.focus();
+                        }}
+                     >
+                        🔄 用优化提示词重试
+                     </button>
                   </div>
                 )}
 
@@ -844,6 +884,74 @@ export default function GenerateChatPage() {
           font-size: 12px;
           color: var(--muted-soft);
           margin-top: 12px;
+        }
+
+        /* AI Analysis Card */
+        .ai-analysis-card {
+          margin-top: 12px;
+          background: linear-gradient(135deg, rgba(204,120,92,0.05) 0%, rgba(204,120,92,0.1) 100%);
+          border: 1px solid rgba(204,120,92,0.2);
+          border-radius: var(--radius-lg);
+          padding: 16px;
+          font-family: var(--font-inter);
+          max-width: 450px;
+        }
+
+        .analysis-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+
+        .analysis-icon { font-size: 18px; }
+        .analysis-title { font-weight: 600; color: var(--coral); font-size: 15px; }
+
+        .analysis-section { margin-bottom: 12px; }
+        .section-title { font-size: 13px; color: var(--stone); margin-bottom: 6px; font-weight: 500; }
+        
+        .optimized-prompt {
+          background: white;
+          padding: 10px;
+          border-radius: var(--radius-md);
+          font-size: 14px;
+          color: var(--ink);
+          border: 1px solid var(--sand);
+          line-height: 1.5;
+        }
+
+        .learning-tips {
+          margin: 0;
+          padding: 0;
+          list-style: none;
+          font-size: 13px;
+          color: var(--ink);
+          line-height: 1.5;
+        }
+
+        .learning-tips li { margin-bottom: 6px; display: flex; align-items: flex-start; gap: 4px; }
+        .tip-dimension { color: var(--coral); font-weight: 500; flex-shrink: 0; }
+
+        .retry-optimized-btn {
+          width: 100%;
+          padding: 10px;
+          background: white;
+          border: 1px solid var(--coral);
+          color: var(--coral);
+          border-radius: var(--radius-md);
+          font-weight: 500;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .retry-optimized-btn:hover {
+          background: var(--coral);
+          color: white;
         }
 
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }

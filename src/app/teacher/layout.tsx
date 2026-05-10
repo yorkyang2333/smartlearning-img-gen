@@ -24,6 +24,12 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             工作台
           </Link>
           <Link 
+            href="/teacher/assignments" 
+            className={`${styles.navItem} ${pathname.startsWith('/teacher/assignments') ? styles.active : ''}`}
+          >
+            📋 教学任务
+          </Link>
+          <Link 
             href="/teacher/students" 
             className={`${styles.navItem} ${pathname === '/teacher/students' ? styles.active : ''}`}
           >
@@ -40,6 +46,12 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             className={`${styles.navItem} ${pathname === '/teacher/history' ? styles.active : ''}`}
           >
             生成记录
+          </Link>
+          <Link 
+            href="/teacher/live" 
+            className={`${styles.navItem} ${pathname === '/teacher/live' ? styles.active : ''}`}
+          >
+            📺 课堂直播
           </Link>
         </nav>
 
