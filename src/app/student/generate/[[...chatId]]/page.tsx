@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
+import { useParams, useRouter } from 'next/navigation';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -16,6 +17,10 @@ type Message = {
 };
 
 export default function GenerateChatPage() {
+  const params = useParams();
+  const router = useRouter();
+  const chatId = params?.chatId?.[0] || null;
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -23,6 +28,27 @@ export default function GenerateChatPage() {
       content: '您好，我是您的视觉创作助手。请在下方描述您想要的画面，或上传参考图片以进行图生图创作。'
     }
   ]);
+
+  // Fetch conversation history if chatId exists
+  useEffect(() => {
+    if (chatId) {
+      fetch(`/api/student/conversations/${chatId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.data && data.data.messages) {
+            setMessages(data.data.messages);
+          }
+        });
+    } else {
+      setMessages([
+        {
+          id: 'welcome',
+          role: 'agent',
+          content: '您好，我是您的视觉创作助手。请在下方描述您想要的画面，或上传参考图片以进行图生图创作。'
+        }
+      ]);
+    }
+  }, [chatId]);
   
   const [prompt, setPrompt] = useState('');
   const [modelId, setModelId] = useState('');
@@ -126,7 +152,9 @@ export default function GenerateChatPage() {
       let headers: HeadersInit = {};
 
       if (currentMode === 't2i') {
-        body = JSON.stringify({ prompt: currentPrompt, modelId, size, n });
+        const bodyObj: any = { prompt: currentPrompt, modelId, size, n };
+        if (chatId) bodyObj.conversationId = chatId;
+        body = JSON.stringify(bodyObj);
         headers['Content-Type'] = 'application/json';
       } else {
         const formData = new FormData();
@@ -134,6 +162,7 @@ export default function GenerateChatPage() {
         formData.append('modelId', modelId);
         formData.append('size', size);
         formData.append('image', image as File);
+        if (chatId) formData.append('conversationId', chatId);
         body = formData;
       }
 
@@ -160,6 +189,12 @@ export default function GenerateChatPage() {
           timeMs: data.data?.durationMs
         } : msg
       ));
+
+      // If new chat, redirect to the new chat URL to persist
+      if (!chatId && data.conversationId) {
+        // use shallow replace or router.push
+        router.push(`/student/generate/${data.conversationId}`);
+      }
 
     } catch (err: any) {
       clearInterval(progressInterval);

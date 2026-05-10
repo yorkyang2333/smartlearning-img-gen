@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { prompt, modelId, size, n, quality } = body;
+    const { prompt, modelId, size, n, quality, conversationId } = body;
 
     if (!prompt || !modelId) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -99,11 +99,31 @@ export async function POST(req: Request) {
        }
     }
 
+    // Handle conversation
+    let targetConversationId = conversationId;
+    if (!targetConversationId) {
+      // Create a new conversation using the prompt as the title (max 20 chars)
+      const newConversation = await prisma.conversation.create({
+        data: {
+          userId: session.user.id,
+          title: prompt.substring(0, 20) + (prompt.length > 20 ? '...' : ''),
+        }
+      });
+      targetConversationId = newConversation.id;
+    } else {
+      // Touch the conversation to update its updatedAt timestamp
+      await prisma.conversation.update({
+        where: { id: targetConversationId },
+        data: { updatedAt: new Date() }
+      });
+    }
+
     // Save generation to history
     const generation = await prisma.generation.create({
       data: {
         userId: session.user.id,
         modelId: model.id,
+        conversationId: targetConversationId,
         type: 'TEXT_TO_IMAGE',
         prompt,
         size,
@@ -114,7 +134,7 @@ export async function POST(req: Request) {
       }
     });
 
-    return NextResponse.json({ success: true, data: generation, rawUrl: outputImageUrl });
+    return NextResponse.json({ success: true, data: generation, rawUrl: outputImageUrl, conversationId: targetConversationId });
   } catch (error: any) {
     console.error('Text to Image Error:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });

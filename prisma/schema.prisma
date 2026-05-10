@@ -21,6 +21,7 @@ model User {
   students     User[]   @relation("TeacherStudents")
   
   generations  Generation[]
+  conversations Conversation[]
   modelConfigs TeacherModelConfig[]
   modelOverrides StudentModelOverride[]
 }
@@ -81,10 +82,23 @@ model Generation {
   quality        String?
   durationMs     Int?
   apiResponse    String?  // JSON string
+  conversationId String?
   createdAt      DateTime @default(now())
 
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  model Model @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  model        Model         @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String   @default("新对话")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  generations Generation[]
 }
 
 model ApiEndpoint {
