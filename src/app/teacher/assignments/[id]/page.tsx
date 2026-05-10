@@ -102,6 +102,12 @@ export default function TeacherAssignmentDetail() {
                   <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16, flex: 1 }}>
                      {sub.generation?.prompt}
                   </p>
+
+                  {sub.note && (
+                     <div style={{ background: 'var(--surface-cream-strong)', padding: '10px 12px', borderRadius: 8, fontSize: 13, color: 'var(--ink)', marginBottom: 16 }}>
+                        📝 备注：{sub.note}
+                     </div>
+                  )}
                   
                   {reviewingId === sub.id ? (
                      <div className="grading-panel">
