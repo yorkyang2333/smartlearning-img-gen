@@ -20,20 +20,23 @@ type Message = {
   };
 };
 
-export default function GenerateChatPage() {
+export default function WorkspacePage() {
   const params = useParams();
   const router = useRouter();
   const chatId = params?.chatId?.[0] || null;
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'agent',
-      content: '您好，我是您的视觉创作助手。请在下方描述您想要的画面，或上传参考图片以进行图生图创作。'
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [prompt, setPrompt] = useState('');
+  const [modelId, setModelId] = useState('');
+  const [size, setSize] = useState('1024x1024');
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [activeMsgId, setActiveMsgId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  // Fetch conversation history if chatId exists
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (chatId) {
       fetch(`/api/student/conversations/${chatId}`)
@@ -44,16 +47,9 @@ export default function GenerateChatPage() {
           }
         });
     } else {
-      setMessages([
-        {
-          id: 'welcome',
-          role: 'agent',
-          content: '您好，我是您的视觉创作助手。请在下方描述您想要的画面，或上传参考图片以进行图生图创作。'
-        }
-      ]);
+      setMessages([]);
     }
   }, [chatId]);
-  const [prompt, setPrompt] = useState('');
 
   // 恢复未发送的草稿
   useEffect(() => {
@@ -61,20 +57,9 @@ export default function GenerateChatPage() {
     const savedDraft = sessionStorage.getItem(draftKey);
     if (savedDraft) {
       setPrompt(savedDraft);
-      // 如果有保存的文本，让 textarea 自动调整高度
-      if (textareaRef.current) {
-        // 使用一个小的延时确保 DOM 已经更新
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
-          }
-        }, 0);
-      }
     }
   }, [chatId]);
 
-  // 当输入变化时保存草稿
   useEffect(() => {
     const draftKey = `draft_prompt_${chatId || 'new'}`;
     if (prompt) {
@@ -83,26 +68,8 @@ export default function GenerateChatPage() {
       sessionStorage.removeItem(draftKey);
     }
   }, [prompt, chatId]);
-  const [modelId, setModelId] = useState('');
-  const [size, setSize] = useState('1024x1024');
-  const [n, setN] = useState(1);
-  const [image, setImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-  const { data: modelsResponse, isLoading: modelsLoading } = useSWR('/api/student-models', fetcher);
+  const { data: modelsResponse } = useSWR('/api/student-models', fetcher);
   const models = modelsResponse?.data || [];
 
   const currentMode = image ? 'i2i' : 't2i';
@@ -139,10 +106,6 @@ export default function GenerateChatPage() {
     if (!prompt.trim() && !image) return;
 
     const currentPrompt = prompt;
-    setPrompt('');
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'; // Reset textarea height
-    }
     
     // Add User Message
     const userMsgId = Date.now().toString();
@@ -153,10 +116,8 @@ export default function GenerateChatPage() {
       image: imagePreview || undefined
     }]);
     
-    // Clear the current image preview from the input box once sent
     setImage(null);
     setImagePreview(null);
-
     setIsGenerating(true);
     
     // Add Agent Loading Message
@@ -167,16 +128,8 @@ export default function GenerateChatPage() {
       progress: 0,
       loadingText: '正在构思视觉元素...'
     }]);
-
-    // Simulate progress
-    let currentProgress = 0;
-    const progressInterval = setInterval(() => {
-      currentProgress += (90 - currentProgress) * 0.1;
-      if (currentProgress > 90) currentProgress = 90;
-      setMessages(prev => prev.map(msg => 
-        msg.id === agentMsgId ? { ...msg, progress: currentProgress } : msg
-      ));
-    }, 500);
+    
+    setActiveMsgId(agentMsgId);
 
     try {
       const endpoint = currentMode === 't2i' ? '/api/generate/text-to-image' : '/api/generate/image-to-image';
@@ -184,7 +137,7 @@ export default function GenerateChatPage() {
       let headers: HeadersInit = {};
 
       if (currentMode === 't2i') {
-        const bodyObj: any = { prompt: currentPrompt, modelId, size, n };
+        const bodyObj: any = { prompt: currentPrompt, modelId, size, n: 1 };
         if (chatId) bodyObj.conversationId = chatId;
         body = JSON.stringify(bodyObj);
         headers['Content-Type'] = 'application/json';
@@ -205,7 +158,6 @@ export default function GenerateChatPage() {
       });
 
       const data = await res.json();
-      clearInterval(progressInterval);
 
       if (!res.ok || data.error) {
         throw new Error(data.error || '生成失败');
@@ -218,18 +170,16 @@ export default function GenerateChatPage() {
           progress: 100, 
           loadingText: undefined,
           image: data.rawUrl,
-          timeMs: data.data?.durationMs
+          timeMs: data.data?.durationMs,
+          analysis: data.apiResponse ? data.apiResponse : undefined
         } : msg
       ));
 
-      // If new chat, redirect to the new chat URL to persist
       if (!chatId && data.conversationId) {
-        // use shallow replace or router.push
         router.push(`/student/generate/${data.conversationId}`);
       }
 
     } catch (err: any) {
-      clearInterval(progressInterval);
       setMessages(prev => prev.map(msg => 
         msg.id === agentMsgId ? { 
           ...msg, 
@@ -244,717 +194,606 @@ export default function GenerateChatPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      if (!isGenerating) {
-        handleSend();
-      }
+      if (!isGenerating) handleSend();
     }
-  };
-  
-  const handleTextareaInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setPrompt(e.target.value);
-    e.target.style.height = 'auto';
-    e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
   };
 
   const formatSize = (sizeStr: string) => {
     const ratioMap: Record<string, string> = {
-      '1024x1024': '1:1',
-      '512x512': '1:1',
-      '256x256': '1:1',
-      '1024x1792': '9:16',
-      '576x1024': '9:16',
-      '1792x1024': '16:9',
-      '1024x576': '16:9',
-      '768x1024': '3:4',
-      '1024x768': '4:3',
-      '1536x1024': '3:2',
-      '1024x1536': '2:3',
-      '512x1024': '1:2',
-      '1024x512': '2:1',
+      '1024x1024': '1:1', '512x512': '1:1', '1024x1792': '9:16',
+      '1792x1024': '16:9', '768x1024': '3:4', '1024x768': '4:3'
     };
     if (ratioMap[sizeStr]) return `${ratioMap[sizeStr]} (${sizeStr})`;
-    
-    const parts = sizeStr.split('x');
-    if (parts.length === 2) {
-      const w = parseInt(parts[0], 10);
-      const h = parseInt(parts[1], 10);
-      if (!isNaN(w) && !isNaN(h)) {
-        const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b);
-        const divisor = gcd(w, h);
-        return `${w/divisor}:${h/divisor} (${sizeStr})`;
-      }
-    }
     return sizeStr;
   };
 
+  const agentMessages = messages.filter(m => m.role === 'agent' && (m.image || m.progress !== undefined || m.content));
+  const activeMsg = agentMessages.find(m => m.id === activeMsgId) || agentMessages[agentMessages.length - 1];
+
   return (
-    <div className="chat-layout">
-      {/* Messages Area */}
-      <div className="messages-container">
-        <div className="messages-list">
-          {messages.map((msg) => (
-            <div key={msg.id} className={`message-row ${msg.role}`}>
-              <div className="message-avatar">
-                {msg.role === 'agent' ? (
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                ) : (
-                  <div className="user-avatar-placeholder">您</div>
-                )}
-              </div>
-              
-              <div className="message-content">
-                <div className="message-sender">{msg.role === 'agent' ? 'AI 视觉助手' : '我'}</div>
-                
-                {/* Agent Loading State */}
-                {msg.progress !== undefined && msg.progress < 100 && (
-                  <div className="loading-container">
-                     <div className="progress-bar-bg">
-                        <div className="progress-bar-fill" style={{ width: `${msg.progress}%` }}></div>
-                     </div>
-                     <div className="loading-text">
-                        <span className="status-indicator active"></span>
-                        {msg.loadingText} {Math.floor(msg.progress)}%
-                     </div>
+    <div className="workspace-layout">
+      {/* 区域 A/B: 左侧画板与历史记录 */}
+      <div className="canvas-area">
+        <div className="canvas-main">
+          {activeMsg ? (
+            <div className="canvas-content">
+              {activeMsg.progress !== undefined && activeMsg.progress < 100 ? (
+                <div className="generating-overlay">
+                  <div className="ai-loader">
+                    <div className="ai-loader-ring"></div>
+                    <div className="ai-loader-core"></div>
                   </div>
-                )}
-
-                {/* Text Content */}
-                {msg.content && (
-                  <div className={`bubble ${msg.role === 'user' ? 'bubble-user' : 'bubble-agent'}`}>
-                    {msg.content}
+                  <div className="loading-text">正在通过 {selectedModel?.name || 'AI'} 构思视觉元素...</div>
+                </div>
+              ) : activeMsg.image ? (
+                <div className="image-wrapper">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={activeMsg.image} alt="Generated" className="main-image" />
+                  <div className="image-actions">
+                    <a href={activeMsg.image} download="creation.png" target="_blank" rel="noreferrer" className="btn btn-secondary">
+                      ⬇ 下载大图
+                    </a>
                   </div>
-                )}
-
-                {/* Image Content */}
-                {msg.image && msg.role === 'agent' && (
-                  <div className="image-result-card">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={msg.image} alt="Generated result" className="generated-image" />
-                    {msg.timeMs && (
-                      <div className="image-meta">
-                        用时: {(msg.timeMs / 1000).toFixed(2)}s
-                        <a href={msg.image} download="ai-generation.png" target="_blank" className="download-btn" rel="noreferrer">
-                          下载大图
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Agent AI Analysis (Feature 7) */}
-                {msg.analysis && msg.role === 'agent' && (
-                  <div className="ai-analysis-card">
-                     <div className="analysis-header">
-                        <span className="analysis-icon">✨</span>
-                        <span className="analysis-title">提示词学习卡片</span>
-                     </div>
-                     
-                     <div className="analysis-section">
-                        <div className="section-title">优化建议:</div>
-                        <div className="optimized-prompt">{msg.analysis.optimized}</div>
-                     </div>
-
-                     <div className="analysis-section">
-                        <div className="section-title">💡 学习要点:</div>
-                        <ul className="learning-tips">
-                           {msg.analysis.tips.map((tip, idx) => (
-                              <li key={idx}>
-                                 <span className="tip-dimension">[{tip.dimension}]</span> {tip.explanation}
-                              </li>
-                           ))}
-                        </ul>
-                     </div>
-
-                     <button 
-                        className="retry-optimized-btn"
-                        onClick={() => {
-                           setPrompt(msg.analysis!.optimized);
-                           if (textareaRef.current) textareaRef.current.focus();
-                        }}
-                     >
-                        🔄 用优化提示词重试
-                     </button>
-                  </div>
-                )}
-
-                {/* User Reference Image */}
-                {msg.image && msg.role === 'user' && (
-                  <div className="user-ref-image">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={msg.image} alt="Reference" className="ref-image" />
-                    <span className="ref-label">参考图片</span>
-                  </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="error-state">
+                  <span className="error-icon">⚠️</span>
+                  <p>{activeMsg.content}</p>
+                </div>
+              )}
             </div>
-          ))}
-          <div ref={messagesEndRef} />
+          ) : (
+            <div className="empty-state">
+              <span className="empty-icon">✨</span>
+              <h2>开启智慧创作之旅</h2>
+              <p>在右侧输入提示词，体验 AI 导师辅助的学习过程</p>
+            </div>
+          )}
         </div>
+
+        {/* 底部历史记录缩略图 */}
+        {agentMessages.length > 0 && (
+          <div className="history-rail">
+            {agentMessages.map(msg => (
+              <div 
+                key={msg.id} 
+                onClick={() => setActiveMsgId(msg.id)}
+                className={`history-item ${activeMsgId === msg.id || (!activeMsgId && msg === agentMessages[agentMessages.length-1]) ? 'active' : ''}`}
+              >
+                {msg.progress !== undefined && msg.progress < 100 ? (
+                  <div className="history-loading">⌛</div>
+                ) : msg.image ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={msg.image} alt="history" />
+                ) : (
+                  <div className="history-error">!</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Bottom Input Area (ChatGPT Style) */}
-      <div className="input-area-container">
-        <div className="chat-input-wrapper">
+      {/* Divider / Toggle */}
+      <div className="layout-divider">
+        <button 
+          className="layout-toggle-btn" 
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          title={isSidebarOpen ? "收起右侧面板" : "展开右侧面板"}
+        >
+          {isSidebarOpen ? '▶' : '◀'}
+        </button>
+      </div>
+
+      {/* 区域 C: 右侧工作区 (工具台 + 智慧导师) */}
+      <div className={`workspace-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
+        <div className="sidebar-inner">
+          <div className="panel prompt-panel">
+            <h3 className="panel-title">创作参数</h3>
           
-          {/* Image Preview inside input if uploaded */}
           {imagePreview && (
-            <div className="input-image-preview">
-              <div className="preview-container">
-                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                 <img src={imagePreview} alt="upload preview" />
-                 <button className="remove-image-btn" onClick={removeImage}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                 </button>
-              </div>
+            <div className="image-preview-box">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={imagePreview} alt="preview" />
+              <button className="remove-btn" onClick={removeImage}>✕</button>
             </div>
           )}
 
           <textarea
-            ref={textareaRef}
-            className="chat-textarea"
-            placeholder="描述您想要的画面，或上传参考图片..."
+            className="prompt-textarea"
+            placeholder="描述您想要的画面细节..."
             value={prompt}
-            onChange={handleTextareaInput}
+            onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={handleKeyDown}
-            rows={1}
+            rows={4}
           />
-          
-          <div className="chat-controls-row">
-            <div className="controls-left">
-              {/* Add Image Button */}
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleImageChange} 
-                ref={fileInputRef} 
-                className="hidden-input" 
-              />
-              <button 
-                className="control-icon-btn" 
-                onClick={() => fileInputRef.current?.click()}
-                title="上传参考图片以开启图生图"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-              </button>
 
-              {/* Model Selector */}
-              <div className="inline-select-wrapper">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="inline-icon"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-                <span className="current-value-text">{availableModels.find((m:any) => m.modelId === modelId)?.name || '选择模型'}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="dropdown-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                <select className="hidden-select" value={modelId} onChange={(e) => setModelId(e.target.value)}>
-                  {availableModels.map((m: any) => <option key={m.id} value={m.modelId}>{m.name}</option>)}
+          <div className="controls-grid">
+            <div className="control-group">
+              <label>模型</label>
+              <select value={modelId} onChange={(e) => setModelId(e.target.value)} className="modern-select">
+                {availableModels.map((m: any) => <option key={m.modelId} value={m.modelId}>{m.name}</option>)}
+              </select>
+            </div>
+            
+            {config.sizes && config.sizes.length > 0 && (
+              <div className="control-group">
+                <label>尺寸</label>
+                <select value={size} onChange={(e) => setSize(e.target.value)} className="modern-select">
+                  {config.sizes.map((s: string) => <option key={s} value={s}>{formatSize(s)}</option>)}
                 </select>
               </div>
+            )}
+          </div>
 
-              {/* Size Selector (if config available) */}
-              {config.sizes && config.sizes.length > 0 && (
-                <div className="inline-select-wrapper">
-                  <span className="inline-label">尺寸</span>
-                  <span className="current-value-text">{formatSize(size)}</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="dropdown-arrow"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                  <select className="hidden-select" value={size} onChange={(e) => setSize(e.target.value)}>
-                    {config.sizes.map((s: string) => <option key={s} value={s}>{formatSize(s)}</option>)}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            <div className="controls-right">
-              {/* Send Button */}
-              <button 
-                className="send-circular-btn" 
-                onClick={handleSend}
-                disabled={isGenerating || (!prompt.trim() && !image)}
-              >
-                {isGenerating ? (
-                   <span className="status-indicator active" style={{ background: 'white', boxShadow: 'none' }}></span>
-                ) : (
-                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-                )}
-              </button>
-            </div>
+          <div className="action-row">
+            <input type="file" accept="image/*" onChange={handleImageChange} ref={fileInputRef} className="hidden-input" />
+            <button className="btn btn-secondary icon-btn" onClick={() => fileInputRef.current?.click()} title="上传参考图">
+              🖼️
+            </button>
+            <button className="btn btn-primary generate-btn" onClick={handleSend} disabled={isGenerating || (!prompt.trim() && !image)}>
+              {isGenerating ? '正在生成...' : '🚀 开始生成 (⌘+Enter)'}
+            </button>
           </div>
         </div>
-        <div className="disclaimer">AI 可能生成不准确的图像。请在分享前核实。</div>
+
+        <div className="panel tutor-panel">
+          <h3 className="panel-title">
+            <span className="tutor-icon">🤖</span> AI 智能导师
+          </h3>
+          
+          <div className="tutor-content">
+            {activeMsg?.analysis ? (
+              <div className="analysis-result">
+                <div className="optimized-box">
+                  <div className="box-header">✨ 优化建议</div>
+                  <p className="optimized-text">{activeMsg.analysis.optimized}</p>
+                  <button className="apply-btn" onClick={() => setPrompt(activeMsg.analysis.optimized)}>
+                    ⬇ 应用此提示词
+                  </button>
+                </div>
+                
+                <div className="tips-box">
+                  <div className="box-header">💡 维度解析</div>
+                  <div className="tips-list">
+                    {activeMsg.analysis.tips.map((tip, idx) => (
+                      <div key={idx} className="tip-item">
+                        <span className="tip-badge">{tip.dimension}</span>
+                        <span className="tip-text">{tip.explanation}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : activeMsg?.progress !== undefined && activeMsg?.progress < 100 ? (
+              <div className="tutor-loading-state">
+                <div className="pulse-dot"></div>
+                <p>导师正在分析您的提示词维度...</p>
+              </div>
+            ) : (
+              <div className="tutor-empty-state">
+                <p>生成作品后，导师将为您提供光影、构图等多维度的专业分析与建议。</p>
+              </div>
+            )}
+          </div>
+        </div>
+        </div>
       </div>
 
       <style jsx>{`
-        .chat-layout {
+        .workspace-layout {
           display: flex;
-          flex-direction: column;
-          height: 100%;
-          max-width: 800px;
-          margin: 0 auto;
-          position: relative;
-        }
-
-        .messages-container {
-          flex: 1;
-          overflow-y: auto;
-          padding: 24px 24px 160px 24px;
-        }
-
-        .messages-list {
-          display: flex;
-          flex-direction: column;
-          gap: 32px;
-        }
-
-        .message-row {
-          display: flex;
-          gap: 16px;
-        }
-
-        .message-avatar {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          border: 1px solid var(--hairline);
-          background: var(--canvas);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: var(--ink);
-          flex-shrink: 0;
-        }
-
-        .user-avatar-placeholder {
-          font-family: var(--font-inter);
-          font-weight: 500;
-          font-size: 13px;
-        }
-
-        .message-content {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          padding-top: 4px;
-        }
-
-        .message-sender {
-          font-family: var(--font-inter);
-          font-weight: 600;
-          font-size: 14px;
-          color: var(--ink);
-        }
-
-        .bubble {
-          font-family: var(--font-inter);
-          font-size: 15px;
-          line-height: 1.6;
-          color: var(--ink);
-        }
-
-        .bubble-user {
-          background: var(--surface-card);
-          padding: 12px 16px;
-          border-radius: var(--radius-lg);
-          border-top-left-radius: 4px;
-          display: inline-block;
-          max-width: fit-content;
-        }
-
-        .bubble-agent {
-          padding-top: 4px;
-        }
-
-        /* Loading state */
-        .loading-container {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-          max-width: 300px;
-          margin-top: 8px;
-        }
-
-        .progress-bar-bg {
-          height: 4px;
-          background: var(--hairline);
-          border-radius: 2px;
+          height: 100vh;
+          margin: -48px; /* 抵消 main-content 的 48px padding */
+          background: var(--surface-cream);
           overflow: hidden;
         }
 
-        .progress-bar-fill {
-          height: 100%;
-          background: var(--primary);
-          border-radius: 2px;
-          transition: width 0.3s ease;
+        /* Left Canvas */
+        .canvas-area {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          padding: 32px 16px 32px 32px;
+          min-width: 0;
+          transition: padding 0.3s;
         }
+
+        .layout-divider {
+          width: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          z-index: 10;
+        }
+
+        .layout-toggle-btn {
+          width: 16px;
+          height: 64px;
+          background: var(--surface-card);
+          border: 1px solid var(--hairline);
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--muted);
+          cursor: pointer;
+          font-size: 10px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+          transition: all 0.2s;
+        }
+
+        .layout-toggle-btn:hover {
+          background: var(--canvas);
+          color: var(--primary);
+          transform: scale(1.05);
+        }
+
+        .canvas-main {
+          flex: 1;
+          background: var(--canvas);
+          border-radius: 16px;
+          border: 1px solid var(--hairline);
+          box-shadow: 0 4px 24px rgba(0,0,0,0.02);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .canvas-content {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          padding: 32px;
+        }
+
+        .image-wrapper {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 16px;
+        }
+
+        .main-image {
+          max-width: 100%;
+          max-height: calc(100% - 60px);
+          object-fit: contain;
+          border-radius: 8px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+          animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.96); filter: blur(4px); }
+          to { opacity: 1; transform: scale(1); filter: blur(0); }
+        }
+
+        .generating-overlay {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 24px;
+        }
+
+        .ai-loader {
+          position: relative;
+          width: 64px;
+          height: 64px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .ai-loader-ring {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          border: 3px solid transparent;
+          border-top-color: var(--primary);
+          border-right-color: rgba(204, 120, 92, 0.3);
+          border-radius: 50%;
+          animation: spin 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+        }
+
+        .ai-loader-core {
+          width: 20px;
+          height: 20px;
+          background: var(--primary);
+          border-radius: 50%;
+          animation: pulse 2s ease-in-out infinite;
+          box-shadow: 0 0 20px rgba(204, 120, 92, 0.6);
+        }
+
+        @keyframes pulse {
+          0% { transform: scale(0.8); opacity: 0.5; }
+          50% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(0.8); opacity: 0.5; }
+        }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
 
         .loading-text {
           font-family: var(--font-mono);
-          font-size: 13px;
           color: var(--muted);
-          display: flex;
-          align-items: center;
-          gap: 6px;
+          font-size: 14px;
+          letter-spacing: 0.5px;
+          animation: blink 2s infinite;
         }
 
-        .status-indicator {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: var(--muted);
+        @keyframes blink {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
         }
 
-        .status-indicator.active {
-          background: var(--primary);
-          box-shadow: 0 0 6px rgba(204, 120, 92, 0.4);
-          animation: pulse 1.5s infinite;
-        }
-
-        /* Images */
-        .image-result-card {
-          margin-top: 8px;
-          background: var(--surface-card);
-          padding: 12px;
-          border-radius: var(--radius-lg);
-          border: 1px solid var(--hairline);
-          display: inline-block;
-        }
-
-        .generated-image {
-          max-width: 100%;
-          border-radius: var(--radius-md);
-        }
-
-        .image-meta {
-          margin-top: 12px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-family: var(--font-mono);
-          font-size: 13px;
+        .empty-state {
+          text-align: center;
           color: var(--muted);
-        }
-
-        .download-btn {
-          color: var(--ink);
-          background: var(--canvas);
-          border: 1px solid var(--hairline);
-          padding: 4px 12px;
-          border-radius: var(--radius-sm);
-          text-decoration: none;
-          transition: background 0.2s;
         }
         
-        .download-btn:hover { background: var(--surface-soft); }
+        .empty-icon { font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.5; }
 
-        .user-ref-image {
-          margin-top: 8px;
-          position: relative;
-          display: inline-block;
-        }
-
-        .ref-image {
-          height: 160px;
-          border-radius: var(--radius-md);
-          border: 1px solid var(--hairline);
-        }
-
-        .ref-label {
-          position: absolute;
-          bottom: 8px;
-          left: 8px;
-          background: rgba(20,20,19,0.7);
-          color: white;
-          font-size: 11px;
-          padding: 4px 8px;
-          border-radius: 6px;
-          backdrop-filter: blur(4px);
-        }
-
-        /* ChatGPT Style Input Area */
-        .input-area-container {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
+        .error-state {
+          color: var(--error);
+          text-align: center;
           padding: 24px;
-          background: linear-gradient(to top, var(--canvas) 70%, transparent);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+          background: rgba(220, 38, 38, 0.1);
+          border-radius: 8px;
         }
 
-        .chat-input-wrapper {
-          background: var(--canvas);
-          border: 1px solid var(--hairline);
-          border-radius: 24px;
-          width: 100%;
-          padding: 16px 16px 12px 16px;
-          box-shadow: 0 4px 24px rgba(0,0,0,0.03);
+        /* History Rail */
+        .history-rail {
+          height: 80px;
+          margin-top: 16px;
           display: flex;
-          flex-direction: column;
-          transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        
-        .chat-input-wrapper:focus-within {
-          border-color: var(--hairline-soft);
-          box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+          gap: 12px;
+          overflow-x: auto;
+          padding-bottom: 8px;
         }
 
-        .input-image-preview {
-          padding: 0 8px 8px 8px;
-        }
-        
-        .preview-container {
-          position: relative;
-          display: inline-block;
-        }
-        
-        .preview-container img {
-          height: 64px;
+        .history-item {
           width: 64px;
-          object-fit: cover;
-          border-radius: var(--radius-md);
-          border: 1px solid var(--hairline);
-        }
-        
-        .remove-image-btn {
-          position: absolute;
-          top: -6px;
-          right: -6px;
-          width: 20px;
-          height: 20px;
-          border-radius: 50%;
-          background: var(--ink);
-          color: white;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid var(--canvas);
+          height: 64px;
+          border-radius: 8px;
+          overflow: hidden;
           cursor: pointer;
-        }
-
-        .chat-textarea {
-          width: 100%;
-          border: none;
-          background: transparent;
-          font-family: var(--font-inter);
-          font-size: 15px;
-          line-height: 1.5;
-          color: var(--ink);
-          resize: none;
-          padding: 8px 8px 16px 8px;
-          min-height: 60px;
-          max-height: 200px;
-          outline: none;
-          margin-bottom: 8px;
-        }
-
-        .chat-textarea::placeholder { color: var(--muted-soft); }
-
-        .chat-controls-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0 4px;
-        }
-
-        .controls-left {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .controls-right {
-          display: flex;
-          align-items: center;
-        }
-
-        .hidden-input { display: none; }
-
-        .control-icon-btn {
-          width: 32px;
-          height: 32px;
+          border: 2px solid transparent;
+          opacity: 0.6;
+          transition: all 0.2s;
+          background: var(--canvas);
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 50%;
-          color: var(--muted);
-          transition: all 0.2s;
-        }
-        
-        .control-icon-btn:hover {
-          background: var(--surface-card);
-          color: var(--ink);
-        }
-
-        .control-text-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          height: 32px;
-          padding: 0 10px;
-          border-radius: 16px;
-          font-family: var(--font-inter);
-          font-size: 13px;
-          font-weight: 500;
-          color: var(--muted);
-          transition: all 0.2s;
-        }
-
-        .control-text-btn:hover { background: var(--surface-card); color: var(--ink); }
-        
-        .active-primary {
-          color: var(--primary);
-        }
-        
-        .active-primary:hover {
-          background: rgba(204, 120, 92, 0.08);
-          color: var(--primary);
-        }
-
-        .inline-select-wrapper {
-          display: flex;
-          align-items: center;
-          height: 32px;
-          padding: 0 10px 0 12px;
-          border-radius: 16px;
-          transition: background 0.2s;
-          color: var(--muted);
-          position: relative;
-        }
-
-        .inline-select-wrapper:hover {
-          background: var(--surface-card);
-          color: var(--ink);
-        }
-
-        .inline-icon { margin-right: 6px; flex-shrink: 0; }
-        .inline-label { font-size: 13px; font-weight: 500; margin-right: 6px; flex-shrink: 0; }
-        
-        .current-value-text {
-          font-family: var(--font-inter);
-          font-size: 13px;
-          font-weight: 500;
-          margin-right: 4px;
-          white-space: nowrap;
-          color: inherit;
-        }
-
-        .dropdown-arrow {
           flex-shrink: 0;
         }
 
-        .hidden-select {
-          position: absolute;
-          top: 0;
-          left: 0;
+        .history-item:hover { opacity: 1; }
+        .history-item.active {
+          border-color: var(--primary);
+          opacity: 1;
+        }
+
+        .history-item img {
           width: 100%;
           height: 100%;
-          opacity: 0;
-          cursor: pointer;
+          object-fit: cover;
         }
 
-        .send-circular-btn {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: var(--ink);
-          color: white;
+        /* Right Sidebar */
+        .workspace-sidebar {
+          width: 380px;
           display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: opacity 0.2s, transform 0.1s;
-        }
-
-        .send-circular-btn:hover:not(:disabled) {
-          opacity: 0.9;
+          flex-direction: column;
+          padding: 32px 32px 32px 0;
+          transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease, opacity 0.2s ease;
+          overflow: hidden;
         }
         
-        .send-circular-btn:active:not(:disabled) {
-          transform: scale(0.95);
+        .workspace-sidebar.closed {
+          width: 0;
+          padding: 32px 0;
+          opacity: 0;
+          pointer-events: none;
+        }
+        
+        .sidebar-inner {
+          flex: 1;
+          background: var(--canvas);
+          border-radius: 16px;
+          border: 1px solid var(--hairline);
+          box-shadow: 0 4px 24px rgba(0,0,0,0.02);
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          width: 348px; /* Fixed width to avoid squishing during transition */
         }
 
-        .send-circular-btn:disabled {
-          background: var(--hairline);
-          color: white;
-          cursor: not-allowed;
+        .panel {
+          padding: 24px;
+          display: flex;
+          flex-direction: column;
         }
 
-        .disclaimer {
-          text-align: center;
-          font-family: var(--font-inter);
-          font-size: 12px;
-          color: var(--muted-soft);
-          margin-top: 12px;
+        .prompt-panel {
+          border-bottom: 1px solid var(--hairline);
         }
 
-        /* AI Analysis Card */
-        .ai-analysis-card {
-          margin-top: 12px;
-          background: linear-gradient(135deg, rgba(204,120,92,0.05) 0%, rgba(204,120,92,0.1) 100%);
-          border: 1px solid rgba(204,120,92,0.2);
-          border-radius: var(--radius-lg);
-          padding: 16px;
-          font-family: var(--font-inter);
-          max-width: 450px;
+        .tutor-panel {
+          flex: 1;
+          background: var(--surface-cream-strong);
+          overflow-y: auto;
         }
 
-        .analysis-header {
+        .panel-title {
+          margin: 0 0 16px 0;
+          font-size: 16px;
           display: flex;
           align-items: center;
           gap: 8px;
+        }
+
+        .prompt-textarea {
+          width: 100%;
+          background: var(--surface-cream);
+          border: 1px solid var(--hairline);
+          border-radius: 8px;
+          padding: 12px;
+          font-family: var(--font-inter);
+          font-size: 14px;
+          resize: none;
+          margin-bottom: 16px;
+        }
+        
+        .prompt-textarea:focus {
+          outline: none;
+          border-color: var(--primary);
+          box-shadow: 0 0 0 2px rgba(204, 120, 92, 0.1);
+        }
+
+        .controls-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          margin-bottom: 16px;
+        }
+
+        .control-group label {
+          display: block;
+          font-size: 12px;
+          color: var(--muted);
+          margin-bottom: 4px;
+        }
+
+        .modern-select {
+          width: 100%;
+          padding: 8px;
+          border-radius: 6px;
+          border: 1px solid var(--hairline);
+          background: var(--canvas);
+          font-size: 13px;
+        }
+
+        .action-row {
+          display: flex;
+          gap: 12px;
+        }
+
+        .icon-btn { padding: 0 16px; }
+        .generate-btn { flex: 1; }
+
+        /* Tutor Content */
+        .optimized-box {
+          background: white;
+          border: 1px solid var(--primary);
+          border-radius: 8px;
+          padding: 16px;
+          margin-bottom: 16px;
+          box-shadow: 0 2px 12px rgba(204,120,92,0.1);
+        }
+
+        .box-header {
+          font-weight: 600;
+          font-size: 13px;
+          color: var(--primary);
+          margin-bottom: 8px;
+        }
+
+        .optimized-text {
+          font-size: 14px;
+          line-height: 1.5;
+          margin-bottom: 12px;
+          color: var(--ink);
+        }
+
+        .apply-btn {
+          background: var(--surface-soft);
+          border: none;
+          color: var(--ink);
+          font-size: 12px;
+          padding: 6px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          width: 100%;
+          transition: background 0.2s;
+        }
+
+        .apply-btn:hover { background: var(--hairline); }
+
+        .tips-box {
+          background: white;
+          border-radius: 8px;
+          padding: 16px;
+          border: 1px solid var(--hairline);
+        }
+
+        .tip-item {
+          margin-bottom: 12px;
+          font-size: 13px;
+          line-height: 1.5;
+        }
+        
+        .tip-item:last-child { margin-bottom: 0; }
+
+        .tip-badge {
+          display: inline-block;
+          background: var(--surface-cream);
+          color: var(--muted);
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 11px;
+          margin-right: 6px;
+          border: 1px solid var(--hairline);
+        }
+
+        .tutor-empty-state, .tutor-loading-state {
+          padding: 32px 16px;
+          text-align: center;
+          color: var(--muted);
+          font-size: 14px;
+          line-height: 1.6;
+        }
+
+        .hidden-input { display: none; }
+        
+        .image-preview-box {
+          position: relative;
+          display: inline-block;
           margin-bottom: 12px;
         }
-
-        .analysis-icon { font-size: 18px; }
-        .analysis-title { font-weight: 600; color: var(--coral); font-size: 15px; }
-
-        .analysis-section { margin-bottom: 12px; }
-        .section-title { font-size: 13px; color: var(--stone); margin-bottom: 6px; font-weight: 500; }
         
-        .optimized-prompt {
-          background: white;
-          padding: 10px;
-          border-radius: var(--radius-md);
-          font-size: 14px;
-          color: var(--ink);
-          border: 1px solid var(--sand);
-          line-height: 1.5;
+        .image-preview-box img {
+          height: 80px;
+          border-radius: 8px;
+          border: 1px solid var(--hairline);
         }
-
-        .learning-tips {
-          margin: 0;
-          padding: 0;
-          list-style: none;
-          font-size: 13px;
-          color: var(--ink);
-          line-height: 1.5;
-        }
-
-        .learning-tips li { margin-bottom: 6px; display: flex; align-items: flex-start; gap: 4px; }
-        .tip-dimension { color: var(--coral); font-weight: 500; flex-shrink: 0; }
-
-        .retry-optimized-btn {
-          width: 100%;
-          padding: 10px;
-          background: white;
-          border: 1px solid var(--coral);
-          color: var(--coral);
-          border-radius: var(--radius-md);
-          font-weight: 500;
-          font-size: 14px;
-          cursor: pointer;
-          transition: all 0.2s;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .retry-optimized-btn:hover {
-          background: var(--coral);
+        
+        .remove-btn {
+          position: absolute;
+          top: -8px;
+          right: -8px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: var(--ink);
           color: white;
+          border: none;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 12px;
         }
-
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
       `}</style>
     </div>
   );

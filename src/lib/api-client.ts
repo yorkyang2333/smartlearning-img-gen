@@ -25,7 +25,11 @@ export interface ApiClientResponse {
 }
 
 const getBaseUrl = (url: string) => {
-  return url.endsWith('/') ? url.slice(0, -1) : url;
+  let baseUrl = url.endsWith('/') ? url.slice(0, -1) : url;
+  if (baseUrl.endsWith('/v1')) {
+    baseUrl = baseUrl.slice(0, -3);
+  }
+  return baseUrl;
 };
 
 export async function textToImage(params: TextToImageParams): Promise<ApiClientResponse> {
@@ -37,32 +41,7 @@ export async function textToImage(params: TextToImageParams): Promise<ApiClientR
 
   const baseUrl = getBaseUrl(apiUrl);
 
-  // Handle models that use chat completions endpoint (e.g. Gemini, Deepseek, generic LLMs)
-  if (model.includes('gemini') || model.includes('gpt-') || model.includes('deepseek')) {
-    const payload = {
-      model,
-      messages: [{ role: 'user', content: prompt }],
-    };
-
-    const res = await fetch(`${baseUrl}/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`API Error ${res.status}: ${errorText}`);
-    }
-
-    const data = await res.json();
-    return data;
-  }
-
-  // Standard image generation endpoint (e.g. DALL-E, Midjourney via standard proxy)
+  // Standard image generation endpoint (e.g. DALL-E, GPT-Image, Gemini-Image)
   const payload: Record<string, any> = {
     prompt,
     model,
@@ -158,7 +137,8 @@ export async function analyzePromptWithGemini(prompt: string, apiUrl: string, ap
   });
 
   if (!res.ok) {
-    throw new Error('Analysis API failed');
+    const errorText = await res.text();
+    throw new Error(`Analysis API failed: ${errorText}`);
   }
 
   const data = await res.json();
