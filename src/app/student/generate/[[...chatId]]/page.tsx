@@ -49,8 +49,36 @@ export default function GenerateChatPage() {
       ]);
     }
   }, [chatId]);
-  
   const [prompt, setPrompt] = useState('');
+
+  // 恢复未发送的草稿
+  useEffect(() => {
+    const draftKey = `draft_prompt_${chatId || 'new'}`;
+    const savedDraft = sessionStorage.getItem(draftKey);
+    if (savedDraft) {
+      setPrompt(savedDraft);
+      // 如果有保存的文本，让 textarea 自动调整高度
+      if (textareaRef.current) {
+        // 使用一个小的延时确保 DOM 已经更新
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+          }
+        }, 0);
+      }
+    }
+  }, [chatId]);
+
+  // 当输入变化时保存草稿
+  useEffect(() => {
+    const draftKey = `draft_prompt_${chatId || 'new'}`;
+    if (prompt) {
+      sessionStorage.setItem(draftKey, prompt);
+    } else {
+      sessionStorage.removeItem(draftKey);
+    }
+  }, [prompt, chatId]);
   const [modelId, setModelId] = useState('');
   const [size, setSize] = useState('1024x1024');
   const [n, setN] = useState(1);
