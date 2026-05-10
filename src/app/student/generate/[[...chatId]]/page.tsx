@@ -33,9 +33,23 @@ export default function WorkspacePage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeMsgId, setActiveMsgId] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [sidebarMode, setSidebarMode] = useState<'half' | 'full'>('half');
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [sizeMenuOpen, setSizeMenuOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setModelMenuOpen(false);
+        setSizeMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (chatId) {
@@ -88,6 +102,41 @@ export default function WorkspacePage() {
 
   const selectedModel = availableModels.find((m: any) => m.modelId === modelId);
   const config = selectedModel ? JSON.parse(selectedModel.config) : {};
+
+  // 分组模型与元数据映射
+  const groupedModels = availableModels.reduce((acc: any, model: any) => {
+    let brand = '其他生态';
+    const name = model.name.toLowerCase();
+    if (name.includes('gpt') || name.includes('dall')) brand = 'OpenAI 系列';
+    else if (name.includes('gemini') || name.includes('google')) brand = 'Google 系列';
+    
+    if (!acc[brand]) acc[brand] = [];
+    acc[brand].push(model);
+    return acc;
+  }, {});
+
+  const getModelMeta = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes('dall-e 3')) return { icon: '✨', desc: '顶级语义理解，细节丰富' };
+    if (n.includes('dall-e 2')) return { icon: '🎨', desc: '经典画质，适合抽象风格' };
+    if (n.includes('gpt image 2')) return { icon: '⚡', desc: '快速生成，构图优秀' };
+    if (n.includes('gemini 3 pro')) return { icon: '🧠', desc: '多模态强，光影自然' };
+    if (n.includes('gemini 3.1')) return { icon: '🚀', desc: '极速出图，强劲性能' };
+    if (n.includes('gemini')) return { icon: '💎', desc: '高性价比，清晰锐利' };
+    return { icon: '📦', desc: '标准创作引擎' };
+  };
+
+  const getSizeMeta = (sizeStr: string) => {
+    const ratioMap: Record<string, { label: string, shape: React.CSSProperties }> = {
+      '1024x1024': { label: '1:1 正方形', shape: { width: 14, height: 14 } },
+      '512x512': { label: '1:1 小正方', shape: { width: 12, height: 12 } },
+      '1024x1792': { label: '9:16 手机竖屏', shape: { width: 9, height: 16 } },
+      '1792x1024': { label: '16:9 宽画幅', shape: { width: 16, height: 9 } },
+      '768x1024': { label: '3:4 经典竖版', shape: { width: 11, height: 15 } },
+      '1024x768': { label: '4:3 经典横版', shape: { width: 15, height: 11 } }
+    };
+    return ratioMap[sizeStr] || { label: sizeStr, shape: { width: 14, height: 14 } };
+  };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -200,22 +249,13 @@ export default function WorkspacePage() {
     }
   };
 
-  const formatSize = (sizeStr: string) => {
-    const ratioMap: Record<string, string> = {
-      '1024x1024': '1:1', '512x512': '1:1', '1024x1792': '9:16',
-      '1792x1024': '16:9', '768x1024': '3:4', '1024x768': '4:3'
-    };
-    if (ratioMap[sizeStr]) return `${ratioMap[sizeStr]} (${sizeStr})`;
-    return sizeStr;
-  };
-
   const agentMessages = messages.filter(m => m.role === 'agent' && (m.image || m.progress !== undefined || m.content));
   const activeMsg = agentMessages.find(m => m.id === activeMsgId) || agentMessages[agentMessages.length - 1];
 
   return (
     <div className="workspace-layout">
       {/* 区域 A/B: 左侧画板与历史记录 */}
-      <div className="canvas-area">
+      <div className={`canvas-area ${sidebarMode === 'full' ? 'hidden' : ''}`}>
         <div className="canvas-main">
           {activeMsg ? (
             <div className="canvas-content">
@@ -280,15 +320,15 @@ export default function WorkspacePage() {
       <div className="layout-divider">
         <button 
           className="layout-toggle-btn" 
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          title={isSidebarOpen ? "收起右侧面板" : "展开右侧面板"}
+          onClick={() => setSidebarMode(sidebarMode === 'half' ? 'full' : 'half')}
+          title={sidebarMode === 'half' ? "展开为全屏阅读" : "缩小为侧边栏"}
         >
-          {isSidebarOpen ? '▶' : '◀'}
+          {sidebarMode === 'half' ? '◀' : '▶'}
         </button>
       </div>
 
       {/* 区域 C: 右侧工作区 (工具台 + 智慧导师) */}
-      <div className={`workspace-sidebar ${isSidebarOpen ? 'open' : 'closed'}`}>
+      <div className={`workspace-sidebar ${sidebarMode}`}>
         <div className="sidebar-inner">
           <div className="panel prompt-panel">
             <h3 className="panel-title">创作参数</h3>
@@ -310,20 +350,89 @@ export default function WorkspacePage() {
             rows={4}
           />
 
-          <div className="controls-grid">
+          <div className="controls-grid" ref={dropdownRef}>
             <div className="control-group">
-              <label>模型</label>
-              <select value={modelId} onChange={(e) => setModelId(e.target.value)} className="modern-select">
-                {availableModels.map((m: any) => <option key={m.modelId} value={m.modelId}>{m.name}</option>)}
-              </select>
+              <label>生成模型</label>
+              <div className="custom-dropdown-container">
+                <div 
+                  className={`custom-dropdown-trigger ${modelMenuOpen ? 'active' : ''}`}
+                  onClick={() => { setModelMenuOpen(!modelMenuOpen); setSizeMenuOpen(false); }}
+                >
+                  <div className="trigger-content">
+                    <span className="trigger-icon">{getModelMeta(selectedModel?.name || '').icon}</span>
+                    <span className="trigger-text">{selectedModel?.name || '选择模型'}</span>
+                  </div>
+                  <span className="caret">▾</span>
+                </div>
+                
+                {modelMenuOpen && (
+                  <div className="custom-dropdown-menu models-menu">
+                    {Object.keys(groupedModels).map(brand => (
+                      <div key={brand} className="menu-group">
+                        <div className="menu-group-title">{brand}</div>
+                        {groupedModels[brand].map((m: any) => {
+                          const meta = getModelMeta(m.name);
+                          const isSelected = m.modelId === modelId;
+                          return (
+                            <div 
+                              key={m.modelId} 
+                              className={`menu-item ${isSelected ? 'selected' : ''}`}
+                              onClick={() => { setModelId(m.modelId); setModelMenuOpen(false); }}
+                            >
+                              <div className="menu-item-icon">{meta.icon}</div>
+                              <div className="menu-item-info">
+                                <div className="menu-item-name">{m.name} {isSelected && <span className="check-icon">✓</span>}</div>
+                                <div className="menu-item-desc">{meta.desc}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             
             {config.sizes && config.sizes.length > 0 && (
               <div className="control-group">
-                <label>尺寸</label>
-                <select value={size} onChange={(e) => setSize(e.target.value)} className="modern-select">
-                  {config.sizes.map((s: string) => <option key={s} value={s}>{formatSize(s)}</option>)}
-                </select>
+                <label>画面比例</label>
+                <div className="custom-dropdown-container">
+                  <div 
+                    className={`custom-dropdown-trigger ${sizeMenuOpen ? 'active' : ''}`}
+                    onClick={() => { setSizeMenuOpen(!sizeMenuOpen); setModelMenuOpen(false); }}
+                  >
+                    <div className="trigger-content">
+                       <div className="size-shape-icon" style={getSizeMeta(size).shape}></div>
+                       <span className="trigger-text">{getSizeMeta(size).label}</span>
+                    </div>
+                    <span className="caret">▾</span>
+                  </div>
+
+                  {sizeMenuOpen && (
+                    <div className="custom-dropdown-menu sizes-menu">
+                      {config.sizes.map((s: string) => {
+                        const meta = getSizeMeta(s);
+                        const isSelected = size === s;
+                        return (
+                          <div 
+                            key={s} 
+                            className={`menu-item size-item ${isSelected ? 'selected' : ''}`}
+                            onClick={() => { setSize(s); setSizeMenuOpen(false); }}
+                          >
+                            <div className="menu-item-icon">
+                              <div className="size-shape-icon" style={meta.shape}></div>
+                            </div>
+                            <div className="menu-item-info">
+                              <div className="menu-item-name">{meta.label} {isSelected && <span className="check-icon">✓</span>}</div>
+                              <div className="menu-item-desc">{s}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -398,7 +507,17 @@ export default function WorkspacePage() {
           flex-direction: column;
           padding: 32px 16px 32px 32px;
           min-width: 0;
-          transition: padding 0.3s;
+          max-width: 100%;
+          transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .canvas-area.hidden {
+          flex: 0 0 0%;
+          max-width: 0;
+          padding-left: 0;
+          padding-right: 0;
+          opacity: 0;
+          pointer-events: none;
         }
 
         .layout-divider {
@@ -593,18 +712,18 @@ export default function WorkspacePage() {
         /* Right Sidebar */
         .workspace-sidebar {
           width: 380px;
+          flex-shrink: 0;
           display: flex;
           flex-direction: column;
           padding: 32px 32px 32px 0;
-          transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease, opacity 0.2s ease;
+          transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
           overflow: hidden;
         }
         
-        .workspace-sidebar.closed {
-          width: 0;
-          padding: 32px 0;
-          opacity: 0;
-          pointer-events: none;
+        .workspace-sidebar.full {
+          flex: 1;
+          width: 100%;
+          padding: 32px;
         }
         
         .sidebar-inner {
@@ -616,7 +735,14 @@ export default function WorkspacePage() {
           display: flex;
           flex-direction: column;
           overflow: hidden;
-          width: 348px; /* Fixed width to avoid squishing during transition */
+          width: 348px; 
+          transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .workspace-sidebar.full .sidebar-inner {
+          width: 100%;
+          max-width: 1000px;
+          margin: 0 auto;
         }
 
         .panel {
@@ -672,16 +798,157 @@ export default function WorkspacePage() {
           display: block;
           font-size: 12px;
           color: var(--muted);
-          margin-bottom: 4px;
+          margin-bottom: 6px;
+          font-weight: 500;
         }
 
-        .modern-select {
+        .custom-dropdown-container {
+          position: relative;
+        }
+
+        .custom-dropdown-trigger {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
           width: 100%;
-          padding: 8px;
-          border-radius: 6px;
+          padding: 10px 12px;
+          border-radius: 8px;
           border: 1px solid var(--hairline);
-          background: var(--canvas);
+          background: white;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.02);
+        }
+
+        .custom-dropdown-trigger:hover {
+          border-color: rgba(204,120,92,0.4);
+        }
+
+        .custom-dropdown-trigger.active {
+          border-color: var(--primary);
+          box-shadow: 0 0 0 2px rgba(204, 120, 92, 0.1);
+        }
+
+        .trigger-content {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .trigger-icon { font-size: 16px; }
+
+        .trigger-text {
           font-size: 13px;
+          font-weight: 500;
+          color: var(--ink);
+        }
+
+        .caret {
+          color: var(--muted);
+          font-size: 12px;
+          transition: transform 0.2s;
+        }
+
+        .custom-dropdown-trigger.active .caret { transform: rotate(180deg); }
+
+        .custom-dropdown-menu {
+          position: absolute;
+          top: calc(100% + 6px);
+          left: 0;
+          width: 280px;
+          background: white;
+          border: 1px solid var(--hairline);
+          border-radius: 12px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+          z-index: 100;
+          overflow: hidden;
+          animation: menuSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          max-height: 400px;
+          overflow-y: auto;
+        }
+        
+        .sizes-menu { width: 100%; }
+
+        @keyframes menuSlideDown {
+          from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .menu-group {
+          padding: 8px 0;
+          border-bottom: 1px solid var(--surface-card);
+        }
+        
+        .menu-group:last-child { border-bottom: none; }
+
+        .menu-group-title {
+          padding: 4px 16px 8px;
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--muted);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .menu-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 16px;
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+
+        .menu-item:hover { background: var(--surface-cream-strong); }
+        .menu-item.selected { background: rgba(204,120,92,0.06); }
+
+        .menu-item-icon {
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 18px;
+          flex-shrink: 0;
+        }
+
+        .size-shape-icon {
+          border: 1.5px solid currentColor;
+          border-radius: 2px;
+          color: var(--muted);
+          opacity: 0.8;
+          transition: all 0.2s;
+        }
+        
+        .menu-item:hover .size-shape-icon, .custom-dropdown-trigger .size-shape-icon {
+          color: var(--primary);
+          opacity: 1;
+        }
+
+        .menu-item-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .menu-item-name {
+          font-size: 13px;
+          font-weight: 500;
+          color: var(--ink);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .menu-item-desc {
+          font-size: 11px;
+          color: var(--muted);
+        }
+
+        .check-icon {
+          color: var(--primary);
+          font-weight: bold;
         }
 
         .action-row {
