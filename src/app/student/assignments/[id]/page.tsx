@@ -12,11 +12,12 @@ export default function StudentAssignmentDetail() {
   const router = useRouter();
   
   const { data, mutate } = useSWR(id ? `/api/assignments/${id}` : null, fetcher);
-  const { data: convData } = useSWR('/api/student/conversations', fetcher);
+  const { data: gensData } = useSWR('/api/student/generations?limit=20', fetcher);
   
   const [selectedGeneration, setSelectedGeneration] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [withdrawing, setWithdrawing] = useState(false);
 
   if (!data) return <div style={{ padding: 48, color: 'var(--muted)' }}>加载中...</div>;
   if (data.error) return <div style={{ padding: 48, color: 'var(--error)' }}>错误: {data.error}</div>;
@@ -30,18 +31,7 @@ export default function StudentAssignmentDetail() {
   const latestSub = submissions[0];
 
   // For submission, we need to pick from student's recent generations
-  // Let's get the 20 most recent generations to pick from
-  const generations = [];
-  if (convData?.data) {
-     for (const conv of convData.data) {
-         if (conv.generations) {
-            generations.push(...conv.generations);
-         }
-     }
-  }
-  // Sort by date desc
-  generations.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const recentGens = generations.slice(0, 20);
+  const recentGens = gensData?.data || [];
 
   const handleSubmit = async () => {
     if (!selectedGeneration) return alert('请先选择一个你要提交的作品');
@@ -61,6 +51,27 @@ export default function StudentAssignmentDetail() {
        }
     } finally {
        setSubmitting(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!confirm('确定要撤回提交吗？撤回后你需要重新选择作品提交。')) return;
+    setWithdrawing(true);
+    try {
+       const res = await fetch(`/api/assignments/${id}/submissions/${latestSub.id}`, {
+          method: 'DELETE'
+       });
+       if (res.ok) {
+          alert('撤回成功！');
+          setSelectedGeneration(null);
+          setNote('');
+          mutate();
+       } else {
+          const err = await res.json();
+          alert('撤回失败: ' + err.error);
+       }
+    } finally {
+       setWithdrawing(false);
     }
   };
 
@@ -87,29 +98,44 @@ export default function StudentAssignmentDetail() {
       </div>
 
       {hasSubmitted ? (
-         <div className="glass-panel" style={{ padding: 32, border: '2px solid var(--success)' }}>
-            <h3 style={{ marginTop: 0, color: 'var(--success)' }}>✅ 已提交</h3>
-            <p>你已成功提交该任务的作品。</p>
+         <div className="glass-panel submitted-panel">
+            <div className="submitted-header">
+               <div>
+                  <h3 className="status-title">✅ 已提交</h3>
+                  <p className="status-desc">你已成功提交该任务的作品。</p>
+               </div>
+               {latestSub.status !== 'REVIEWED' && (
+                  <button 
+                     className="btn btn-secondary" 
+                     onClick={handleWithdraw} 
+                     disabled={withdrawing}
+                     style={{ color: 'var(--error)', borderColor: 'rgba(255,0,0,0.2)' }}
+                  >
+                     {withdrawing ? '撤回中...' : '撤回重交'}
+                  </button>
+               )}
+            </div>
             
             {latestSub.status === 'REVIEWED' ? (
-               <div style={{ marginTop: 24, padding: 24, background: 'var(--surface-cream-strong)', borderRadius: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                     <strong style={{ fontSize: 18 }}>教师评阅结果</strong>
-                     <span style={{ fontSize: 24, fontWeight: 'bold', color: 'var(--primary)' }}>{latestSub.score} 分</span>
+               <div className="feedback-card">
+                  <div className="feedback-header">
+                     <strong>👩‍🏫 教师评阅结果</strong>
+                     <span className="score-badge">{latestSub.score} 分</span>
                   </div>
-                  <p style={{ fontSize: 15, lineHeight: 1.6 }}>{latestSub.feedback}</p>
+                  <p className="feedback-text">{latestSub.feedback}</p>
                </div>
             ) : (
-               <div style={{ marginTop: 24, padding: 16, background: 'var(--canvas)', borderRadius: 8, color: 'var(--muted)' }}>
-                  ⏳ 老师正在评阅中，请耐心等待...
+               <div className="waiting-card">
+                  ⏳ 老师正在评阅中，如果发现问题你可以随时撤回重交...
                </div>
             )}
 
-            <div style={{ marginTop: 24 }}>
+            <div className="submission-content">
                <strong>你提交的作品：</strong>
-               <div style={{ marginTop: 12, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--hairline)', width: 200 }}>
+               {latestSub.note && <p className="submission-note">📝 备注：{latestSub.note}</p>}
+               <div className="submission-image-wrapper">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={latestSub.generation?.outputImageUrl} alt="submitted" style={{ width: '100%', display: 'block' }} />
+                  <img src={latestSub.generation?.outputImageUrl} alt="submitted" />
                </div>
             </div>
          </div>
@@ -165,6 +191,99 @@ export default function StudentAssignmentDetail() {
             )}
          </div>
       )}
+
+      <style jsx>{`
+        .submitted-panel {
+          padding: 32px;
+          border: 2px solid var(--success);
+          position: relative;
+          overflow: hidden;
+        }
+
+        .submitted-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 24px;
+        }
+
+        .status-title {
+          margin: 0 0 8px 0;
+          color: var(--success);
+          font-size: 20px;
+        }
+
+        .status-desc {
+          margin: 0;
+          color: var(--ink);
+        }
+
+        .feedback-card {
+          padding: 24px;
+          background: var(--surface-cream-strong);
+          border-radius: 12px;
+          margin-bottom: 24px;
+          border: 1px solid var(--hairline);
+        }
+
+        .feedback-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+
+        .score-badge {
+          font-size: 24px;
+          font-weight: bold;
+          color: var(--primary);
+        }
+
+        .feedback-text {
+          font-size: 15px;
+          line-height: 1.6;
+          margin: 0;
+          color: var(--ink);
+        }
+
+        .waiting-card {
+          padding: 16px 20px;
+          background: var(--canvas);
+          border-radius: 8px;
+          color: var(--muted);
+          margin-bottom: 24px;
+          border: 1px dashed var(--hairline);
+        }
+
+        .submission-content {
+          margin-top: 8px;
+        }
+
+        .submission-note {
+          margin: 12px 0;
+          padding: 12px;
+          background: var(--canvas);
+          border-radius: 8px;
+          color: var(--muted);
+          font-size: 14px;
+        }
+
+        .submission-image-wrapper {
+          margin-top: 16px;
+          border-radius: 12px;
+          overflow: hidden;
+          border: 1px solid var(--hairline);
+          width: 300px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        .submission-image-wrapper img {
+          width: 100%;
+          display: block;
+          object-fit: cover;
+          aspect-ratio: 1;
+        }
+      `}</style>
     </div>
   );
 }

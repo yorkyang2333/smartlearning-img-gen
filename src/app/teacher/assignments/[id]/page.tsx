@@ -15,6 +15,7 @@ export default function TeacherAssignmentDetail() {
   const [feedback, setFeedback] = useState('');
   const [score, setScore] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
+  const [returning, setReturning] = useState(false);
 
   if (!data) return <div style={{ padding: 48, color: 'var(--muted)' }}>加载中...</div>;
   if (data.error) return <div style={{ padding: 48, color: 'var(--error)' }}>错误: {data.error}</div>;
@@ -34,6 +35,25 @@ export default function TeacherAssignmentDetail() {
        mutate();
     } finally {
        setSubmitting(false);
+    }
+  };
+
+  const handleReturn = async (subId: string) => {
+    if (!confirm('确定要打回该作品吗？打回后学生需要重新提交。')) return;
+    setReturning(true);
+    try {
+       const res = await fetch(`/api/assignments/${id}/submissions/${subId}`, {
+          method: 'DELETE'
+       });
+       if (res.ok) {
+          setReviewingId(null);
+          mutate();
+       } else {
+          const err = await res.json();
+          alert('打回失败: ' + err.error);
+       }
+    } finally {
+       setReturning(false);
     }
   };
 
@@ -67,7 +87,7 @@ export default function TeacherAssignmentDetail() {
 
       <h2>学生提交 ({assignment.submissions?.length || 0})</h2>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 24, marginTop: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 24, marginTop: 24 }}>
          {assignment.submissions?.map((sub: any) => (
             <div key={sub.id} className="glass-panel" style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -84,12 +104,50 @@ export default function TeacherAssignmentDetail() {
                   </p>
                   
                   {reviewingId === sub.id ? (
-                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8, background: 'var(--canvas)', padding: 12, borderRadius: 8 }}>
-                        <input type="number" min="0" max="100" value={score} onChange={e => setScore(Number(e.target.value))} placeholder="分数 (0-100)" />
-                        <textarea value={feedback} onChange={e => setFeedback(e.target.value)} placeholder="教师评语..." rows={3} />
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                           <button className="btn btn-secondary" style={{ padding: '4px 12px', height: 'auto' }} onClick={() => setReviewingId(null)}>取消</button>
-                           <button className="btn btn-primary" style={{ padding: '4px 12px', height: 'auto' }} onClick={() => handleReview(sub.id)} disabled={submitting}>提交</button>
+                     <div className="grading-panel">
+                        <div className="score-section">
+                           <label>评分 (0-100)</label>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                              <input 
+                                 type="number" 
+                                 min="0" 
+                                 max="100" 
+                                 value={score} 
+                                 onChange={e => setScore(Number(e.target.value))} 
+                                 className="score-input" 
+                              />
+                              <span style={{ color: 'var(--muted)', fontWeight: 500 }}>分</span>
+                           </div>
+                           <div className="quick-scores">
+                              <button className={`score-btn ${score >= 90 ? 'active' : ''}`} onClick={() => setScore(90)}>优秀</button>
+                              <button className={`score-btn ${score >= 80 && score < 90 ? 'active' : ''}`} onClick={() => setScore(80)}>良好</button>
+                              <button className={`score-btn ${score >= 60 && score < 80 ? 'active' : ''}`} onClick={() => setScore(60)}>及格</button>
+                              <button className={`score-btn ${score < 60 ? 'active' : ''}`} onClick={() => setScore(50)}>待改进</button>
+                           </div>
+                        </div>
+
+                        <div className="feedback-section">
+                           <label>教师评语</label>
+                           <div className="quick-tags">
+                              {['✨ 构图优秀', '🎨 光影出众', '🎯 提示词精准', '💡 创意十足', '⚠️ 细节不足', '❌ 偏离主题'].map(tag => (
+                                 <span key={tag} className="feedback-tag" onClick={() => setFeedback(prev => prev ? `${prev}，${tag}` : tag)}>
+                                    {tag}
+                                 </span>
+                              ))}
+                           </div>
+                           <textarea className="feedback-textarea" value={feedback} onChange={e => setFeedback(e.target.value)} placeholder="请输入详细的评阅意见..." rows={3} />
+                        </div>
+
+                        <div className="grading-actions">
+                           <button className="btn btn-secondary" style={{ color: 'var(--error)', borderColor: 'rgba(255,0,0,0.2)' }} onClick={() => handleReturn(sub.id)} disabled={returning}>
+                              {returning ? '处理中...' : '打回重做'}
+                           </button>
+                           <div className="grading-actions-right">
+                              <button className="btn btn-secondary" onClick={() => setReviewingId(null)}>取消</button>
+                              <button className="btn btn-primary" onClick={() => handleReview(sub.id)} disabled={submitting}>
+                                 {submitting ? '提交中...' : '提交评阅'}
+                              </button>
+                           </div>
                         </div>
                      </div>
                   ) : (
@@ -107,6 +165,135 @@ export default function TeacherAssignmentDetail() {
             </div>
          )}
       </div>
+
+      <style jsx>{`
+        .grading-panel {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          margin-top: 12px;
+          background: white;
+          padding: 20px;
+          border-radius: 12px;
+          border: 1px solid var(--primary);
+          box-shadow: 0 4px 24px rgba(204,120,92,0.15);
+          animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes slideDown {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .score-section label, .feedback-section label {
+          display: block;
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--muted);
+          margin-bottom: 8px;
+        }
+
+        .score-input {
+          width: 80px;
+          font-size: 20px;
+          font-weight: bold;
+          color: var(--primary);
+          border: 1px solid var(--hairline);
+          border-radius: 8px;
+          padding: 8px 4px;
+          text-align: center;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+
+        .score-input:focus {
+          border-color: var(--primary);
+          box-shadow: 0 0 0 2px rgba(204,120,92,0.1);
+        }
+
+        .quick-scores {
+          display: flex;
+          gap: 8px;
+        }
+
+        .score-btn {
+          flex: 1;
+          padding: 6px 0;
+          border-radius: 6px;
+          border: 1px solid var(--hairline);
+          background: var(--canvas);
+          color: var(--muted);
+          font-size: 12px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .score-btn:hover {
+          border-color: var(--primary);
+          color: var(--primary);
+        }
+
+        .score-btn.active {
+          background: var(--primary);
+          color: white;
+          border-color: var(--primary);
+        }
+
+        .quick-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 12px;
+        }
+
+        .feedback-tag {
+          font-size: 11px;
+          padding: 4px 10px;
+          border-radius: 12px;
+          background: var(--surface-cream-strong);
+          color: var(--ink);
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .feedback-tag:hover {
+          background: var(--surface-card);
+        }
+
+        .feedback-textarea {
+          width: 100%;
+          border: 1px solid var(--hairline);
+          border-radius: 8px;
+          padding: 12px;
+          font-size: 13px;
+          resize: none;
+        }
+
+        .feedback-textarea:focus {
+          border-color: var(--primary);
+          box-shadow: 0 0 0 2px rgba(204,120,92,0.1);
+        }
+
+        .grading-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          justify-content: space-between;
+          margin-top: 8px;
+        }
+
+        .grading-actions-right {
+          display: flex;
+          gap: 12px;
+          margin-left: auto;
+        }
+
+        .grading-actions button {
+          padding: 8px 16px;
+          height: auto;
+          white-space: nowrap;
+        }
+      `}</style>
     </div>
   );
 }
