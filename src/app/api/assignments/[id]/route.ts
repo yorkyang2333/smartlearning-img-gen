@@ -44,11 +44,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     const { id } = await params;
-    const { isActive, title, description } = await req.json();
+    const { isActive, title, description, status } = await req.json();
 
     const assignment = await prisma.assignment.update({
       where: { id, teacherId: session.user.id },
-      data: { isActive, title, description }
+      data: { isActive, title, description, status }
     });
 
     return NextResponse.json({ success: true, data: assignment });

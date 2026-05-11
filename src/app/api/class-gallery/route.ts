@@ -15,14 +15,18 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const limit = parseInt(searchParams.get('limit') || '50');
 
+  const filter = searchParams.get('filter');
+
+  const whereClause: any = { outputImageUrl: { not: null } };
+  if (filter === 'my') {
+    whereClause.userId = session.user.id;
+  }
+
   try {
     const generations = await prisma.generation.findMany({
       take: limit,
       orderBy: { createdAt: 'desc' },
-      // Make sure we only get successful generations
-      where: {
-        outputImageUrl: { not: null }
-      },
+      where: whereClause,
       include: {
         user: {
           select: { displayName: true }

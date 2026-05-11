@@ -31,6 +31,20 @@ export async function GET() {
       }
     });
 
+    // Today's generations for quota
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const todayCount = await prisma.generation.count({
+      where: {
+        userId: studentId,
+        createdAt: { gte: startOfToday }
+      }
+    });
+
+    // Quota Limit
+    const quotaConfig = await prisma.quotaConfig.findFirst();
+    const dailyLimit = quotaConfig?.dailyLimit || 50;
+
     // 3. Top Model
     const modelUsage = await prisma.generation.groupBy({
       by: ['modelId'],
@@ -71,6 +85,8 @@ export async function GET() {
         totalGenerations,
         thisWeekCount,
         topModel,
+        todayCount,
+        dailyLimit,
         recentSubmissions: recentSubmissions.map(sub => ({
           id: sub.id,
           assignmentTitle: sub.assignment.title,

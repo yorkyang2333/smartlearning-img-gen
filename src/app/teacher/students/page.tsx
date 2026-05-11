@@ -80,7 +80,51 @@ export default function StudentsPage() {
 
       {isAdding && (
          <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>添加新学生</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+               <h2 style={{ fontSize: '1.2rem', margin: 0 }}>添加新学生</h2>
+               <div>
+                  <input 
+                     type="file" 
+                     accept=".csv" 
+                     id="csvUpload" 
+                     style={{ display: 'none' }} 
+                     onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const text = await file.text();
+                        const lines = text.split('\n').filter(l => l.trim());
+                        const students = lines.map(l => {
+                           const [username, displayName, password] = l.split(',').map(s => s.trim());
+                           return { username, displayName, password };
+                        }).filter(s => s.username && s.displayName && s.password);
+                        
+                        if (students.length === 0) {
+                           alert('CSV 格式错误或为空。请提供包含账号,姓名,密码三列的 CSV 文件。');
+                           return;
+                        }
+
+                        if (!confirm(`准备导入 ${students.length} 名学生，确定吗？`)) return;
+
+                        const res = await fetch('/api/students/batch', {
+                           method: 'POST',
+                           headers: { 'Content-Type': 'application/json' },
+                           body: JSON.stringify({ students })
+                        });
+                        if (res.ok) {
+                           alert('导入成功');
+                           mutate();
+                           setIsAdding(false);
+                        } else {
+                           const data = await res.json();
+                           alert(data.error || '导入失败');
+                        }
+                     }} 
+                  />
+                  <button className="btn btn-secondary" onClick={() => document.getElementById('csvUpload')?.click()}>
+                     批量导入 (CSV)
+                  </button>
+               </div>
+            </div>
             <form onSubmit={handleAdd} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
                <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>学号/账号</label>
@@ -94,7 +138,7 @@ export default function StudentsPage() {
                   <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>密码</label>
                   <input required type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} style={{ width: '100%' }} />
                </div>
-               <button type="submit" className="btn btn-primary" style={{ height: '42px' }}>保存</button>
+               <button type="submit" className="btn btn-primary" style={{ height: '42px' }}>保存单个</button>
             </form>
          </div>
       )}

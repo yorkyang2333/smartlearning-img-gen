@@ -34,13 +34,22 @@ export default function StudentAssignmentsPage() {
                )}
                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                  <div style={{ flex: 1, paddingRight: 24, marginTop: hasSubmitted ? 8 : 0 }}>
-                   <h3 style={{ margin: 0, fontSize: 20, color: 'var(--ink)' }}>
+                   <h3 style={{ margin: 0, fontSize: 20, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 8 }}>
                      {assignment.title}
+                     {assignment.type === 'CHALLENGE' && (
+                        <span style={{ fontSize: 12, background: 'var(--accent-amber)', color: '#fff', padding: '2px 6px', borderRadius: 4 }}>限时挑战</span>
+                     )}
                    </h3>
                    <p style={{ color: 'var(--muted)', marginTop: 8, fontSize: 14, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                      {assignment.description}
                    </p>
                    
+                   {assignment.type === 'CHALLENGE' && assignment.status === 'ACTIVE' && assignment.startedAt && !hasSubmitted && (
+                      <div style={{ marginTop: 12, padding: '6px 12px', background: 'rgba(245, 158, 11, 0.1)', color: '#d97706', borderRadius: 6, fontSize: 13, display: 'inline-block' }}>
+                         ⏳ 挑战进行中，限时 {assignment.durationMin} 分钟
+                      </div>
+                   )}
+
                    {latestSub?.feedback && (
                      <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--surface-cream-strong)', borderRadius: 6, fontSize: 13, borderLeft: '3px solid var(--primary)' }}>
                         <strong>老师评语：</strong>{latestSub.feedback}
@@ -49,9 +58,15 @@ export default function StudentAssignmentsPage() {
                  </div>
                  
                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: 120, marginTop: hasSubmitted ? 8 : 0 }}>
-                    <Link href={`/student/assignments/${assignment.id}`} className={hasSubmitted ? "btn btn-secondary" : "btn btn-primary"} style={{ width: '100%' }}>
-                       {hasSubmitted ? '查看详情' : '去创作'}
-                    </Link>
+                    {assignment.type === 'CHALLENGE' ? (
+                       <Link href={`/student/assignments/${assignment.id}/play`} className={hasSubmitted ? "btn btn-secondary" : "btn btn-primary"} style={{ width: '100%', background: hasSubmitted ? '' : 'var(--accent-amber)', borderColor: hasSubmitted ? '' : 'transparent', color: hasSubmitted ? '' : '#fff', opacity: assignment.status === 'ENDED' && !hasSubmitted ? 0.5 : 1, pointerEvents: assignment.status === 'ENDED' && !hasSubmitted ? 'none' : 'auto' }}>
+                          {hasSubmitted ? '查看作品' : assignment.status === 'ENDED' ? '挑战已结束' : '进入挑战'}
+                       </Link>
+                    ) : (
+                       <Link href={`/student/assignments/${assignment.id}`} className={hasSubmitted ? "btn btn-secondary" : "btn btn-primary"} style={{ width: '100%' }}>
+                          {hasSubmitted ? '查看详情' : '去创作'}
+                       </Link>
+                    )}
                  </div>
                </div>
              </div>

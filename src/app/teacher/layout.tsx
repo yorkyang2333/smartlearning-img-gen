@@ -54,50 +54,10 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
           <Link 
             href="/teacher/models" 
             className={`${styles.navItem} ${pathname === '/teacher/models' ? styles.active : ''}`}
-            title={isCollapsed ? "模型管理" : ""}
+            title={isCollapsed ? "模型与配置" : ""}
           >
             <span className={styles.navIcon}><IconSliders /></span>
-            <span className={styles.navText}>模型管理</span>
-          </Link>
-          <Link 
-            href="/teacher/history" 
-            className={`${styles.navItem} ${pathname === '/teacher/history' ? styles.active : ''}`}
-            title={isCollapsed ? "生成记录" : ""}
-          >
-            <span className={styles.navIcon}><IconFolder /></span>
-            <span className={styles.navText}>生成记录</span>
-          </Link>
-          <Link 
-            href="/teacher/challenges" 
-            className={`${styles.navItem} ${pathname.startsWith('/teacher/challenges') ? styles.active : ''}`}
-            title={isCollapsed ? "创意挑战" : ""}
-          >
-            <span className={styles.navIcon}><IconZap /></span>
-            <span className={styles.navText}>创意挑战</span>
-          </Link>
-          <Link 
-            href="/teacher/templates" 
-            className={`${styles.navItem} ${pathname === '/teacher/templates' ? styles.active : ''}`}
-            title={isCollapsed ? "提示词模板" : ""}
-          >
-            <span className={styles.navIcon}><IconPen /></span>
-            <span className={styles.navText}>提示词模板</span>
-          </Link>
-          <Link 
-            href="/teacher/settings" 
-            className={`${styles.navItem} ${pathname === '/teacher/settings' ? styles.active : ''}`}
-            title={isCollapsed ? "系统设置" : ""}
-          >
-            <span className={styles.navIcon}><IconSettings /></span>
-            <span className={styles.navText}>系统设置</span>
-          </Link>
-          <Link 
-            href="/teacher/live" 
-            className={`${styles.navItem} ${pathname === '/teacher/live' ? styles.active : ''}`}
-            title={isCollapsed ? "课堂直播" : ""}
-          >
-            <span className={styles.navIcon}><IconMonitor /></span>
-            <span className={styles.navText}>课堂直播</span>
+            <span className={styles.navText}>模型与配置</span>
           </Link>
         </nav>
 
@@ -106,14 +66,37 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             <span className={styles.userName}>{session?.user?.name || session?.user?.username}</span>
             <span className={styles.userRole}>教师</span>
           </div>
-          <button 
-            onClick={() => signOut({ callbackUrl: '/login' })} 
-            className={styles.logoutBtn}
-            title="退出登录"
-          >
-            <span className={styles.logoutIcon}><IconLogout /></span>
-            <span className={styles.logoutText}>退出登录</span>
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button 
+              onClick={() => {
+                 const newPwd = prompt('请输入新密码：');
+                 if (newPwd) {
+                    fetch('/api/auth/change-password', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ password: newPwd })
+                    }).then(res => res.json()).then(data => {
+                       if (data.error) alert('修改失败：' + data.error);
+                       else alert('修改成功！');
+                    });
+                 }
+              }} 
+              className={styles.logoutBtn}
+              style={{ color: 'var(--ink)' }}
+              title="修改密码"
+            >
+              <span className={styles.logoutIcon}><IconSettings /></span>
+              <span className={styles.logoutText}>修改密码</span>
+            </button>
+            <button 
+              onClick={() => signOut({ callbackUrl: '/login' })} 
+              className={styles.logoutBtn}
+              title="退出登录"
+            >
+              <span className={styles.logoutIcon}><IconLogout /></span>
+              <span className={styles.logoutText}>退出登录</span>
+            </button>
+          </div>
         </div>
       </aside>
       

@@ -12,22 +12,22 @@ export default function ChallengeLivePage() {
   const router = useRouter();
   const id = params?.id as string;
 
-  const { data } = useSWR(`/api/challenges/${id}`, fetcher, { refreshInterval: 3000 });
-  const challenge = data?.data;
+  const { data } = useSWR(`/api/assignments/${id}`, fetcher, { refreshInterval: 3000 });
+  const assignment = data?.data;
 
-  if (!challenge) {
+  if (!assignment) {
     return <div className="live-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>加载中...</div>;
   }
 
-  const entries = challenge.entries || [];
+  const entries = assignment.submissions || [];
   
   const handleEnd = async () => {
-    await fetch(`/api/challenges/${id}`, {
+    await fetch(`/api/assignments/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'ENDED' })
+      body: JSON.stringify({ status: 'ENDED', isActive: false })
     });
-    router.push('/teacher/challenges');
+    router.push('/teacher/assignments');
   };
 
   return (
@@ -37,12 +37,12 @@ export default function ChallengeLivePage() {
           <div>
             <div className="live-title-row">
               <span style={{ fontSize: '1.5rem' }}>⚡</span>
-              <h1 className="live-title">{challenge.title}</h1>
-              <span className={`live-status-badge ${challenge.status === 'ACTIVE' ? 'live-status-active' : 'live-status-ended'}`}>
-                {challenge.status === 'ACTIVE' ? 'LIVE 直播中' : '已结束'}
+              <h1 className="live-title">{assignment.title}</h1>
+              <span className={`live-status-badge ${assignment.status === 'ACTIVE' ? 'live-status-active' : 'live-status-ended'}`}>
+                {assignment.status === 'ACTIVE' ? 'LIVE 直播中' : '已结束'}
               </span>
             </div>
-            <p className="live-theme">主题：{challenge.theme}</p>
+            <p className="live-theme">主题：{assignment.description}</p>
           </div>
           
           <div className="live-controls">
@@ -50,13 +50,13 @@ export default function ChallengeLivePage() {
               <div className="live-stats-label">已提交作品</div>
               <div className="live-stats-value">{entries.length}</div>
             </div>
-            {challenge.status === 'ACTIVE' && (
+            {assignment.status === 'ACTIVE' && (
               <button onClick={handleEnd} className="live-btn-end">
                 结束挑战
               </button>
             )}
-            {challenge.status === 'ENDED' && (
-              <button onClick={() => router.push('/teacher/challenges')} className="live-btn-back">
+            {assignment.status === 'ENDED' && (
+              <button onClick={() => router.push('/teacher/assignments')} className="live-btn-back">
                 返回列表
               </button>
             )}

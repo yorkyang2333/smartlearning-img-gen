@@ -11,6 +11,8 @@ export default function NewAssignmentPage() {
     description: '',
     keywords: '',
     theme: '',
+    type: 'STANDARD',
+    durationMin: 5,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,14 +24,23 @@ export default function NewAssignmentPage() {
         keywords: formData.keywords.split(/[,，]/).map(k => k.trim()).filter(Boolean)
       };
 
+      const payload: any = {
+        title: formData.title,
+        description: formData.description,
+        requirements,
+        type: formData.type,
+      };
+
+      if (formData.type === 'CHALLENGE') {
+        payload.durationMin = Number(formData.durationMin);
+        payload.status = 'ACTIVE';
+        payload.startedAt = new Date().toISOString();
+      }
+
       const res = await fetch('/api/assignments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: formData.title,
-          description: formData.description,
-          requirements
-        })
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {
@@ -52,6 +63,30 @@ export default function NewAssignmentPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="glass-panel" style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+           <label style={{ fontWeight: 500 }}>任务类型</label>
+           <div style={{ display: 'flex', gap: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                 <input 
+                    type="radio" 
+                    name="type" 
+                    value="STANDARD" 
+                    checked={formData.type === 'STANDARD'}
+                    onChange={() => setFormData({...formData, type: 'STANDARD'})}
+                 /> 常规任务
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                 <input 
+                    type="radio" 
+                    name="type" 
+                    value="CHALLENGE" 
+                    checked={formData.type === 'CHALLENGE'}
+                    onChange={() => setFormData({...formData, type: 'CHALLENGE'})}
+                 /> 限时挑战
+              </label>
+           </div>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <label style={{ fontWeight: 500 }}>任务标题 <span style={{ color: 'var(--error)' }}>*</span></label>
           <input 
@@ -95,6 +130,22 @@ export default function NewAssignmentPage() {
              />
            </div>
         </div>
+
+        {formData.type === 'CHALLENGE' && (
+           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--surface-soft)', padding: 16, borderRadius: 8 }}>
+              <label style={{ fontWeight: 500 }}>挑战时长 (分钟) <span style={{ color: 'var(--error)' }}>*</span></label>
+              <input 
+                 type="number" 
+                 min="1"
+                 max="60"
+                 required={formData.type === 'CHALLENGE'} 
+                 value={formData.durationMin}
+                 onChange={e => setFormData({...formData, durationMin: parseInt(e.target.value) || 5})}
+                 style={{ width: 120 }}
+              />
+              <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>发布后自动开始倒计时，并可通过大屏实时观看学生创作情况。</p>
+           </div>
+        )}
 
         <div style={{ borderTop: '1px solid var(--hairline)', paddingTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 16 }}>
           <Link href="/teacher/assignments" className="btn btn-secondary">

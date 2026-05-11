@@ -35,10 +35,13 @@ export default function TeacherAssignmentsPage() {
           <div key={assignment.id} className="glass-panel" style={{ padding: 24 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1, paddingRight: 24 }}>
-                <h3 style={{ margin: 0, fontSize: 20 }}>
+                <h3 style={{ margin: 0, fontSize: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Link href={`/teacher/assignments/${assignment.id}`} style={{ color: 'var(--ink)' }}>
                     {assignment.title}
                   </Link>
+                  {assignment.type === 'CHALLENGE' && (
+                     <span style={{ fontSize: 12, background: 'var(--accent-amber)', color: '#fff', padding: '2px 6px', borderRadius: 4 }}>限时挑战</span>
+                  )}
                 </h3>
                 <p style={{ color: 'var(--muted)', marginTop: 8, fontSize: 14, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                   {assignment.description}
@@ -47,13 +50,22 @@ export default function TeacherAssignmentsPage() {
                    <span style={{ fontWeight: 500, color: 'var(--primary)' }}>已提交: {assignment._count.submissions} 份</span>
                    <span>状态: {assignment.isActive ? '🟢 进行中' : '⚪ 已结束'}</span>
                    <span>发布于: {new Date(assignment.createdAt).toLocaleDateString()}</span>
+                   {assignment.type === 'CHALLENGE' && assignment.durationMin && (
+                      <span>时长: {assignment.durationMin} 分钟</span>
+                   )}
                 </div>
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: 120 }}>
-                 <Link href={`/teacher/assignments/${assignment.id}`} className="btn btn-primary" style={{ width: '100%' }}>
-                    查看评阅
-                 </Link>
+                 {assignment.type === 'CHALLENGE' && assignment.isActive ? (
+                    <Link href={`/teacher/assignments/${assignment.id}/live`} target="_blank" className="btn btn-primary" style={{ width: '100%', background: 'var(--accent-amber)', border: 'none', color: '#fff' }}>
+                       进入大屏
+                    </Link>
+                 ) : (
+                    <Link href={`/teacher/assignments/${assignment.id}`} className="btn btn-primary" style={{ width: '100%' }}>
+                       查看评阅
+                    </Link>
+                 )}
                  <button 
                     className="btn btn-secondary"
                     style={{ width: '100%' }}

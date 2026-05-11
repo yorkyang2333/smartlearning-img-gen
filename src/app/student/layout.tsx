@@ -17,6 +17,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
   
   const { data: convData, mutate: mutateConversations } = useSWR('/api/student/conversations', fetcher);
   const conversations = convData?.data || [];
+  const { data: analyticsRes } = useSWR('/api/analytics/student', fetcher);
+  const stats = analyticsRes?.data;
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
@@ -53,22 +55,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             <span className={styles.navText}>图片生成</span>
           </Link>
           <Link 
-            href="/student/dashboard" 
-            className={`${styles.navItem} ${pathname === '/student/dashboard' ? styles.active : ''}`}
-            title={isCollapsed ? "数据中心" : ""}
-          >
-            <span className={styles.navIcon}><IconAnalytics /></span>
-            <span className={styles.navText}>数据中心</span>
-          </Link>
-          <Link 
-            href="/student/gallery" 
-            className={`${styles.navItem} ${pathname === '/student/gallery' ? styles.active : ''}`}
-            title={isCollapsed ? "个人画廊" : ""}
-          >
-            <span className={styles.navIcon}><IconGallery /></span>
-            <span className={styles.navText}>个人画廊</span>
-          </Link>
-          <Link 
             href="/student/class-gallery" 
             className={`${styles.navItem} ${pathname === '/student/class-gallery' ? styles.active : ''}`}
             title={isCollapsed ? "班级画廊" : ""}
@@ -83,14 +69,6 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           >
             <span className={styles.navIcon}><IconClipboard /></span>
             <span className={styles.navText}>教学任务</span>
-          </Link>
-          <Link 
-            href="/student/challenges" 
-            className={`${styles.navItem} ${pathname.startsWith('/student/challenges') ? styles.active : ''}`}
-            title={isCollapsed ? "创意挑战" : ""}
-          >
-            <span className={styles.navIcon}><IconZap /></span>
-            <span className={styles.navText}>创意挑战</span>
           </Link>
         </nav>
 
@@ -122,15 +100,50 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
           <div className={styles.userInfo}>
             <span className={styles.userName}>{session?.user?.name || session?.user?.username}</span>
             <span className={styles.userRole}>学生</span>
+            {!isCollapsed && stats && (
+               <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>
+                  <div style={{ marginBottom: '2px' }}>
+                     今日配额: {stats.todayCount} / {stats.dailyLimit} 次
+                  </div>
+                  <div>
+                     本周创作 {stats.thisWeekCount} 次 · 总计 {stats.totalGenerations} 次
+                  </div>
+               </div>
+            )}
           </div>
-          <button 
-            onClick={() => signOut({ callbackUrl: '/login' })} 
-            className={styles.logoutBtn}
-            title="退出登录"
-          >
-            <span className={styles.logoutIcon}><IconLogout /></span>
-            <span className={styles.logoutText}>退出登录</span>
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button 
+              onClick={() => {
+                 const newPwd = prompt('请输入新密码：');
+                 if (newPwd) {
+                    fetch('/api/auth/change-password', {
+                       method: 'POST',
+                       headers: { 'Content-Type': 'application/json' },
+                       body: JSON.stringify({ password: newPwd })
+                    }).then(res => res.json()).then(data => {
+                       if (data.error) alert('修改失败：' + data.error);
+                       else alert('修改成功！');
+                    });
+                 }
+              }} 
+              className={styles.logoutBtn}
+              style={{ color: 'var(--ink)' }}
+              title="修改密码"
+            >
+              <span className={styles.logoutIcon}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+              </span>
+              <span className={styles.logoutText}>修改密码</span>
+            </button>
+            <button 
+              onClick={() => signOut({ callbackUrl: '/login' })} 
+              className={styles.logoutBtn}
+              title="退出登录"
+            >
+              <span className={styles.logoutIcon}><IconLogout /></span>
+              <span className={styles.logoutText}>退出登录</span>
+            </button>
+          </div>
         </div>
       </aside>
       

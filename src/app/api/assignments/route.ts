@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { title, description, requirements, allowedModelIds, allowedSizes, deadline } = await req.json();
+    const { title, description, requirements, allowedModelIds, allowedSizes, deadline, type, durationMin, status, startedAt } = await req.json();
 
     const assignment = await prisma.assignment.create({
       data: {
@@ -55,6 +55,10 @@ export async function POST(req: Request) {
         allowedModelIds: allowedModelIds ? JSON.stringify(allowedModelIds) : null,
         allowedSizes: allowedSizes ? JSON.stringify(allowedSizes) : null,
         deadline: deadline ? new Date(deadline) : null,
+        type: type || 'STANDARD',
+        durationMin: durationMin || null,
+        status: status || null,
+        startedAt: startedAt ? new Date(startedAt) : null,
       }
     });
 

@@ -6,7 +6,8 @@ import { useState } from 'react';
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function ClassGalleryPage() {
-  const { data: response, isLoading, mutate } = useSWR('/api/class-gallery', fetcher);
+  const [filter, setFilter] = useState<'all' | 'my'>('all');
+  const { data: response, isLoading, mutate } = useSWR(`/api/class-gallery?filter=${filter}`, fetcher);
   const gallery = response?.data || [];
   
   const [togglingLike, setTogglingLike] = useState<string | null>(null);
@@ -34,9 +35,44 @@ export default function ClassGalleryPage() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '64px' }}>
-      <div style={{ marginBottom: '32px' }}>
-        <h1>班级画廊</h1>
-        <p style={{ color: 'var(--muted)' }}>在这里欣赏全班同学的精彩作品，互相学习提示词技巧。</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+        <div>
+           <h1>班级画廊</h1>
+           <p style={{ color: 'var(--muted)' }}>在这里欣赏全班同学的精彩作品，互相学习提示词技巧。</p>
+        </div>
+        
+        <div style={{ display: 'flex', gap: '8px', background: 'var(--surface-soft)', padding: '4px', borderRadius: '8px' }}>
+           <button 
+             onClick={() => setFilter('all')}
+             style={{ 
+               padding: '6px 16px', 
+               borderRadius: '6px', 
+               border: 'none', 
+               background: filter === 'all' ? 'white' : 'transparent',
+               color: filter === 'all' ? 'var(--ink)' : 'var(--muted)',
+               boxShadow: filter === 'all' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+               cursor: 'pointer',
+               fontWeight: filter === 'all' ? 500 : 400
+             }}
+           >
+             全部作品
+           </button>
+           <button 
+             onClick={() => setFilter('my')}
+             style={{ 
+               padding: '6px 16px', 
+               borderRadius: '6px', 
+               border: 'none', 
+               background: filter === 'my' ? 'white' : 'transparent',
+               color: filter === 'my' ? 'var(--ink)' : 'var(--muted)',
+               boxShadow: filter === 'my' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none',
+               cursor: 'pointer',
+               fontWeight: filter === 'my' ? 500 : 400
+             }}
+           >
+             我的作品
+           </button>
+        </div>
       </div>
       
       {gallery.length === 0 ? (

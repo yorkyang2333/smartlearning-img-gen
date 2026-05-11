@@ -13,10 +13,10 @@ export default function ChallengePlayPage() {
   const router = useRouter();
   const id = params?.id as string;
 
-  const { data: challengeData } = useSWR(`/api/challenges/${id}`, fetcher, { refreshInterval: 3000 });
+  const { data: assignmentData } = useSWR(`/api/assignments/${id}`, fetcher, { refreshInterval: 3000 });
   const { data: modelsData } = useSWR('/api/student-models', fetcher);
   
-  const challenge = challengeData?.data;
+  const assignment = assignmentData?.data;
   const models = modelsData?.data || [];
   const activeModel = models.find((m: any) => m.type === 'TEXT_TO_IMAGE' || m.type === 'BOTH');
 
@@ -27,11 +27,11 @@ export default function ChallengePlayPage() {
   const [submittedEntry, setSubmittedEntry] = useState<any>(null);
 
   // Parse keywords
-  const keywords = challenge?.keywords ? JSON.parse(challenge.keywords) : [];
+  const keywords = assignment?.requirements?.keywords ? assignment.requirements.keywords : [];
 
   useEffect(() => {
-    if (challenge && challenge.status === 'ACTIVE' && challenge.startedAt) {
-      const endTime = new Date(challenge.startedAt).getTime() + challenge.durationMin * 60 * 1000;
+    if (assignment && assignment.status === 'ACTIVE' && assignment.startedAt) {
+      const endTime = new Date(assignment.startedAt).getTime() + assignment.durationMin * 60 * 1000;
       
       const timer = setInterval(() => {
         const now = Date.now();
@@ -45,7 +45,7 @@ export default function ChallengePlayPage() {
       
       return () => clearInterval(timer);
     }
-  }, [challenge]);
+  }, [assignment]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -76,7 +76,7 @@ export default function ChallengePlayPage() {
       if (!genRes.ok) throw new Error(genData.error || '生成失败');
 
       // 2. Submit entry
-      const subRes = await fetch(`/api/challenges/${id}/entries`, {
+      const subRes = await fetch(`/api/assignments/${id}/submissions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ generationId: genData.data.id })
@@ -98,18 +98,18 @@ export default function ChallengePlayPage() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  if (!challenge) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--on-dark)' }}>加载中...</div>;
+  if (!assignment) return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--on-dark)' }}>加载中...</div>;
 
-  const isEnded = challenge.status === 'ENDED' || timeLeft === 0;
+  const isEnded = assignment.status === 'ENDED' || timeLeft === 0;
 
   return (
     <div className="play-container">
       <div className="play-header">
         <div>
           <h1 className="play-title">
-             {challenge.title}
+             {assignment.title}
           </h1>
-          <p className="play-subtitle">主题：{challenge.theme}</p>
+          <p className="play-subtitle">任务说明：{assignment.description}</p>
         </div>
         <div className="play-status-panel">
           {keywords.length > 0 && (
@@ -134,8 +134,8 @@ export default function ChallengePlayPage() {
               <Image src={submittedEntry.outputImageUrl} alt="My submission" fill style={{ objectFit: 'cover' }} />
             </div>
             <p className="play-success-text">请观看教室大屏幕，欣赏全班的作品展播。</p>
-            <button onClick={() => router.push('/student/challenges')} className="btn play-link">
-              返回挑战列表
+            <button onClick={() => router.push('/student/assignments')} className="btn play-link">
+              返回列表
             </button>
           </div>
         ) : (
@@ -144,7 +144,7 @@ export default function ChallengePlayPage() {
               <div className="play-card-ended">
                 <h2 className="play-ended-title">挑战已结束</h2>
                 <p style={{ color: 'var(--on-dark-soft)', marginBottom: '1.5rem' }}>时间已到或老师已停止挑战。</p>
-                <button onClick={() => router.push('/student/challenges')} className="btn btn-secondary">
+                <button onClick={() => router.push('/student/assignments')} className="btn btn-secondary">
                   返回列表
                 </button>
               </div>
