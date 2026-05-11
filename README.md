@@ -1,4 +1,4 @@
-# 智学 AI 图像生成平台 (SmartLearning AI Image Generation Platform)
+# 智绘 AI 图像生成平台 (SmartCanvas AI Image Generation Platform)
 
 专为教育环境打造的综合性全栈 AI 图像生成平台。本平台提供了一套精致的“暖色编辑 (Warm Editorial)”风格界面，让学生们能够在一个充满艺术感的环境中探索 AI 创意；同时为教师提供了一个强大的控制台，用于管理 AI 模型、学生权限并监控生成历史。
 

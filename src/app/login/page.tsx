@@ -46,7 +46,7 @@ function LoginForm() {
     <div className={styles.container}>
       <div className={styles.leftPanel}>
         <div className={styles.brand}>
-          <h1>SmartLearning AI</h1>
+          <h1>SmartCanvas</h1>
           <p>基于先进大模型的智慧学习图片生成平台。探索 AI 艺术，激发无限创造力。</p>
         </div>
       </div>

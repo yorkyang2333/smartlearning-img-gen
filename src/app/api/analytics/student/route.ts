@@ -35,8 +35,14 @@ export async function GET() {
     const modelUsage = await prisma.generation.groupBy({
       by: ['modelId'],
       where: { userId: studentId },
-      _count: true,
-      orderBy: { _count: 'desc' },
+      _count: {
+        modelId: true
+      },
+      orderBy: {
+        _count: {
+          modelId: 'desc'
+        }
+      },
       take: 1
     });
 

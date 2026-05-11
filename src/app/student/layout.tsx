@@ -39,7 +39,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
         <div className={styles.brand}>
           <div className={styles.brandTitle}>
             <span className={styles.brandIcon}><IconBrand /></span>
-            <h2 className={styles.brandText}>SmartLearning</h2>
+            <h2 className={styles.brandText}>SmartCanvas</h2>
           </div>
         </div>
         
