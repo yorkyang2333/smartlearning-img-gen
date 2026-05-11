@@ -107,7 +107,7 @@ export default function ChallengePlayPage() {
       <div className="play-header">
         <div>
           <h1 className="play-title">
-            <span style={{ color: 'var(--primary)' }}>⚡</span> {challenge.title}
+             {challenge.title}
           </h1>
           <p className="play-subtitle">主题：{challenge.theme}</p>
         </div>
@@ -129,7 +129,7 @@ export default function ChallengePlayPage() {
       <div className="play-main">
         {submittedEntry ? (
           <div className="play-success-card">
-            <h2 className="play-success-title">🎉 作品提交成功！</h2>
+            <h2 className="play-success-title">作品提交成功！</h2>
             <div className="play-img-preview">
               <Image src={submittedEntry.outputImageUrl} alt="My submission" fill style={{ objectFit: 'cover' }} />
             </div>

@@ -43,7 +43,7 @@ export default function TeacherTemplatesPage() {
     <div className="tmpl-container">
       <div className="tmpl-header">
         <div>
-          <h1>📝 提示词模板库</h1>
+          <h1>提示词模板库</h1>
           <p className="tmpl-subtitle">创建可重用的提示词框架，引导学生填空创作</p>
         </div>
         <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">

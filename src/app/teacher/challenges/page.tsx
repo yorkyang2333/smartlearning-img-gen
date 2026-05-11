@@ -66,7 +66,7 @@ export default function TeacherChallengesPage() {
     <div className="tc-container">
       <div className="tc-header">
         <div>
-          <h1>⚡ 创意挑战管理</h1>
+          <h1>创意挑战管理</h1>
           <p className="tc-subtitle">发起限时课堂创作比赛，激发学生创意</p>
         </div>
         <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">

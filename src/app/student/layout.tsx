@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
 import useSWR, { mutate } from 'swr';
 import styles from './student.module.css';
+import { IconBrand, IconImageGen, IconAnalytics, IconGallery, IconClassGallery, IconClipboard, IconZap, IconLogout } from '@/components/Icons';
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
@@ -37,7 +38,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
         <div className={styles.brand}>
           <div className={styles.brandTitle}>
-            <span className={styles.brandIcon}>✨</span>
+            <span className={styles.brandIcon}><IconBrand /></span>
             <h2 className={styles.brandText}>SmartLearning</h2>
           </div>
         </div>
@@ -48,7 +49,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             className={`${styles.navItem} ${pathname === '/student/generate' ? styles.active : ''}`}
             title={isCollapsed ? "图片生成" : ""}
           >
-            <span className={styles.navIcon}>🎨</span>
+            <span className={styles.navIcon}><IconImageGen /></span>
             <span className={styles.navText}>图片生成</span>
           </Link>
           <Link 
@@ -56,7 +57,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             className={`${styles.navItem} ${pathname === '/student/dashboard' ? styles.active : ''}`}
             title={isCollapsed ? "数据中心" : ""}
           >
-            <span className={styles.navIcon}>📊</span>
+            <span className={styles.navIcon}><IconAnalytics /></span>
             <span className={styles.navText}>数据中心</span>
           </Link>
           <Link 
@@ -64,7 +65,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             className={`${styles.navItem} ${pathname === '/student/gallery' ? styles.active : ''}`}
             title={isCollapsed ? "个人画廊" : ""}
           >
-            <span className={styles.navIcon}>🖼️</span>
+            <span className={styles.navIcon}><IconGallery /></span>
             <span className={styles.navText}>个人画廊</span>
           </Link>
           <Link 
@@ -72,7 +73,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             className={`${styles.navItem} ${pathname === '/student/class-gallery' ? styles.active : ''}`}
             title={isCollapsed ? "班级画廊" : ""}
           >
-            <span className={styles.navIcon}>🌌</span>
+            <span className={styles.navIcon}><IconClassGallery /></span>
             <span className={styles.navText}>班级画廊</span>
           </Link>
           <Link 
@@ -80,7 +81,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             className={`${styles.navItem} ${pathname.startsWith('/student/assignments') ? styles.active : ''}`}
             title={isCollapsed ? "教学任务" : ""}
           >
-            <span className={styles.navIcon}>📋</span>
+            <span className={styles.navIcon}><IconClipboard /></span>
             <span className={styles.navText}>教学任务</span>
           </Link>
           <Link 
@@ -88,7 +89,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             className={`${styles.navItem} ${pathname.startsWith('/student/challenges') ? styles.active : ''}`}
             title={isCollapsed ? "创意挑战" : ""}
           >
-            <span className={styles.navIcon}>⚡</span>
+            <span className={styles.navIcon}><IconZap /></span>
             <span className={styles.navText}>创意挑战</span>
           </Link>
         </nav>
@@ -127,7 +128,7 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             className={styles.logoutBtn}
             title="退出登录"
           >
-            <span className={styles.logoutIcon}>🚪</span>
+            <span className={styles.logoutIcon}><IconLogout /></span>
             <span className={styles.logoutText}>退出登录</span>
           </button>
         </div>

@@ -14,7 +14,7 @@ export default function StudentChallengesPage() {
     <div className="sc-container">
       <div className="sc-header">
         <h1>
-          <span style={{ color: 'var(--primary)' }}>⚡</span> 创意挑战
+          创意挑战
         </h1>
         <p className="sc-subtitle">参与老师发起的限时创作竞赛，展示你的想象力</p>
       </div>
