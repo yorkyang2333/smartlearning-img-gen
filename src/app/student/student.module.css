@@ -229,8 +229,8 @@
 }
 
 .navItem.active {
-  background: rgba(108, 58, 224, 0.15);
-  color: var(--primary-color);
+  background: rgba(204, 120, 92, 0.15); /* Primary Coral with 15% opacity */
+  color: var(--primary);
   font-weight: 500;
 }
 

@@ -52,12 +52,28 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             <span className={styles.navText}>图片生成</span>
           </Link>
           <Link 
+            href="/student/dashboard" 
+            className={`${styles.navItem} ${pathname === '/student/dashboard' ? styles.active : ''}`}
+            title={isCollapsed ? "数据中心" : ""}
+          >
+            <span className={styles.navIcon}>📊</span>
+            <span className={styles.navText}>数据中心</span>
+          </Link>
+          <Link 
             href="/student/gallery" 
             className={`${styles.navItem} ${pathname === '/student/gallery' ? styles.active : ''}`}
             title={isCollapsed ? "个人画廊" : ""}
           >
             <span className={styles.navIcon}>🖼️</span>
             <span className={styles.navText}>个人画廊</span>
+          </Link>
+          <Link 
+            href="/student/class-gallery" 
+            className={`${styles.navItem} ${pathname === '/student/class-gallery' ? styles.active : ''}`}
+            title={isCollapsed ? "班级画廊" : ""}
+          >
+            <span className={styles.navIcon}>🌌</span>
+            <span className={styles.navText}>班级画廊</span>
           </Link>
           <Link 
             href="/student/assignments" 

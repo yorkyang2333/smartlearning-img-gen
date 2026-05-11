@@ -1,45 +1,54 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
+import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { PrismaClient } from '@prisma/client';
 
-export async function GET(req: Request) {
+const prisma = new PrismaClient();
+
+export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { searchParams } = new URL(request.url);
+  const limit = parseInt(searchParams.get('limit') || '50');
+
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    let teacherId = session.user.id;
-    if (session.user.role === 'STUDENT') {
-      const student = await prisma.user.findUnique({ where: { id: session.user.id } });
-      if (!student?.teacherId) return NextResponse.json({ success: true, data: [] });
-      teacherId = student.teacherId;
-    }
-
-    // Find all submissions that are reviewed and have a high score?
-    // Or just all recent generations from the class. Let's return recent generations from the class.
-    const students = await prisma.user.findMany({
-      where: { teacherId },
-      select: { id: true }
-    });
-    const studentIds = students.map(s => s.id);
-
-    const gallery = await prisma.generation.findMany({
-      where: { 
-        userId: { in: studentIds },
+    const generations = await prisma.generation.findMany({
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+      // Make sure we only get successful generations
+      where: {
         outputImageUrl: { not: null }
       },
-      orderBy: { createdAt: 'desc' },
-      take: 60,
       include: {
-        user: { select: { displayName: true, username: true } },
-        model: { select: { name: true } }
+        user: {
+          select: { displayName: true }
+        },
+        model: {
+          select: { name: true }
+        },
+        _count: {
+          select: { likes: true }
+        },
+        likes: {
+          where: { userId: session.user.id },
+          select: { id: true }
+        }
       }
     });
 
-    return NextResponse.json({ success: true, data: gallery });
+    const data = generations.map(gen => ({
+      ...gen,
+      hasLiked: gen.likes.length > 0,
+      likeCount: gen._count.likes
+    }));
+
+    return NextResponse.json({ data });
   } catch (error: any) {
+    console.error('Class gallery error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
