@@ -102,10 +102,10 @@ export async function imageToImage(params: ImageToImageParams): Promise<ApiClien
   return await res.json();
 }
 
-export async function analyzePromptWithGemini(prompt: string, apiUrl: string, apiKey: string) {
+export async function analyzePromptWithLLM(prompt: string, apiUrl: string, apiKey: string, modelName: string, customSystemPrompt?: string | null) {
   const baseUrl = getBaseUrl(apiUrl);
   
-  const systemPrompt = `你是一个专业的 AI 图像生成提示词教学助手。
+  const defaultSystemPrompt = `你是一个专业的 AI 图像生成提示词教学助手。
 学生刚用以下提示词生成了一张图片，请进行分析和优化。
 要求返回纯 JSON 格式数据，不要有任何 markdown 代码块标记，直接返回 JSON 对象：
 {
@@ -118,8 +118,10 @@ export async function analyzePromptWithGemini(prompt: string, apiUrl: string, ap
 }
 注意：tips 数组长度保持在 3-4 个左右，针对学生原提示词缺失的维度进行指导。`;
 
+  const systemPrompt = customSystemPrompt || defaultSystemPrompt;
+
   const payload = {
-    model: 'gemini-3.1-flash-lite-preview', // 对应文档中的 Gemini 3.1 flash 文本模型
+    model: modelName,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: `原提示词: "${prompt}"` }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { textToImage, analyzePromptWithGemini } from '@/lib/api-client';
+import { textToImage, analyzePromptWithLLM } from '@/lib/api-client';
 
 export async function POST(req: Request) {
   try {
@@ -94,16 +94,26 @@ export async function POST(req: Request) {
 
     const startTime = Date.now();
     
-    // Find a chat model to use for analysis (Prefer Gemini 3.1 flash or any gemini/gpt)
-    const chatModel = await prisma.model.findFirst({
-       where: { type: 'TEXT_TO_IMAGE', provider: 'gemini' }, // or any we can use for chat. We'll use the first available endpoint
+    let teacherIdForTutor = session.user.id;
+    if (session.user.role === 'STUDENT') {
+      const studentData = await prisma.user.findUnique({ where: { id: session.user.id }, select: { teacherId: true } });
+      if (studentData?.teacherId) teacherIdForTutor = studentData.teacherId;
+    }
+
+    const tutorConfig = await prisma.tutorConfig.findUnique({
+       where: { teacherId: teacherIdForTutor },
        include: { apiEndpoint: true }
     });
     
     let analysisPromise = Promise.resolve(null);
-    if (chatModel && chatModel.apiEndpoint) {
-       // We'll use this endpoint to analyze prompt parallel to image generation
-       analysisPromise = analyzePromptWithGemini(prompt, chatModel.apiEndpoint.baseUrl, chatModel.apiEndpoint.apiKey).catch(e => {
+    if (tutorConfig && tutorConfig.enabled && tutorConfig.apiEndpoint) {
+       analysisPromise = analyzePromptWithLLM(
+         prompt, 
+         tutorConfig.apiEndpoint.baseUrl, 
+         tutorConfig.apiEndpoint.apiKey,
+         tutorConfig.modelName,
+         tutorConfig.systemPrompt
+       ).catch(e => {
           console.error("Prompt analysis failed:", e);
           return null; // fallback gracefully
        });

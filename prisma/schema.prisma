@@ -33,6 +33,7 @@ model User {
   quotaConfig       QuotaConfig?           @relation("TeacherQuota")
   
   likes             GalleryLike[]          @relation("StudentLikes")
+  tutorConfig       TutorConfig?           @relation("TeacherTutor")
 }
 
 model Model {
@@ -121,6 +122,7 @@ model ApiEndpoint {
   updatedAt DateTime @updatedAt
 
   models    Model[]
+  tutorConfigs TutorConfig[]
 }
 
 model Assignment {
@@ -198,4 +200,16 @@ model GalleryLike {
   generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
 
   @@unique([userId, generationId])
+}
+
+model TutorConfig {
+  id            String   @id @default(uuid())
+  teacherId     String   @unique
+  enabled       Boolean  @default(true)
+  systemPrompt  String?  // If null, we use a default
+  modelName     String   @default("gemini-3.1-flash-lite-preview")
+  apiEndpointId String?  
+
+  teacher       User         @relation("TeacherTutor", fields: [teacherId], references: [id], onDelete: Cascade)
+  apiEndpoint   ApiEndpoint? @relation(fields: [apiEndpointId], references: [id], onDelete: SetNull)
 }

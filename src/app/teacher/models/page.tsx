@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function ModelsPage() {
-  const [activeTab, setActiveTab] = useState<'MODELS' | 'ENDPOINTS' | 'SETTINGS'>('MODELS');
+  const [activeTab, setActiveTab] = useState<'MODELS' | 'ENDPOINTS' | 'SETTINGS' | 'TUTOR'>('MODELS');
 
   const { data: modelsResponse, isLoading: modelsLoading, mutate: mutateModels } = useSWR('/api/models', fetcher);
   const models = modelsResponse?.data || [];
@@ -54,6 +54,47 @@ export default function ModelsPage() {
     } finally {
       setIsSavingQuota(false);
       setTimeout(() => setQuotaMessage(''), 3000);
+    }
+  };
+
+  const [tutorFormData, setTutorFormData] = useState({
+    enabled: true,
+    modelName: 'gemini-3.1-flash-lite-preview',
+    apiEndpointId: '',
+    systemPrompt: ''
+  });
+  const [isSavingTutor, setIsSavingTutor] = useState(false);
+  const [tutorMessage, setTutorMessage] = useState('');
+
+  const { data: tutorRes } = useSWR('/api/tutor-config', fetcher);
+  useEffect(() => {
+    if (tutorRes?.data) {
+      setTutorFormData({
+        enabled: tutorRes.data.enabled,
+        modelName: tutorRes.data.modelName || 'gemini-3.1-flash-lite-preview',
+        apiEndpointId: tutorRes.data.apiEndpointId || '',
+        systemPrompt: tutorRes.data.systemPrompt || ''
+      });
+    }
+  }, [tutorRes]);
+
+  const handleTutorSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingTutor(true);
+    setTutorMessage('');
+    try {
+      const res = await fetch('/api/tutor-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tutorFormData)
+      });
+      if (res.ok) setTutorMessage('设置保存成功');
+      else setTutorMessage('设置保存失败');
+    } catch (err) {
+      setTutorMessage('发生错误');
+    } finally {
+      setIsSavingTutor(false);
+      setTimeout(() => setTutorMessage(''), 3000);
     }
   };
 
@@ -244,6 +285,10 @@ export default function ModelsPage() {
              className={`segment-btn ${activeTab === 'SETTINGS' ? 'active' : ''}`}
              onClick={() => setActiveTab('SETTINGS')}
            >安全与配额</button>
+           <button 
+             className={`segment-btn ${activeTab === 'TUTOR' ? 'active' : ''}`}
+             onClick={() => setActiveTab('TUTOR')}
+           >AI 导师</button>
         </div>
       </div>
 
@@ -408,6 +453,94 @@ export default function ModelsPage() {
                 {quotaMessage && (
                   <span style={{ fontSize: '0.875rem', color: quotaMessage.includes('失败') ? 'var(--error)' : 'var(--success)' }}>
                     {quotaMessage}
+                  </span>
+                )}
+              </div>
+            </form>
+          </div>
+         )}
+
+         {activeTab === 'TUTOR' && (
+          <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
+            <form onSubmit={handleTutorSubmit}>
+              <div style={{ marginBottom: '2.5rem' }}>
+                <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>AI 导师开关</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <input 
+                    type="checkbox" 
+                    id="tutorEnabled"
+                    checked={tutorFormData.enabled} 
+                    onChange={e => setTutorFormData({...tutorFormData, enabled: e.target.checked})} 
+                  />
+                  <label htmlFor="tutorEnabled" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-body)' }}>启用 AI 导师分析与点评</label>
+                </div>
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>关闭后，学生生成图片时将不会调用额外的分析接口，可节省 API 成本并加快生成反馈速度。</p>
+              </div>
+
+              <div style={{ marginBottom: '2.5rem', opacity: tutorFormData.enabled ? 1 : 0.5, pointerEvents: tutorFormData.enabled ? 'auto' : 'none' }}>
+                <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>底层模型配置</h2>
+                
+                <div style={{ display: 'flex', gap: '2rem', marginBottom: '1.5rem' }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-body)' }}>API 渠道</label>
+                    <select 
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--hairline)', borderRadius: '6px' }}
+                      value={tutorFormData.apiEndpointId} 
+                      onChange={e => setTutorFormData({...tutorFormData, apiEndpointId: e.target.value})}
+                    >
+                      <option value="">-- 选择分析使用的 API 渠道 --</option>
+                      {endpoints.map((ep: any) => (
+                        <option key={ep.id} value={ep.id}>{ep.name} ({ep.baseUrl})</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-body)' }}>文本大模型 (如 gpt-4o, gemini-1.5-flash)</label>
+                    <input 
+                      type="text" 
+                      style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--hairline)', borderRadius: '6px' }}
+                      value={tutorFormData.modelName} 
+                      onChange={e => setTutorFormData({...tutorFormData, modelName: e.target.value})} 
+                      placeholder="gemini-3.1-flash-lite-preview"
+                    />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                    <label style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-body)' }}>系统人设词 (System Prompt)</label>
+                    <button 
+                      type="button" 
+                      className="ghost-button" 
+                      style={{ padding: '4px 8px', fontSize: '12px' }}
+                      onClick={() => setTutorFormData({...tutorFormData, systemPrompt: ''})}
+                    >
+                      恢复默认
+                    </button>
+                  </div>
+                  <textarea 
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--hairline)', borderRadius: '6px', fontFamily: 'inherit' }}
+                    rows={8} 
+                    value={tutorFormData.systemPrompt} 
+                    onChange={e => setTutorFormData({...tutorFormData, systemPrompt: e.target.value})} 
+                    placeholder="留空则使用默认提示词。注意：必须要求模型返回固定格式的 JSON（包含 optimized 和 tips）。" 
+                  />
+                  <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>定义 AI 导师的性格和点评角度。修改前请确保了解系统要求的 JSON 返回格式。</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <button 
+                  type="submit" 
+                  className="primary-button"
+                  disabled={isSavingTutor}
+                >
+                  {isSavingTutor ? '保存中...' : '保存更改'}
+                </button>
+                {tutorMessage && (
+                  <span style={{ fontSize: '0.875rem', color: tutorMessage.includes('失败') ? 'var(--error)' : 'var(--success)' }}>
+                    {tutorMessage}
                   </span>
                 )}
               </div>

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { imageToImage } from '@/lib/api-client';
+import { imageToImage, analyzePromptWithLLM } from '@/lib/api-client';
 
 export async function POST(req: Request) {
   try {
@@ -78,15 +78,43 @@ export async function POST(req: Request) {
 
     const startTime = Date.now();
     
+    let teacherIdForTutor = session.user.id;
+    if (session.user.role === 'STUDENT') {
+      const studentData = await prisma.user.findUnique({ where: { id: session.user.id }, select: { teacherId: true } });
+      if (studentData?.teacherId) teacherIdForTutor = studentData.teacherId;
+    }
+
+    const tutorConfig = await prisma.tutorConfig.findUnique({
+       where: { teacherId: teacherIdForTutor },
+       include: { apiEndpoint: true }
+    });
+    
+    let analysisPromise = Promise.resolve(null);
+    if (tutorConfig && tutorConfig.enabled && tutorConfig.apiEndpoint) {
+       analysisPromise = analyzePromptWithLLM(
+         prompt, 
+         tutorConfig.apiEndpoint.baseUrl, 
+         tutorConfig.apiEndpoint.apiKey,
+         tutorConfig.modelName,
+         tutorConfig.systemPrompt
+       ).catch(e => {
+          console.error("Prompt analysis failed:", e);
+          return null; // fallback gracefully
+       });
+    }
+
     // Call API Endpoint
-    const response = await imageToImage({
+    const [response, analysisResult] = await Promise.all([
+      imageToImage({
       image,
       prompt,
       model: modelId,
       size,
       apiUrl: model.apiEndpoint.baseUrl,
       apiKey: model.apiEndpoint.apiKey,
-    });
+    }),
+      analysisPromise
+    ]);
 
     const durationMs = Date.now() - startTime;
 
@@ -129,11 +157,11 @@ export async function POST(req: Request) {
         size,
         outputImageUrl,
         durationMs,
-        apiResponse: JSON.stringify(response),
+        apiResponse: JSON.stringify({ response, analysis: analysisResult }),
       }
     });
 
-    return NextResponse.json({ success: true, data: generation, rawUrl: outputImageUrl, conversationId: targetConversationId });
+    return NextResponse.json({ success: true, data: generation, rawUrl: outputImageUrl, conversationId: targetConversationId, analysis: analysisResult });
   } catch (error: any) {
     console.error('Image to Image Error:', error);
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
