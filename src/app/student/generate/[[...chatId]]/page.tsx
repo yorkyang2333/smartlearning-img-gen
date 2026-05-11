@@ -765,7 +765,7 @@ export default function WorkspacePage() {
           display: flex;
           flex-direction: column;
           width: 448px; 
-          min-height: min-content;
+          min-height: 100%;
           transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
@@ -789,6 +789,7 @@ export default function WorkspacePage() {
           background: var(--surface-cream-strong);
           border-bottom-left-radius: 16px;
           border-bottom-right-radius: 16px;
+          flex: 1;
         }
 
         .prompt-header {
