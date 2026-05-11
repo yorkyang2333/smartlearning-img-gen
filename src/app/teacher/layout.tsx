@@ -67,6 +67,30 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
             <span className={styles.navText}>生成记录</span>
           </Link>
           <Link 
+            href="/teacher/challenges" 
+            className={`${styles.navItem} ${pathname.startsWith('/teacher/challenges') ? styles.active : ''}`}
+            title={isCollapsed ? "创意挑战" : ""}
+          >
+            <span className={styles.navIcon}>⚡</span>
+            <span className={styles.navText}>创意挑战</span>
+          </Link>
+          <Link 
+            href="/teacher/templates" 
+            className={`${styles.navItem} ${pathname === '/teacher/templates' ? styles.active : ''}`}
+            title={isCollapsed ? "提示词模板" : ""}
+          >
+            <span className={styles.navIcon}>📝</span>
+            <span className={styles.navText}>提示词模板</span>
+          </Link>
+          <Link 
+            href="/teacher/settings" 
+            className={`${styles.navItem} ${pathname === '/teacher/settings' ? styles.active : ''}`}
+            title={isCollapsed ? "系统设置" : ""}
+          >
+            <span className={styles.navIcon}>⚙️</span>
+            <span className={styles.navText}>系统设置</span>
+          </Link>
+          <Link 
             href="/teacher/live" 
             className={`${styles.navItem} ${pathname === '/teacher/live' ? styles.active : ''}`}
             title={isCollapsed ? "课堂直播" : ""}

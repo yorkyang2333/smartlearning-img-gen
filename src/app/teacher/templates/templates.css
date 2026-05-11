@@ -1,0 +1,151 @@
+.tmpl-container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.tmpl-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.tmpl-subtitle {
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+.tmpl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.tmpl-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+}
+
+.tmpl-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.tmpl-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.tmpl-badge {
+  background: var(--surface-cream-strong);
+  color: var(--text-muted);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: var(--radius-xs);
+}
+
+.tmpl-desc {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  min-height: 2.5rem;
+}
+
+.tmpl-content {
+  background: var(--surface-soft);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--text-body);
+  word-break: break-all;
+  height: 6rem;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  border: 1px solid var(--hairline);
+}
+
+.tmpl-var {
+  background: rgba(93, 184, 166, 0.15);
+  color: var(--accent-teal);
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-xs);
+  margin: 0 0.2rem;
+}
+
+.tmpl-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tmpl-btn-delete {
+  color: var(--error);
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.tmpl-btn-delete:hover {
+  text-decoration: underline;
+}
+
+.tmpl-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.tmpl-modal {
+  width: 100%;
+  max-width: 450px;
+  padding: 1.5rem;
+  background: var(--canvas);
+}
+
+.tmpl-modal h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.tmpl-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tmpl-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tmpl-form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-body);
+}
+
+.tmpl-form-group input, .tmpl-form-group textarea {
+  width: 100%;
+}
+
+.tmpl-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.tmpl-flex-1 {
+  flex: 1;
+}

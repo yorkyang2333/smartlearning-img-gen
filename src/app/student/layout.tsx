@@ -67,6 +67,14 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             <span className={styles.navIcon}>📋</span>
             <span className={styles.navText}>教学任务</span>
           </Link>
+          <Link 
+            href="/student/challenges" 
+            className={`${styles.navItem} ${pathname.startsWith('/student/challenges') ? styles.active : ''}`}
+            title={isCollapsed ? "创意挑战" : ""}
+          >
+            <span className={styles.navIcon}>⚡</span>
+            <span className={styles.navText}>创意挑战</span>
+          </Link>
         </nav>
 
         <div className={styles.sidebarSection}>

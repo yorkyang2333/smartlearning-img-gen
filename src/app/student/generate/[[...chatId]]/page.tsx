@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import useSWR from 'swr';
 import { useParams, useRouter } from 'next/navigation';
+import PromptBuilder from '@/components/PromptBuilder';
+import PromptHelper from '@/components/PromptHelper';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -36,6 +38,8 @@ export default function WorkspacePage() {
   const [sidebarMode, setSidebarMode] = useState<'half' | 'full'>('half');
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [sizeMenuOpen, setSizeMenuOpen] = useState(false);
+  const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+  const [isHelperOpen, setIsHelperOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -331,7 +335,26 @@ export default function WorkspacePage() {
       <div className={`workspace-sidebar ${sidebarMode}`}>
         <div className="sidebar-inner">
           <div className="panel prompt-panel">
+          <div className="prompt-header">
             <h3 className="panel-title">创作参数</h3>
+            <div className="flex gap-2">
+              <button className="open-helper-btn" onClick={() => setIsHelperOpen(true)}>
+                📝 使用模板
+              </button>
+              {!isBuilderOpen && (
+                <button className="open-builder-btn" onClick={() => setIsBuilderOpen(true)}>
+                  🧩 知识图谱构建
+                </button>
+              )}
+            </div>
+          </div>
+          
+          {isHelperOpen && (
+            <PromptHelper 
+              onSelectTemplate={(t) => setPrompt(t)} 
+              onClose={() => setIsHelperOpen(false)} 
+            />
+          )}
           
           {imagePreview && (
             <div className="image-preview-box">
@@ -341,14 +364,22 @@ export default function WorkspacePage() {
             </div>
           )}
 
-          <textarea
-            className="prompt-textarea"
-            placeholder="描述您想要的画面细节..."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={handleKeyDown}
-            rows={4}
-          />
+          {isBuilderOpen ? (
+            <PromptBuilder 
+              currentPrompt={prompt} 
+              onUpdatePrompt={setPrompt} 
+              onClose={() => setIsBuilderOpen(false)} 
+            />
+          ) : (
+            <textarea
+              className="prompt-textarea"
+              placeholder="描述您想要的画面细节..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={4}
+            />
+          )}
 
           <div className="controls-grid" ref={dropdownRef}>
             <div className="control-group">
@@ -717,7 +748,7 @@ export default function WorkspacePage() {
           flex-direction: column;
           padding: 32px 32px 32px 0;
           transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-          overflow: hidden;
+          overflow-y: auto;
         }
         
         .workspace-sidebar.full {
@@ -727,15 +758,14 @@ export default function WorkspacePage() {
         }
         
         .sidebar-inner {
-          flex: 1;
           background: var(--canvas);
           border-radius: 16px;
           border: 1px solid var(--hairline);
           box-shadow: 0 4px 24px rgba(0,0,0,0.02);
           display: flex;
           flex-direction: column;
-          overflow: hidden;
           width: 448px; 
+          min-height: min-content;
           transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
@@ -756,13 +786,42 @@ export default function WorkspacePage() {
         }
 
         .tutor-panel {
-          flex: 1;
           background: var(--surface-cream-strong);
-          overflow-y: auto;
+          border-bottom-left-radius: 16px;
+          border-bottom-right-radius: 16px;
+        }
+
+        .prompt-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+
+        .open-builder-btn, .open-helper-btn {
+          background: rgba(204, 120, 92, 0.1);
+          color: var(--primary);
+          border: none;
+          padding: 6px 12px;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .open-helper-btn {
+          background: rgba(79, 70, 229, 0.1);
+          color: rgb(79, 70, 229);
+        }
+
+        .open-builder-btn:hover, .open-helper-btn:hover {
+          transform: translateY(-1px);
+          opacity: 0.8;
         }
 
         .panel-title {
-          margin: 0 0 16px 0;
+          margin: 0;
           font-size: 16px;
           display: flex;
           align-items: center;
@@ -863,7 +922,7 @@ export default function WorkspacePage() {
           z-index: 100;
           overflow: hidden;
           animation: menuSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          max-height: 400px;
+          max-height: 250px;
           overflow-y: auto;
         }
         

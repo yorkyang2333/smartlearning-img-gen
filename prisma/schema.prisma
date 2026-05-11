@@ -27,10 +27,13 @@ model User {
   modelOverrides StudentModelOverride[]
   
   // Smart Learning Features Relations
-  assignments     Assignment[]           @relation("TeacherAssignments")
-  submissions     AssignmentSubmission[] @relation("StudentSubmissions")
-  templates       PromptTemplate[]       @relation("TeacherTemplates")
-  quotaConfig     QuotaConfig?           @relation("TeacherQuota")
+  assignments       Assignment[]           @relation("TeacherAssignments")
+  submissions       AssignmentSubmission[] @relation("StudentSubmissions")
+  templates         PromptTemplate[]       @relation("TeacherTemplates")
+  quotaConfig       QuotaConfig?           @relation("TeacherQuota")
+  
+  challenges        Challenge[]            @relation("TeacherChallenges")
+  challengeEntries  ChallengeEntry[]       @relation("StudentChallengeEntries")
 }
 
 model Model {
@@ -95,8 +98,8 @@ model Generation {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   model        Model         @relation(fields: [modelId], references: [id], onDelete: Restrict)
   conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  
-  submissions  AssignmentSubmission[]
+  submissions       AssignmentSubmission[]
+  challengeEntries  ChallengeEntry[]
 }
 
 model Conversation {
@@ -177,4 +180,32 @@ model QuotaConfig {
   activeHours  String?  // JSON: { start: "08:00", end: "22:00" }
 
   teacher      User     @relation("TeacherQuota", fields: [teacherId], references: [id], onDelete: Cascade)
+}
+
+model Challenge {
+  id          String   @id @default(uuid())
+  teacherId   String
+  title       String
+  theme       String
+  keywords    String?  // JSON array of strings
+  durationMin Int      @default(5)
+  status      String   @default("PENDING") // PENDING | ACTIVE | ENDED
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime @default(now())
+
+  teacher     User     @relation("TeacherChallenges", fields: [teacherId], references: [id], onDelete: Cascade)
+  entries     ChallengeEntry[]
+}
+
+model ChallengeEntry {
+  id           String   @id @default(uuid())
+  challengeId  String
+  studentId    String
+  generationId String
+  submittedAt  DateTime @default(now())
+
+  challenge    Challenge  @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  student      User       @relation("StudentChallengeEntries", fields: [studentId], references: [id], onDelete: Cascade)
+  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Restrict)
 }
