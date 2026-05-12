@@ -46,6 +46,7 @@ public class GenerationController {
             generation.setModelId(request.getModelId());
             generation.setType("TEXT_TO_IMAGE");
             generation.setPrompt(request.getPrompt());
+            generation.setConversationId(request.getConversationId());
             generation.setApiResponse(apiResponse);
             // Assuming response contains URL in a specific format, we need to parse it. 
             // For now, let's just save the raw response.
@@ -69,5 +70,6 @@ public class GenerationController {
         private String prompt;
         private String modelId;
         private String size;
+        private String conversationId;
     }
 }

@@ -6,7 +6,12 @@ import Assignments from '../views/teacher/Assignments.vue'
 import Students from '../views/teacher/Students.vue'
 import Templates from '../views/teacher/Templates.vue'
 import Live from '../views/teacher/Live.vue'
+
+import StudentLayout from '../views/student/StudentLayout.vue'
 import Workspace from '../views/student/Workspace.vue'
+import ClassGallery from '../views/student/ClassGallery.vue'
+import StudentAssignments from '../views/student/StudentAssignments.vue'
+
 import Gallery from '../views/Gallery.vue'
 
 const router = createRouter({
@@ -54,10 +59,30 @@ const router = createRouter({
       meta: { requiresAuth: true, role: 'TEACHER' }
     },
     {
-      path: '/student/workspace',
-      name: 'student-workspace',
-      component: Workspace,
-      meta: { requiresAuth: true, role: 'STUDENT' }
+      path: '/student',
+      component: StudentLayout,
+      meta: { requiresAuth: true, role: 'STUDENT' },
+      children: [
+        {
+          path: '',
+          redirect: '/student/generate'
+        },
+        {
+          path: 'generate',
+          name: 'student-generate',
+          component: Workspace
+        },
+        {
+          path: 'class-gallery',
+          name: 'student-class-gallery',
+          component: ClassGallery
+        },
+        {
+          path: 'assignments',
+          name: 'student-assignments',
+          component: StudentAssignments
+        }
+      ]
     },
     {
       path: '/gallery',
@@ -81,9 +106,9 @@ router.beforeEach((to, from, next) => {
     next('/login')
   } else if (to.meta.role && authStore.user?.role !== to.meta.role) {
     // If trying to access a route for a different role, redirect to appropriate home
-    next(authStore.isTeacher ? '/teacher/dashboard' : '/student/workspace')
+    next(authStore.isTeacher ? '/teacher/dashboard' : '/student/generate')
   } else if (to.path === '/login' && authStore.isAuthenticated) {
-    next(authStore.isTeacher ? '/teacher/dashboard' : '/student/workspace')
+    next(authStore.isTeacher ? '/teacher/dashboard' : '/student/generate')
   } else {
     next()
   }
