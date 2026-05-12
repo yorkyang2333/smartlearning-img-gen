@@ -53,8 +53,9 @@ onMounted(() => {
              </p>
              
              <div v-if="assignment.type === 'CHALLENGE' && assignment.status === 'ACTIVE' && assignment.startedAt && (!assignment.submissions || assignment.submissions.length === 0)" 
-                  style="margin-top: 12px; padding: 6px 12px; background: rgba(245, 158, 11, 0.1); color: #d97706; border-radius: 6px; font-size: 13px; display: inline-block;">
-                ⏳ 挑战进行中，限时 {{ assignment.durationMin }} 分钟
+                  style="margin-top: 12px; padding: 6px 12px; background: rgba(245, 158, 11, 0.1); color: #d97706; border-radius: 6px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                挑战进行中，限时 {{ assignment.durationMin }} 分钟
              </div>
 
              <div v-if="assignment.submissions && assignment.submissions.length > 0 && assignment.submissions[0].feedback" 

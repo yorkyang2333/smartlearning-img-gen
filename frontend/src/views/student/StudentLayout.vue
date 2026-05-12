@@ -200,89 +200,81 @@ const handleLogout = () => {
 </template>
 
 <style scoped>
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
 .sidebar {
   width: 260px;
-  border-right: 1px solid var(--border-color);
+  border-right: 1px solid var(--hairline);
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  background: rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(20px);
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s;
-  overflow: visible;
-  flex-shrink: 0;
-  z-index: 100;
+  background: var(--surface-card);
+  transition: width 0.3s ease;
   position: relative;
 }
 
 .sidebar.collapsed {
   width: 80px;
-  padding: 1.5rem 0.5rem;
 }
 
 .collapseToggle {
   position: absolute;
-  right: -12px;
-  top: 3.5rem;
-  z-index: 101;
-  background: white;
+  top: 24px;
+  right: -14px;
+  width: 28px;
+  height: 28px;
+  background: var(--canvas);
   border: 1px solid var(--hairline);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  color: var(--muted);
   font-size: 10px;
+  cursor: pointer;
+  z-index: 10;
+  color: var(--muted);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   transition: all 0.2s;
 }
 
 .collapseToggle:hover {
-  background: var(--surface-card);
-  color: var(--ink);
-  transform: scale(1.1);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
 .brand {
   margin-bottom: 2.5rem;
-  display: flex;
-  align-items: center;
-  height: 32px;
-  overflow: hidden;
+  padding: 0 0.5rem;
 }
 
 .brandTitle {
   display: flex;
   align-items: center;
-  white-space: nowrap;
+  gap: 12px;
 }
 
 .brandIcon {
-  font-size: 1.5rem;
-  flex-shrink: 0;
-  width: 32px;
-  display: flex;
-  justify-content: center;
-  margin-right: 0.5rem;
   color: var(--primary);
+  display: flex;
+  align-items: center;
 }
 
 .brandText {
-  font-size: 1.15rem;
-  font-weight: bold;
-  background: linear-gradient(135deg, #111827, #6b7280);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
   margin: 0;
+  color: var(--ink);
+  white-space: nowrap;
   opacity: 1;
   transition: opacity 0.2s;
 }
 
 .sidebar.collapsed .brandText {
   opacity: 0;
+  display: none;
 }
 
 .nav {
@@ -290,6 +282,45 @@ const handleLogout = () => {
   flex-direction: column;
   gap: 0.5rem;
   margin-bottom: 2rem;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  color: var(--text-body);
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.navItem:hover {
+  background: var(--surface-cream-strong);
+  color: var(--ink);
+}
+
+.navItem.active {
+  background: var(--primary);
+  color: white;
+}
+
+.navIcon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.navText {
+  font-weight: 500;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.sidebar.collapsed .navText {
+  opacity: 0;
+  display: none;
 }
 
 .sidebarSection {
@@ -314,17 +345,18 @@ const handleLogout = () => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--muted);
   margin-bottom: 0.75rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 0 0.5rem;
 }
 
 .newChatBtn {
   background: none;
   border: none;
-  color: var(--text-muted);
+  color: var(--muted);
   cursor: pointer;
   padding: 0.25rem;
   border-radius: var(--radius-sm);
@@ -334,8 +366,8 @@ const handleLogout = () => {
 }
 
 .newChatBtn:hover {
-  background: var(--bg-card);
-  color: var(--text-main);
+  background: var(--surface-cream-strong);
+  color: var(--ink);
 }
 
 .conversationsList {
@@ -349,15 +381,15 @@ const handleLogout = () => {
 }
 
 .chatItem {
-  padding: 0.5rem 0.75rem;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.9rem;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  color: var(--text-body);
+  transition: all 0.2s ease;
   text-decoration: none;
+  font-size: 0.9rem;
 }
 
 .chatItemText {
@@ -368,19 +400,19 @@ const handleLogout = () => {
 }
 
 .chatItem:hover {
-  background: var(--bg-card);
-  color: var(--text-main);
+  background: var(--surface-cream-strong);
+  color: var(--ink);
 }
 
 .chatItem.active {
-  background: var(--surface-cream-strong);
-  color: var(--text-main);
+  background: rgba(204, 120, 92, 0.1);
+  color: var(--primary);
   font-weight: 500;
 }
 
 .deleteBtn {
   opacity: 0;
-  color: var(--text-muted);
+  color: var(--muted);
   background: none;
   border: none;
   padding: 0.2rem;
@@ -389,7 +421,7 @@ const handleLogout = () => {
 }
 
 .deleteBtn:hover {
-  color: var(--danger);
+  color: var(--error);
   background: var(--canvas);
 }
 
@@ -397,119 +429,79 @@ const handleLogout = () => {
   opacity: 1;
 }
 
-.navItem {
-  padding: 0.75rem;
-  border-radius: var(--radius-sm);
-  color: var(--text-muted);
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-  white-space: nowrap;
-  text-decoration: none;
-}
-
-.navIcon {
-  font-size: 1.2rem;
-  width: 32px;
-  display: flex;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.navText {
-  margin-left: 0.5rem;
-  opacity: 1;
-  transition: opacity 0.2s;
-}
-
-.sidebar.collapsed .navText {
-  opacity: 0;
-  width: 0;
-  margin-left: 0;
-}
-
-.navItem:hover {
-  background: var(--bg-card);
-  color: var(--text-main);
-}
-
-.navItem.active {
-  background: rgba(204, 120, 92, 0.15);
-  color: var(--primary);
-  font-weight: 500;
-}
-
 .userProfile {
   margin-top: auto;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--hairline);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  gap: 1rem;
 }
 
 .userInfo {
-  margin-bottom: 1rem;
-  white-space: nowrap;
-  transition: opacity 0.2s;
-  opacity: 1;
+  padding: 0 0.5rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar.collapsed .userInfo {
-  opacity: 0;
-  height: 0;
-  margin-bottom: 0;
-  pointer-events: none;
+  display: none;
 }
 
 .userName {
-  font-weight: 500;
-  display: block;
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .userRole {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  color: var(--muted);
 }
 
 .logoutBtn {
-  width: 100%;
-  text-align: left;
-  padding: 0.75rem;
-  color: var(--danger);
-  border-radius: var(--radius-sm);
-  transition: background 0.2s;
-  white-space: nowrap;
   display: flex;
   align-items: center;
-  overflow: hidden;
+  gap: 12px;
+  padding: 10px 16px;
+  color: var(--error);
+  border-radius: var(--radius-md);
+  transition: background 0.2s;
+  width: 100%;
+  text-align: left;
   background: none;
   border: none;
   cursor: pointer;
 }
 
+.logoutBtn:hover {
+  background: var(--surface-cream-strong);
+}
+
 .logoutIcon {
-  font-size: 1.2rem;
-  width: 32px;
   display: flex;
-  justify-content: center;
+  align-items: center;
   flex-shrink: 0;
 }
 
 .logoutText {
-  margin-left: 0.5rem;
-  transition: opacity 0.2s;
-  opacity: 1;
+  font-weight: 500;
+  font-size: 0.95rem;
+  white-space: nowrap;
 }
 
 .sidebar.collapsed .logoutText {
-  opacity: 0;
-  width: 0;
-  margin-left: 0;
+  display: none;
 }
 
-.logoutBtn:hover {
-  background: rgba(239, 68, 68, 0.1);
+.main-content {
+  flex: 1;
+  padding: 48px;
+  overflow-y: auto;
+  height: 100vh;
+  background: var(--canvas);
 }
 </style>

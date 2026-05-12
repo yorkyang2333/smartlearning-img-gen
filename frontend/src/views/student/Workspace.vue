@@ -324,7 +324,8 @@ const activeMsg = computed(() => {
                 <img :src="activeMsg.image" alt="Generated" class="main-image" />
                 <div class="image-actions">
                   <a :href="activeMsg.image" download="creation.png" target="_blank" rel="noreferrer" class="btn btn-secondary">
-                    ⬇ 下载大图
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    下载大图
                   </a>
                 </div>
               </div>
@@ -339,8 +340,10 @@ const activeMsg = computed(() => {
         </template>
         <template v-else>
           <div class="empty-state">
-            <span class="empty-icon">✨</span>
-            <h2>开启智慧创作之旅</h2>
+            <span class="empty-icon">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </span>
+            <h2 class="serif-display">开启智慧创作之旅</h2>
             <p>在右侧输入提示词，体验 AI 导师辅助的学习过程</p>
           </div>
         </template>
@@ -355,7 +358,9 @@ const activeMsg = computed(() => {
           class="history-item"
           :class="{ active: activeMsgId === msg.id || (!activeMsgId && msg === agentMessages[agentMessages.length-1]) }"
         >
-          <div v-if="msg.progress !== undefined && msg.progress < 100" class="history-loading">⌛</div>
+          <div v-if="msg.progress !== undefined && msg.progress < 100" class="history-loading">
+            <div class="pulse-dot"></div>
+          </div>
           <img v-else-if="msg.image" :src="msg.image" alt="history" />
           <div v-else class="history-error">!</div>
         </div>
@@ -369,7 +374,8 @@ const activeMsg = computed(() => {
         @click="sidebarMode = sidebarMode === 'half' ? 'full' : 'half'"
         :title="sidebarMode === 'half' ? '展开为全屏阅读' : '缩小为侧边栏'"
       >
-        {{ sidebarMode === 'half' ? '◀' : '▶' }}
+        <svg v-if="sidebarMode === 'half'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
       </button>
     </div>
 
@@ -378,13 +384,15 @@ const activeMsg = computed(() => {
       <div class="sidebar-inner">
         <div class="panel prompt-panel">
           <div class="prompt-header">
-            <h3 class="panel-title">创作参数</h3>
+            <h3 class="panel-title serif-display">创作参数</h3>
             <div style="display: flex; gap: 8px;">
-              <button class="open-helper-btn" @click="isHelperOpen = true">
-                📝 使用模板
+              <button class="open-helper-btn" @click="isHelperOpen = true" style="display: flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                使用模板
               </button>
-              <button v-if="!isBuilderOpen" class="open-builder-btn" @click="isBuilderOpen = true">
-                🧩 知识图谱构建
+              <button v-if="!isBuilderOpen" class="open-builder-btn" @click="isBuilderOpen = true" style="display: flex; align-items: center; gap: 6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                知识图谱构建
               </button>
             </div>
           </div>
@@ -397,7 +405,9 @@ const activeMsg = computed(() => {
           
           <div v-if="imagePreview" class="image-preview-box">
             <img :src="imagePreview" alt="preview" />
-            <button class="remove-btn" @click="removeImage">✕</button>
+            <button class="remove-btn" @click="removeImage">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
           </div>
 
           <PromptBuilder 
@@ -425,10 +435,12 @@ const activeMsg = computed(() => {
                   @click="modelMenuOpen = !modelMenuOpen; sizeMenuOpen = false"
                 >
                   <div class="trigger-content">
-                    <span class="trigger-icon">{{ getModelMeta(selectedModel?.name || '').icon }}</span>
+                    <span class="trigger-icon" style="font-size: 14px;">{{ getModelMeta(selectedModel?.name || '').icon }}</span>
                     <span class="trigger-text">{{ selectedModel?.name || '选择模型' }}</span>
                   </div>
-                  <span class="caret">▾</span>
+                  <span class="caret">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </span>
                 </div>
                 
                 <div v-if="modelMenuOpen" class="custom-dropdown-menu models-menu">
@@ -441,10 +453,12 @@ const activeMsg = computed(() => {
                       :class="{ selected: m.modelId === modelId }"
                       @click="modelId = m.modelId; modelMenuOpen = false"
                     >
-                      <div class="menu-item-icon">{{ getModelMeta(m.name).icon }}</div>
+                      <div class="menu-item-icon" style="font-size: 14px;">{{ getModelMeta(m.name).icon }}</div>
                       <div class="menu-item-info">
                         <div class="menu-item-name">
-                          {{ m.name }} <span v-if="m.modelId === modelId" class="check-icon">✓</span>
+                          {{ m.name }} <span v-if="m.modelId === modelId" class="check-icon">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                          </span>
                         </div>
                         <div class="menu-item-desc">{{ getModelMeta(m.name).desc }}</div>
                       </div>
@@ -466,7 +480,9 @@ const activeMsg = computed(() => {
                      <div class="size-shape-icon" :style="getSizeMeta(size).shape"></div>
                      <span class="trigger-text">{{ getSizeMeta(size).label }}</span>
                   </div>
-                  <span class="caret">▾</span>
+                  <span class="caret">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </span>
                 </div>
 
                 <div v-if="sizeMenuOpen" class="custom-dropdown-menu sizes-menu">
@@ -482,7 +498,9 @@ const activeMsg = computed(() => {
                     </div>
                     <div class="menu-item-info">
                       <div class="menu-item-name">
-                        {{ getSizeMeta(s).label }} <span v-if="size === s" class="check-icon">✓</span>
+                        {{ getSizeMeta(s).label }} <span v-if="size === s" class="check-icon">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </span>
                       </div>
                       <div class="menu-item-desc">{{ s }}</div>
                     </div>
@@ -495,32 +513,44 @@ const activeMsg = computed(() => {
           <div class="action-row">
             <input type="file" accept="image/*" @change="handleImageChange" ref="fileInputRef" class="hidden-input" />
             <button class="btn btn-secondary icon-btn" @click="fileInputRef?.click()" title="上传参考图">
-              🖼️
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
             </button>
             <button class="btn btn-primary generate-btn" @click="handleSend" :disabled="isGenerating || (!promptText.trim() && !imageFile)">
-              {{ isGenerating ? '正在生成...' : '🚀 开始生成 (⌘+Enter)' }}
+              <span v-if="isGenerating">正在生成...</span>
+              <span v-else style="display: flex; align-items: center; gap: 8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                开始生成 (⌘+Enter)
+              </span>
             </button>
           </div>
         </div>
 
         <div class="panel tutor-panel">
-          <h3 class="panel-title">
-            <span class="tutor-icon">🤖</span> AI 智能导师
+          <h3 class="panel-title serif-display" style="display: flex; align-items: center; gap: 8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tutor-icon" style="color: var(--primary);"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            AI 智能导师
           </h3>
           
           <div class="tutor-content">
             <template v-if="activeMsg?.analysis">
               <div class="analysis-result">
                 <div class="optimized-box">
-                  <div class="box-header">✨ 优化建议</div>
+                  <div class="box-header" style="display: flex; align-items: center; gap: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                    优化建议
+                  </div>
                   <p class="optimized-text">{{ activeMsg.analysis.optimized }}</p>
-                  <button class="apply-btn" @click="promptText = activeMsg.analysis?.optimized || ''">
-                    ⬇ 应用此提示词
+                  <button class="apply-btn" @click="promptText = activeMsg.analysis?.optimized || ''" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                    应用此提示词
                   </button>
                 </div>
                 
                 <div class="tips-box">
-                  <div class="box-header">💡 维度解析</div>
+                  <div class="box-header" style="display: flex; align-items: center; gap: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    维度解析
+                  </div>
                   <div class="tips-list">
                     <div v-for="(tip, idx) in activeMsg.analysis.tips" :key="idx" class="tip-item">
                       <span class="tip-badge">{{ tip.dimension }}</span>
