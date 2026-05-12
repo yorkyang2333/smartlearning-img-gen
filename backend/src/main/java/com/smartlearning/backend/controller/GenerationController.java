@@ -27,24 +27,39 @@ public class GenerationController {
     @Autowired
     private AiService aiService;
 
+    @Autowired
+    private ModelRepository modelRepository;
+
+    @Autowired
+    private com.smartlearning.backend.repository.ApiEndpointRepository apiEndpointRepository;
+
     @PostMapping
     public ResponseEntity<?> createGeneration(@RequestBody GenerationRequest request) {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
 
-        // 1. Fetch Model and API Key logic here (mocked for now)
-        String apiKey = "MOCK_API_KEY";
-        String baseUrl = "https://api.openai.com/v1"; // Or ChatAnywhere
+        // 1. Fetch Model and API Key from database
+        com.smartlearning.backend.entity.Model aiModel = modelRepository.findByModelId(request.getModelId()).orElse(null);
+        if (aiModel == null) {
+            // Fallback to first model if exact match not found (e.g. from frontend defaults)
+            aiModel = modelRepository.findAll().stream().findFirst().orElseThrow(() -> new RuntimeException("No AI Model configured"));
+        }
+
+        com.smartlearning.backend.entity.ApiEndpoint endpoint = apiEndpointRepository.findById(aiModel.getApiEndpointId())
+                .orElseThrow(() -> new RuntimeException("API Endpoint not found for model"));
+
+        String apiKey = endpoint.getApiKey();
+        String baseUrl = endpoint.getBaseUrl();
 
         // 2. Call AI Service
         try {
-            String apiResponse = aiService.generateImage(request.getPrompt(), request.getModelId(), apiKey, baseUrl, null);
+            String apiResponse = aiService.generateImage(request.getPrompt(), aiModel.getModelId(), apiKey, baseUrl, null);
             
             // 3. Save to DB
             Generation generation = new Generation();
             generation.setUserId(user.getId());
-            generation.setModelId(request.getModelId());
-            generation.setType("TEXT_TO_IMAGE");
+            generation.setModelId(aiModel.getModelId());
+            generation.setType(aiModel.getType());
             generation.setPrompt(request.getPrompt());
             generation.setConversationId(request.getConversationId());
             generation.setApiResponse(apiResponse);
