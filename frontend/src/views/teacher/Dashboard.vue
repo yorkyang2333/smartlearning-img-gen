@@ -90,10 +90,10 @@ const maxTrend = computed(() => {
 
 <template>
   <div :style="{ maxWidth: activeTab === 'OVERVIEW' ? '1200px' : '100%', margin: '0 auto', paddingBottom: '64px', height: activeTab === 'MONITOR' ? 'calc(100vh - 64px)' : 'auto' }">
-    <div style="margin-bottom: 32px; display: flex; justify-content: space-between; align-items: flex-end;">
+    <div class="page-header">
       <div>
-        <h1>工作台</h1>
-        <p style="color: var(--muted);">全班数据与最新创作概览</p>
+        <h1 class="editorial-title">工作台</h1>
+        <p class="editorial-subtitle">全班数据与最新创作概览</p>
       </div>
       <div style="display: flex; gap: 16px; align-items: center;">
         <router-link to="/teacher/live" target="_blank" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px;">

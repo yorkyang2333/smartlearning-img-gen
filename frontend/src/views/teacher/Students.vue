@@ -151,8 +151,11 @@ onMounted(() => {
 
 <template>
   <div style="max-width: 1200px; margin: 0 auto;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-      <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 48px; margin: 0; color: var(--ink);">学生管理</h1>
+    <div class="page-header">
+      <div>
+        <h1 class="editorial-title">学生管理</h1>
+        <p class="editorial-subtitle">查看班级成员及学习数据统计。</p>
+      </div>
       <button class="btn btn-primary" @click="isAdding = !isAdding">
         {{ isAdding ? '取消' : '添加学生' }}
       </button>

@@ -66,10 +66,10 @@ onMounted(() => {
 
 <template>
   <div class="tmpl-container">
-    <div class="tmpl-header">
+    <div class="page-header">
       <div>
-        <h1>提示词模板库</h1>
-        <p class="tmpl-subtitle">创建可重用的提示词框架，引导学生填空创作</p>
+        <h1 class="editorial-title">提示词模板库</h1>
+        <p class="editorial-subtitle">管理全局的提示词脚手架与推荐案例。</p>
       </div>
       <button @click="isModalOpen = true" class="btn btn-primary">
         + 新增模板
@@ -131,18 +131,6 @@ onMounted(() => {
 .tmpl-container {
   max-width: 1000px;
   margin: 0 auto;
-}
-
-.tmpl-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.tmpl-subtitle {
-  color: var(--text-muted);
-  margin-top: 0.5rem;
 }
 
 .tmpl-grid {

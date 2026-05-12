@@ -42,8 +42,8 @@ const getValidImageUrl = (url: string) => {
 
 <template>
   <div class="container">
-    <header class="header">
-      <h1 class="title">
+    <header class="page-header" style="align-items: center; border: none; padding-bottom: 0;">
+      <h1 class="editorial-title" style="margin: 0; display: flex; align-items: center; gap: 12px;">
         📺 课堂大屏直播 <span class="liveBadge">LIVE</span>
       </h1>
       <div class="stats">
@@ -83,23 +83,6 @@ const getValidImageUrl = (url: string) => {
   flex-direction: column;
   overflow: hidden;
   background: var(--canvas, #faf9f5);
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.title {
-  font-family: var(--font-serif, "Cormorant Garamond", serif);
-  color: var(--color-ink, #141413);
-  font-size: 1.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  margin: 0;
 }
 
 .liveBadge {

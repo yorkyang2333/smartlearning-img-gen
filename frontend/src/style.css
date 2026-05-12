@@ -171,3 +171,31 @@ h2 {
   line-height: 1.15;
   margin-bottom: 16px;
 }
+
+/* Page Header Component */
+.page-header {
+  margin-bottom: var(--spacing-xxl, 48px);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.editorial-title {
+  font-family: var(--font-serif);
+  font-size: 48px;
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  color: var(--ink);
+  margin: 0 0 12px 0;
+}
+
+.editorial-subtitle {
+  font-family: var(--font-inter);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0;
+  max-width: 600px;
+}

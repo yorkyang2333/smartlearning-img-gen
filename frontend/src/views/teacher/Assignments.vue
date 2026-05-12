@@ -48,8 +48,11 @@ onMounted(() => {
 
 <template>
   <div style="max-width: 800px; margin: 0 auto; padding-bottom: 64px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
-      <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 48px; margin: 0; color: var(--ink);">教学任务</h1>
+    <div class="page-header">
+      <div>
+        <h1 class="editorial-title">教学任务</h1>
+        <p class="editorial-subtitle">发布和管理班级的学习任务与创作挑战。</p>
+      </div>
       <button @click="router.push('/teacher/assignments/new')" class="btn btn-primary">
         + 发布新任务
       </button>

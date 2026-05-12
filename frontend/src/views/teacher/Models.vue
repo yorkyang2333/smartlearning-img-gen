@@ -616,30 +616,6 @@ onMounted(() => {
   padding-bottom: 64px;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 40px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--hairline);
-}
-
-.editorial-title {
-  font-family: var(--font-serif);
-  font-size: 36px;
-  font-weight: 400;
-  color: var(--ink);
-  margin-bottom: 8px;
-  letter-spacing: -0.02em;
-}
-
-.editorial-subtitle {
-  font-size: 15px;
-  color: var(--muted);
-  font-weight: 400;
-}
-
 /* Segmented Control */
 .segmented-control {
   display: flex;
