@@ -399,98 +399,121 @@ onMounted(() => {
 
       <!-- SETTINGS TAB -->
       <template v-if="activeTab === 'SETTINGS'">
-        <div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem;">
-          <form @submit="handleQuotaSubmit">
-            <div style="margin-bottom: 2.5rem;">
-              <h2 style="font-size: 1.25rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">配额管理</h2>
-              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                <label style="font-size: 0.875rem; font-weight: 500; color: var(--text-body);">学生每日生成次数上限</label>
+        <div class="toolbar">
+           <h2 class="section-title">安全与配额</h2>
+        </div>
+        <div class="info-banner info">
+           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+           全局控制学生使用平台的资源消耗和内容安全界限。
+        </div>
+
+        <form @submit="handleQuotaSubmit">
+          <div class="editorial-card" style="margin-bottom: 2rem;">
+            <div class="card-header">
+              <h3 class="card-title">配额管理</h3>
+            </div>
+            <div class="card-body" style="padding: 1.5rem;">
+              <div class="input-group">
+                <label>学生每日生成次数上限</label>
                 <input 
                   type="number" 
-                  style="width: 100%; max-width: 300px; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 6px;"
+                  class="editorial-input"
+                  style="max-width: 300px;"
                   v-model="quotaFormData.dailyLimit" 
                   min="1"
                 />
-                <p style="font-size: 0.875rem; color: var(--text-muted);">防止 API 资源滥用，建议设置为 50-100 次/人</p>
+                <span class="help-text">防止 API 资源滥用，建议设置为 50-100 次/人。</span>
               </div>
             </div>
+          </div>
 
-            <div style="margin-bottom: 2.5rem;">
-              <h2 style="font-size: 1.25rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">安全护栏</h2>
-              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                <label style="font-size: 0.875rem; font-weight: 500; color: var(--text-body);">敏感词黑名单 (用逗号分隔)</label>
+          <div class="editorial-card" style="margin-bottom: 2rem;">
+            <div class="card-header">
+              <h3 class="card-title">安全护栏</h3>
+            </div>
+            <div class="card-body" style="padding: 1.5rem;">
+              <div class="input-group">
+                <label>敏感词黑名单 (用逗号分隔)</label>
                 <textarea 
-                  style="width: 100%; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 6px; font-family: inherit;"
+                  class="editorial-input"
                   rows="4" 
                   v-model="quotaFormData.blockedWords" 
                   placeholder="例如：暴力, 恐怖, 血腥..." 
                 ></textarea>
-                <p style="font-size: 0.875rem; color: var(--text-muted);">学生在提示词中输入这些词汇时，生成请求将被直接拦截。</p>
+                <span class="help-text">学生在提示词中输入这些词汇时，生成请求将被直接拦截。</span>
               </div>
             </div>
+          </div>
 
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <button 
-                type="submit" 
-                class="btn btn-primary"
-                :disabled="isSavingQuota"
-              >
-                {{ isSavingQuota ? '保存中...' : '保存更改' }}
-              </button>
-              <span v-if="quotaMessage" :style="{ fontSize: '0.875rem', color: quotaMessage.includes('失败') ? 'var(--error)' : 'var(--success)' }">
-                {{ quotaMessage }}
-              </span>
-            </div>
-          </form>
-        </div>
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <button 
+              type="submit" 
+              class="primary-button"
+              :disabled="isSavingQuota"
+            >
+              {{ isSavingQuota ? '保存中...' : '保存更改' }}
+            </button>
+            <span v-if="quotaMessage" :class="quotaMessage.includes('失败') ? 'error-text' : 'success-text'">
+              {{ quotaMessage }}
+            </span>
+          </div>
+        </form>
       </template>
 
       <!-- TUTOR TAB -->
       <template v-if="activeTab === 'TUTOR'">
-        <div class="glass-panel" style="padding: 2rem; margin-bottom: 2rem;">
-          <form @submit="handleTutorSubmit">
-            <div style="margin-bottom: 2.5rem;">
-              <h2 style="font-size: 1.25rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">AI 导师开关</h2>
-              <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <input 
-                  type="checkbox" 
-                  id="tutorEnabled"
-                  v-model="tutorFormData.enabled" 
-                />
-                <label for="tutorEnabled" style="font-size: 0.875rem; font-weight: 500; color: var(--text-body);">启用 AI 导师分析与点评</label>
-              </div>
-              <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem;">关闭后，学生生成图片时将不会调用额外的分析接口，可节省 API 成本并加快生成反馈速度。</p>
-            </div>
+        <div class="toolbar">
+           <h2 class="section-title">AI 学伴配置</h2>
+        </div>
+        <div class="info-banner info">
+           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+           定制化你的专属教学助手，它会在学生生成图像时提供实时的建议和提示词优化。
+        </div>
 
-            <div :style="{ marginBottom: '2.5rem', opacity: tutorFormData.enabled ? 1 : 0.5, pointerEvents: tutorFormData.enabled ? 'auto' : 'none' }">
-              <h2 style="font-size: 1.25rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);">底层模型配置</h2>
-              
-              <div style="display: flex; gap: 2rem; margin-bottom: 1.5rem;">
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
-                  <label style="font-size: 0.875rem; font-weight: 500; color: var(--text-body);">API 渠道</label>
-                  <select 
-                    style="width: 100%; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 6px;"
-                    v-model="tutorFormData.apiEndpointId"
-                  >
+        <form @submit="handleTutorSubmit">
+          <div class="editorial-card" style="margin-bottom: 2rem;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <h3 class="card-title">启用 AI 导师分析与点评</h3>
+              <label class="switch-container">
+                <input type="checkbox" v-model="tutorFormData.enabled" style="display: none;" />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <div class="card-body" style="padding: 1.5rem; border-top: 1px solid var(--hairline);">
+              <span class="help-text" style="margin-top: 0;">关闭后，学生生成图片时将不会调用额外的分析接口，可节省 API 成本并加快生成反馈速度。</span>
+            </div>
+          </div>
+
+          <div class="editorial-card" :style="{ marginBottom: '2rem', opacity: tutorFormData.enabled ? 1 : 0.5, pointerEvents: tutorFormData.enabled ? 'auto' : 'none', transition: 'opacity 0.3s ease' }">
+            <div class="card-header">
+              <h3 class="card-title">底层模型配置</h3>
+            </div>
+            <div class="card-body" style="padding: 1.5rem;">
+              <div class="input-row">
+                <div class="input-group">
+                  <label>API 渠道</label>
+                  <select class="editorial-input" v-model="tutorFormData.apiEndpointId">
                     <option value="">-- 选择分析使用的 API 渠道 --</option>
                     <option v-for="ep in endpoints" :key="ep.id" :value="ep.id">{{ ep.name }} ({{ ep.baseUrl }})</option>
                   </select>
                 </div>
                 
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 0.5rem;">
-                  <label style="font-size: 0.875rem; font-weight: 500; color: var(--text-body);">文本大模型 (如 gpt-4o, gemini-1.5-flash)</label>
-                  <input 
-                    type="text" 
-                    style="width: 100%; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 6px;"
-                    v-model="tutorFormData.modelName" 
-                    placeholder="gemini-3.1-flash-lite-preview"
-                  />
+                <div class="input-group">
+                  <label>文本大模型 ID</label>
+                  <select class="editorial-input" v-model="tutorFormData.modelName">
+                    <option value="">-- 选择分析使用的模型 --</option>
+                    <template v-for="m in models" :key="m.id">
+                      <option v-if="m.type === 'BOTH' || m.type === 'TEXT_GENERATION'" :value="m.modelId">
+                        {{ m.name }} ({{ m.modelId }})
+                      </option>
+                    </template>
+                  </select>
                 </div>
               </div>
 
-              <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+              <div class="input-group" style="margin-top: 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-                  <label style="font-size: 0.875rem; font-weight: 500; color: var(--text-body);">系统人设词 (System Prompt)</label>
+                  <label>系统人设词 (System Prompt)</label>
                   <button 
                     type="button" 
                     class="ghost-button" 
@@ -501,29 +524,29 @@ onMounted(() => {
                   </button>
                 </div>
                 <textarea 
-                  style="width: 100%; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 6px; font-family: inherit;"
+                  class="editorial-input"
                   rows="8" 
                   v-model="tutorFormData.systemPrompt" 
                   placeholder="留空则使用默认提示词。注意：必须要求模型返回固定格式的 JSON（包含 optimized 和 tips）。" 
                 ></textarea>
-                <p style="font-size: 0.875rem; color: var(--text-muted);">定义 AI 导师的性格和点评角度。修改前请确保了解系统要求的 JSON 返回格式。</p>
+                <span class="help-text">定义 AI 导师的性格和点评角度。修改前请确保了解系统要求的 JSON 返回格式。</span>
               </div>
             </div>
+          </div>
 
-            <div style="display: flex; align-items: center; gap: 1rem;">
-              <button 
-                type="submit" 
-                class="primary-button"
-                :disabled="isSavingTutor"
-              >
-                {{ isSavingTutor ? '保存中...' : '保存更改' }}
-              </button>
-              <span v-if="tutorMessage" :style="{ fontSize: '0.875rem', color: tutorMessage.includes('失败') ? 'var(--error)' : 'var(--success)' }">
-                {{ tutorMessage }}
-              </span>
-            </div>
-          </form>
-        </div>
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <button 
+              type="submit" 
+              class="primary-button"
+              :disabled="isSavingTutor"
+            >
+              {{ isSavingTutor ? '保存中...' : '保存更改' }}
+            </button>
+            <span v-if="tutorMessage" :class="tutorMessage.includes('失败') ? 'error-text' : 'success-text'">
+              {{ tutorMessage }}
+            </span>
+          </div>
+        </form>
       </template>
     </div>
 

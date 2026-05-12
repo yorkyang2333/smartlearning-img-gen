@@ -4,6 +4,7 @@ import com.smartlearning.backend.entity.Generation;
 import com.smartlearning.backend.entity.User;
 import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.UserRepository;
+import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.service.AiService;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;

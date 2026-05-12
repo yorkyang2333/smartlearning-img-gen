@@ -65,25 +65,19 @@ public class DataSeeder implements CommandLineRunner {
             apiEndpointRepository.save(chatAnywhere);
 
             // Create Default Models
-            Model gpt4o = new Model();
-            gpt4o.setName("GPT-4o (AI学伴)");
-            gpt4o.setModelId("gpt-4o");
-            gpt4o.setType("BOTH");
-            gpt4o.setProvider("openai");
-            gpt4o.setDescription("高性能大语言模型，擅长对话与提示词优化");
-            gpt4o.setConfig("{}");
-            gpt4o.setApiEndpointId(chatAnywhere.getId());
-            modelRepository.save(gpt4o);
-
-            Model dallE3 = new Model();
-            dallE3.setName("DALL-E 3 (生图)");
-            dallE3.setModelId("dall-e-3");
-            dallE3.setType("TEXT_TO_IMAGE");
-            dallE3.setProvider("openai");
-            dallE3.setDescription("高质量AI图像生成模型");
-            dallE3.setConfig("{\"sizes\":[\"1024x1024\"]}");
-            dallE3.setApiEndpointId(chatAnywhere.getId());
-            modelRepository.save(dallE3);
+            modelRepository.save(createModel("GPT-5.5 (前沿模型)", "gpt-5.5", "BOTH", "openai", "openai最新的前沿模型，专为处理最复杂的专业工作而设计", chatAnywhere.getId()));
+            modelRepository.save(createModel("GPT-5.4-mini", "gpt-5.4-mini", "BOTH", "openai", "openai最强大的编码、计算机使用和子代理迷你模型", chatAnywhere.getId()));
+            modelRepository.save(createModel("GPT-5.1 (旗舰模型)", "gpt-5.1", "BOTH", "openai", "用于编码和智能体任务的旗舰模型", chatAnywhere.getId()));
+            modelRepository.save(createModel("o3-mini (推理模型)", "o3-mini", "TEXT_GENERATION", "openai", "针对复杂任务的推理模型", chatAnywhere.getId()));
+            modelRepository.save(createModel("o4-mini", "o4-mini", "TEXT_GENERATION", "openai", "为数学、科学、编码、视觉推理任务和技术写作设定了新的标准", chatAnywhere.getId()));
+            modelRepository.save(createModel("GPT-4o (多模态)", "gpt-4o", "BOTH", "openai", "速度更快更聪明，支持多模态", chatAnywhere.getId()));
+            modelRepository.save(createModel("Gemini 2.5 Pro", "gemini-2.5-pro", "BOTH", "google", "Google最新的旗舰模型", chatAnywhere.getId()));
+            modelRepository.save(createModel("Claude Opus 4.7", "claude-opus-4-7", "BOTH", "anthropic", "Claude的高级模型", chatAnywhere.getId()));
+            modelRepository.save(createModel("DeepSeek V4 Pro", "deepseek-v4-pro", "TEXT_GENERATION", "deepseek", "Deepseek的聊天模型", chatAnywhere.getId()));
+            modelRepository.save(createModel("Qwen3 Max", "qwen3-max-2026-01-23", "TEXT_GENERATION", "alibaba", "Qwen的旗舰模型", chatAnywhere.getId()));
+            modelRepository.save(createModel("DALL-E 3 (生图)", "dall-e-3", "TEXT_TO_IMAGE", "openai", "高质量AI图像生成模型", chatAnywhere.getId()));
+            modelRepository.save(createModel("GPT Image 2", "gpt-image-2", "TEXT_TO_IMAGE", "openai", "优质AI图像生成", chatAnywhere.getId()));
+            modelRepository.save(createModel("Gemini 3.1 Flash Image", "gemini-3.1-flash-image-preview", "TEXT_TO_IMAGE", "google", "Google Gemini的高速生图模型", chatAnywhere.getId()));
 
             // Set up Default Tutor Config
             TutorConfig tutorConfig = new TutorConfig();
@@ -97,5 +91,17 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("✅ 已自动配置默认 ChatAnywhere 渠道、模型和 AI 学伴。");
             System.out.println("⚠️ 请登录教师端，在【系统配置】中更新真实的 API Key。");
         }
+    }
+
+    private Model createModel(String name, String modelId, String type, String provider, String desc, String endpointId) {
+        Model m = new Model();
+        m.setName(name);
+        m.setModelId(modelId);
+        m.setType(type);
+        m.setProvider(provider);
+        m.setDescription(desc);
+        m.setConfig(type.equals("TEXT_TO_IMAGE") ? "{\"sizes\":[\"1024x1024\"]}" : "{}");
+        m.setApiEndpointId(endpointId);
+        return m;
     }
 }
