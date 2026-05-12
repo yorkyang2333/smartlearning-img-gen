@@ -52,6 +52,9 @@ public class TeacherController {
     @Autowired
     private ModelRepository modelRepository;
 
+    @Autowired
+    private com.smartlearning.backend.repository.ApiEndpointRepository apiEndpointRepository;
+
     private String getTeacherId() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return userRepository.findByUsername(userDetails.getUsername()).orElseThrow().getId();
@@ -257,6 +260,108 @@ public class TeacherController {
             return ResponseEntity.status(403).build();
         }
         templateRepository.delete(template);
+        return ResponseEntity.ok().build();
+    }
+    @GetMapping("/endpoints")
+    public ResponseEntity<List<java.util.Map<String, Object>>> getEndpoints() {
+        List<com.smartlearning.backend.entity.ApiEndpoint> endpoints = apiEndpointRepository.findAll();
+        List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
+        
+        for (com.smartlearning.backend.entity.ApiEndpoint ep : endpoints) {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("id", ep.getId());
+            map.put("name", ep.getName());
+            map.put("baseUrl", ep.getBaseUrl());
+            map.put("apiKey", ep.getApiKey());
+            map.put("createdAt", ep.getCreatedAt());
+            
+            java.util.Map<String, Object> countMap = new java.util.HashMap<>();
+            countMap.put("models", modelRepository.countByApiEndpointId(ep.getId()));
+            map.put("_count", countMap);
+            
+            result.add(map);
+        }
+        
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/endpoints")
+    public ResponseEntity<com.smartlearning.backend.entity.ApiEndpoint> createEndpoint(@RequestBody com.smartlearning.backend.entity.ApiEndpoint endpoint) {
+        return ResponseEntity.ok(apiEndpointRepository.save(endpoint));
+    }
+
+    @PutMapping("/endpoints/{id}")
+    public ResponseEntity<com.smartlearning.backend.entity.ApiEndpoint> updateEndpoint(@PathVariable String id, @RequestBody com.smartlearning.backend.entity.ApiEndpoint endpointDetails) {
+        com.smartlearning.backend.entity.ApiEndpoint endpoint = apiEndpointRepository.findById(id).orElseThrow();
+        endpoint.setName(endpointDetails.getName());
+        endpoint.setBaseUrl(endpointDetails.getBaseUrl());
+        endpoint.setApiKey(endpointDetails.getApiKey());
+        return ResponseEntity.ok(apiEndpointRepository.save(endpoint));
+    }
+
+    @DeleteMapping("/endpoints/{id}")
+    public ResponseEntity<?> deleteEndpoint(@PathVariable String id) {
+        apiEndpointRepository.deleteById(id);
+        return ResponseEntity.ok().build();
+    }
+
+    // --- MODELS ---
+    @GetMapping("/models")
+    public ResponseEntity<List<java.util.Map<String, Object>>> getModels() {
+        List<com.smartlearning.backend.entity.Model> models = modelRepository.findAllByOrderBySortOrderAsc();
+        List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
+        
+        for (com.smartlearning.backend.entity.Model m : models) {
+            java.util.Map<String, Object> map = new java.util.HashMap<>();
+            map.put("id", m.getId());
+            map.put("name", m.getName());
+            map.put("modelId", m.getModelId());
+            map.put("type", m.getType());
+            map.put("provider", m.getProvider());
+            map.put("description", m.getDescription());
+            map.put("config", m.getConfig());
+            map.put("isActive", m.getIsActive());
+            map.put("sortOrder", m.getSortOrder());
+            map.put("apiEndpointId", m.getApiEndpointId());
+            map.put("createdAt", m.getCreatedAt());
+            
+            if (m.getApiEndpointId() != null) {
+                apiEndpointRepository.findById(m.getApiEndpointId()).ifPresent(ep -> {
+                    java.util.Map<String, Object> epMap = new java.util.HashMap<>();
+                    epMap.put("id", ep.getId());
+                    epMap.put("name", ep.getName());
+                    map.put("apiEndpoint", epMap);
+                });
+            }
+            result.add(map);
+        }
+        
+        return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/models")
+    public ResponseEntity<com.smartlearning.backend.entity.Model> createModel(@RequestBody com.smartlearning.backend.entity.Model model) {
+        return ResponseEntity.ok(modelRepository.save(model));
+    }
+
+    @PutMapping("/models/{id}")
+    public ResponseEntity<com.smartlearning.backend.entity.Model> updateModel(@PathVariable String id, @RequestBody com.smartlearning.backend.entity.Model modelDetails) {
+        com.smartlearning.backend.entity.Model model = modelRepository.findById(id).orElseThrow();
+        model.setName(modelDetails.getName());
+        model.setModelId(modelDetails.getModelId());
+        model.setType(modelDetails.getType());
+        model.setProvider(modelDetails.getProvider());
+        model.setDescription(modelDetails.getDescription());
+        model.setConfig(modelDetails.getConfig());
+        model.setIsActive(modelDetails.getIsActive());
+        model.setSortOrder(modelDetails.getSortOrder());
+        model.setApiEndpointId(modelDetails.getApiEndpointId());
+        return ResponseEntity.ok(modelRepository.save(model));
+    }
+
+    @DeleteMapping("/models/{id}")
+    public ResponseEntity<?> deleteModel(@PathVariable String id) {
+        modelRepository.deleteById(id);
         return ResponseEntity.ok().build();
     }
 }

@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ModelRepository extends JpaRepository<Model, String> {
+    java.util.List<Model> findAllByOrderBySortOrderAsc();
+    long countByApiEndpointId(String apiEndpointId);
 }
