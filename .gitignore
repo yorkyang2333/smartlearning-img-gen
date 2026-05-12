@@ -38,3 +38,4 @@ frontend/pnpm-debug.log*
 *.log
 backend/dev.db
 backend/dev.db-journal
+backend/data/
