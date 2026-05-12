@@ -124,6 +124,35 @@ const handleLogout = () => {
             </div>
           </router-link>
 
+          <!-- Card 4: Templates -->
+          <router-link to="/teacher/templates" class="group border border-hairline bg-surface-card rounded-xl p-8 hover:-translate-y-1 hover:shadow-lg hover:border-accent-purple/30 transition-all duration-300 flex flex-col h-full">
+            <div class="w-12 h-12 rounded-lg bg-accent-purple/10 text-accent-purple flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+              </svg>
+            </div>
+            <h3 class="font-display text-2xl text-ink mb-3">提示词模板库</h3>
+            <p class="text-body-sm text-muted mb-8 flex-grow">创建包含变量的填空框架，降低学生提示词编写门槛。</p>
+            <div class="text-accent-purple font-medium text-sm flex items-center gap-2 group-hover:gap-3 transition-all">
+              进入管理 <span class="text-lg">&rarr;</span>
+            </div>
+          </router-link>
+
+          <!-- Card 5: Live Screen -->
+          <router-link to="/teacher/live" class="group border border-hairline bg-surface-card rounded-xl p-8 hover:-translate-y-1 hover:shadow-lg hover:border-error/30 transition-all duration-300 flex flex-col h-full">
+            <div class="w-12 h-12 rounded-lg bg-error/10 text-error flex items-center justify-center mb-6 group-hover:scale-110 transition-transform relative">
+              <div class="absolute inset-0 rounded-lg bg-error/20 animate-ping"></div>
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <h3 class="font-display text-2xl text-ink mb-3">课堂大屏直播</h3>
+            <p class="text-body-sm text-muted mb-8 flex-grow">专为教室投屏设计，实时滚动展示全班学生生成的艺术作品。</p>
+            <div class="text-error font-medium text-sm flex items-center gap-2 group-hover:gap-3 transition-all">
+              打开大屏 <span class="text-lg">&rarr;</span>
+            </div>
+          </router-link>
+
         </div>
       </section>
 

@@ -4,6 +4,8 @@ import Dashboard from '../views/teacher/Dashboard.vue'
 import Models from '../views/teacher/Models.vue'
 import Assignments from '../views/teacher/Assignments.vue'
 import Students from '../views/teacher/Students.vue'
+import Templates from '../views/teacher/Templates.vue'
+import Live from '../views/teacher/Live.vue'
 import Workspace from '../views/student/Workspace.vue'
 import Gallery from '../views/Gallery.vue'
 
@@ -37,6 +39,18 @@ const router = createRouter({
       path: '/teacher/students',
       name: 'teacher-students',
       component: Students,
+      meta: { requiresAuth: true, role: 'TEACHER' }
+    },
+    {
+      path: '/teacher/templates',
+      name: 'teacher-templates',
+      component: Templates,
+      meta: { requiresAuth: true, role: 'TEACHER' }
+    },
+    {
+      path: '/teacher/live',
+      name: 'teacher-live',
+      component: Live,
       meta: { requiresAuth: true, role: 'TEACHER' }
     },
     {

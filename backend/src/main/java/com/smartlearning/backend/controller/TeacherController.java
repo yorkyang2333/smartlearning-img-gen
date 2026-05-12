@@ -9,8 +9,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import com.smartlearning.backend.entity.TutorConfig;
 import com.smartlearning.backend.entity.User;
+import com.smartlearning.backend.entity.Template;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.UserRepository;
+import com.smartlearning.backend.repository.TemplateRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
@@ -32,6 +34,9 @@ public class TeacherController {
     
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private TemplateRepository templateRepository;
 
     private String getTeacherId() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -115,6 +120,28 @@ public class TeacherController {
         }
         student.setPasswordHash(passwordEncoder.encode(body.get("newPassword")));
         userRepository.save(student);
+        return ResponseEntity.ok().build();
+    }
+
+    // --- TEMPLATES ---
+    @GetMapping("/templates")
+    public ResponseEntity<List<Template>> getTemplates() {
+        return ResponseEntity.ok(templateRepository.findByTeacherIdOrderByCreatedAtDesc(getTeacherId()));
+    }
+
+    @PostMapping("/templates")
+    public ResponseEntity<Template> createTemplate(@RequestBody Template template) {
+        template.setTeacherId(getTeacherId());
+        return ResponseEntity.ok(templateRepository.save(template));
+    }
+
+    @DeleteMapping("/templates/{id}")
+    public ResponseEntity<?> deleteTemplate(@PathVariable String id) {
+        Template template = templateRepository.findById(id).orElseThrow();
+        if (!template.getTeacherId().equals(getTeacherId())) {
+            return ResponseEntity.status(403).build();
+        }
+        templateRepository.delete(template);
         return ResponseEntity.ok().build();
     }
 }
