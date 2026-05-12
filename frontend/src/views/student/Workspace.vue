@@ -260,13 +260,28 @@ const handleSend = async () => {
     // Update agent message
     const msgIndex = messages.value.findIndex(m => m.id === agentMsgId)
     if (msgIndex !== -1) {
-      messages.value[msgIndex] = { 
-        ...messages.value[msgIndex], 
-        progress: 100, 
-        loadingText: undefined,
-        image: data.rawUrl,
-        timeMs: data.data?.durationMs,
-        analysis: data.apiResponse ? data.apiResponse : undefined
+      if (!data.rawUrl) {
+        messages.value[msgIndex] = { 
+          ...messages.value[msgIndex], 
+          progress: 100, 
+          loadingText: undefined,
+          content: '图片生成成功，但 API 响应解析失败 (rawUrl is null)。请检查后端日志。'
+        }
+      } else {
+        messages.value[msgIndex] = { 
+          ...messages.value[msgIndex], 
+          id: data.generationId ? data.generationId + '_agent' : agentMsgId,
+          progress: 100, 
+          loadingText: undefined,
+          image: data.rawUrl,
+          timeMs: data.data?.durationMs,
+          analysis: data.apiResponse ? data.apiResponse : undefined
+        }
+        
+        // Update activeMsgId if it was the one being generated
+        if (activeMsgId.value === agentMsgId && data.generationId) {
+          activeMsgId.value = data.generationId + '_agent'
+        }
       }
     }
 
@@ -335,8 +350,12 @@ const activeMsg = computed(() => {
             </template>
             <template v-else>
               <div class="error-state">
-                <span class="error-icon">⚠️</span>
-                <p>{{ activeMsg.content }}</p>
+                <div class="error-visual">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                </div>
+                <h3 class="serif-display">无法显示画面</h3>
+                <p>{{ activeMsg.content || '生成响应解析异常，请检查网络或模型配置。' }}</p>
+                <button class="btn btn-secondary" @click="handleSend">重试生成</button>
               </div>
             </template>
           </div>
@@ -739,11 +758,38 @@ const activeMsg = computed(() => {
 .empty-icon { font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.5; }
 
 .error-state {
-  color: var(--error);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 24px;
-  background: rgba(220, 38, 38, 0.1);
-  border-radius: 8px;
+  gap: 16px;
+  max-width: 320px;
+}
+
+.error-visual {
+  width: 80px;
+  height: 80px;
+  background: rgba(220, 38, 38, 0.05);
+  color: var(--error);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.error-state h3 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.error-state p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 /* History Rail */

@@ -20,29 +20,30 @@ public class AiServiceImpl implements AiService {
     @Override
     public String generateImage(String prompt, String modelId, String apiKey, String baseUrl, String apiFormat, Map<String, Object> config) {
         if ("gemini".equalsIgnoreCase(apiFormat)) {
-            // Gemini API format
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("x-goog-api-key", apiKey);
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("instances", List.of(Map.of("prompt", prompt)));
+            requestBody.put("contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
             
-            Map<String, Object> parameters = new HashMap<>();
-            parameters.put("sampleCount", 1);
-            if (config != null) {
-                parameters.putAll(config);
+            Map<String, Object> generationConfig = new HashMap<>();
+            generationConfig.put("responseModalities", List.of("IMAGE", "TEXT"));
+            if (config != null && config.containsKey("size")) {
+                // You can add more constraints here if needed for specialized models
             }
-            requestBody.put("parameters", parameters);
+            requestBody.put("generationConfig", generationConfig);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             try {
-                ResponseEntity<String> response = restTemplate.postForEntity(baseUrl + "/models/" + modelId + ":predict", request, String.class);
+                String endpoint = baseUrl + "/models/" + modelId + ":generateContent";
+                ResponseEntity<String> response = restTemplate.postForEntity(endpoint, request, String.class);
                 return response.getBody();
             } catch (Exception e) {
                 throw new RuntimeException("Image generation failed: " + e.getMessage());
             }
-        } else {
+        }
+ else {
             // OpenAI API format (default)
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);

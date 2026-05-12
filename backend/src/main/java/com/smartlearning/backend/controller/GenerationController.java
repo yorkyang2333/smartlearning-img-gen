@@ -119,6 +119,7 @@ public class GenerationController {
             Map<String, Object> result = new HashMap<>();
             result.put("success", true);
             result.put("rawUrl", outputImageUrl);
+            result.put("generationId", generation.getId());
             result.put("conversationId", conversationId);
             result.put("data", Map.of("durationMs", durationMs));
             
@@ -133,20 +134,31 @@ public class GenerationController {
         try {
             JsonNode root = objectMapper.readTree(apiResponse);
             if ("gemini".equalsIgnoreCase(apiFormat)) {
-                // Parse gemini format (mock parsing since gemini text-to-image is rarely used directly via this endpoint)
-                if (root.has("predictions") && root.get("predictions").isArray() && root.get("predictions").size() > 0) {
-                    JsonNode pred = root.get("predictions").get(0);
-                    if (pred.has("bytesBase64Encoded")) {
-                        return "data:image/png;base64," + pred.get("bytesBase64Encoded").asText();
+                // New Gemini format (generateContent)
+                if (root.has("candidates") && root.get("candidates").isArray() && root.get("candidates").size() > 0) {
+                    JsonNode candidate = root.get("candidates").get(0);
+                    if (candidate.has("content") && candidate.get("content").has("parts")) {
+                        for (JsonNode part : candidate.get("content").get("parts")) {
+                            if (part.has("inlineData")) {
+                                JsonNode inlineData = part.get("inlineData");
+                                return "data:" + inlineData.get("mimeType").asText() + ";base64," + inlineData.get("data").asText();
+                            }
+                        }
                     }
                 }
             } else {
                 // OpenAI format
                 if (root.has("data") && root.get("data").isArray() && root.get("data").size() > 0) {
-                    return root.get("data").get(0).get("url").asText();
+                    JsonNode firstData = root.get("data").get(0);
+                    if (firstData.has("url")) {
+                        return firstData.get("url").asText();
+                    } else if (firstData.has("b64_json")) {
+                        return "data:image/png;base64," + firstData.get("b64_json").asText();
+                    }
                 }
             }
         } catch (Exception e) {
+            System.err.println("Failed to extract image URL. Response was: " + apiResponse);
             e.printStackTrace();
         }
         return null;
