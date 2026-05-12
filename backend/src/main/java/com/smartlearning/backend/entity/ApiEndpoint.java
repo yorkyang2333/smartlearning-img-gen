@@ -24,6 +24,9 @@ public class ApiEndpoint {
     @Column(nullable = false)
     private String apiKey;
 
+    @Column(nullable = false)
+    private String apiFormat = "openai"; // openai | gemini
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

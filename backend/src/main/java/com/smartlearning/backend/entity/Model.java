@@ -41,7 +41,13 @@ public class Model {
     @Column(name = "api_endpoint_id")
     private String apiEndpointId;
 
+    @Column(nullable = false)
+    private String apiFormat = "openai"; // openai | gemini
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
+
+    @org.hibernate.annotations.UpdateTimestamp
+    private LocalDateTime updatedAt;
 }

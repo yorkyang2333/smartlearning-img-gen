@@ -152,10 +152,10 @@ public class StudentController {
     // --- MODELS ---
     @GetMapping("/models")
     public ResponseEntity<Map<String, Object>> getStudentModels() {
-        // Only return models that are marked as active
-        List<com.smartlearning.backend.entity.Model> models = modelRepository.findAllByOrderBySortOrderAsc()
+        // Only return models that are marked as active and are NOT text generation only
+        List<com.smartlearning.backend.entity.Model> models = modelRepository.findByIsActiveTrueOrderBySortOrderAsc()
             .stream()
-            .filter(com.smartlearning.backend.entity.Model::getIsActive)
+            .filter(m -> !"TEXT_GENERATION".equals(m.getType()))
             .collect(java.util.stream.Collectors.toList());
             
         return ResponseEntity.ok(Map.of("success", true, "data", models));
@@ -209,18 +209,27 @@ public class StudentController {
                 userMessage,
                 tutorConfig.getModelName(),
                 endpoint.getApiKey(),
-                endpoint.getBaseUrl()
+                endpoint.getBaseUrl(),
+                endpoint.getApiFormat()
             );
 
-            // Parse standard OpenAI response format
             ObjectMapper mapper = new ObjectMapper();
             JsonNode root = mapper.readTree(rawResponse);
             
             String replyContent = "抱歉，无法解析AI返回的响应。";
-            if (root.has("choices") && root.get("choices").isArray() && root.get("choices").size() > 0) {
-                JsonNode messageNode = root.get("choices").get(0).get("message");
-                if (messageNode != null && messageNode.has("content")) {
-                    replyContent = messageNode.get("content").asText();
+            if ("gemini".equalsIgnoreCase(endpoint.getApiFormat())) {
+                if (root.has("candidates") && root.get("candidates").isArray() && root.get("candidates").size() > 0) {
+                    JsonNode candidate = root.get("candidates").get(0);
+                    if (candidate.has("content") && candidate.get("content").has("parts") && candidate.get("content").get("parts").isArray()) {
+                        replyContent = candidate.get("content").get("parts").get(0).get("text").asText();
+                    }
+                }
+            } else {
+                if (root.has("choices") && root.get("choices").isArray() && root.get("choices").size() > 0) {
+                    JsonNode messageNode = root.get("choices").get(0).get("message");
+                    if (messageNode != null && messageNode.has("content")) {
+                        replyContent = messageNode.get("content").asText();
+                    }
                 }
             }
 

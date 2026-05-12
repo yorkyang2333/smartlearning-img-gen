@@ -26,6 +26,8 @@ import com.smartlearning.backend.entity.Generation;
 import com.smartlearning.backend.entity.Model;
 import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.ModelRepository;
+import com.smartlearning.backend.service.ModelDiscoveryService;
+
 @RestController
 @RequestMapping("/api/teacher")
 @PreAuthorize("hasRole('TEACHER')")
@@ -54,6 +56,9 @@ public class TeacherController {
 
     @Autowired
     private com.smartlearning.backend.repository.ApiEndpointRepository apiEndpointRepository;
+
+    @Autowired
+    private ModelDiscoveryService modelDiscoveryService;
 
     private String getTeacherId() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -190,9 +195,10 @@ public class TeacherController {
         TutorConfig config = tutorConfigRepository.findByTeacherId(getTeacherId())
             .orElseThrow(() -> new RuntimeException("Config not found"));
         
-        config.setEnabled(configDetails.getEnabled());
-        config.setSystemPrompt(configDetails.getSystemPrompt());
-        config.setModelName(configDetails.getModelName());
+        if (configDetails.getEnabled() != null) config.setEnabled(configDetails.getEnabled());
+        if (configDetails.getSystemPrompt() != null) config.setSystemPrompt(configDetails.getSystemPrompt());
+        if (configDetails.getModelName() != null) config.setModelName(configDetails.getModelName());
+        if (configDetails.getApiEndpointId() != null) config.setApiEndpointId(configDetails.getApiEndpointId());
         
         return ResponseEntity.ok(tutorConfigRepository.save(config));
     }
@@ -273,6 +279,7 @@ public class TeacherController {
             map.put("name", ep.getName());
             map.put("baseUrl", ep.getBaseUrl());
             map.put("apiKey", ep.getApiKey());
+            map.put("apiFormat", ep.getApiFormat());
             map.put("createdAt", ep.getCreatedAt());
             
             java.util.Map<String, Object> countMap = new java.util.HashMap<>();
@@ -287,6 +294,9 @@ public class TeacherController {
 
     @PostMapping("/endpoints")
     public ResponseEntity<com.smartlearning.backend.entity.ApiEndpoint> createEndpoint(@RequestBody com.smartlearning.backend.entity.ApiEndpoint endpoint) {
+        if (endpoint.getApiFormat() == null) {
+            endpoint.setApiFormat("openai");
+        }
         return ResponseEntity.ok(apiEndpointRepository.save(endpoint));
     }
 
@@ -296,7 +306,17 @@ public class TeacherController {
         endpoint.setName(endpointDetails.getName());
         endpoint.setBaseUrl(endpointDetails.getBaseUrl());
         endpoint.setApiKey(endpointDetails.getApiKey());
+        if (endpointDetails.getApiFormat() != null) {
+            endpoint.setApiFormat(endpointDetails.getApiFormat());
+        }
         return ResponseEntity.ok(apiEndpointRepository.save(endpoint));
+    }
+
+    @PostMapping("/endpoints/{id}/discover")
+    public ResponseEntity<Map<String, Object>> discoverModels(@PathVariable String id) {
+        com.smartlearning.backend.entity.ApiEndpoint endpoint = apiEndpointRepository.findById(id).orElseThrow();
+        Map<String, Object> result = modelDiscoveryService.discoverModels(endpoint);
+        return ResponseEntity.ok(result);
     }
 
     @DeleteMapping("/endpoints/{id}")
@@ -322,6 +342,7 @@ public class TeacherController {
             map.put("config", m.getConfig());
             map.put("isActive", m.getIsActive());
             map.put("sortOrder", m.getSortOrder());
+            map.put("apiFormat", m.getApiFormat());
             map.put("apiEndpointId", m.getApiEndpointId());
             map.put("createdAt", m.getCreatedAt());
             
@@ -341,6 +362,9 @@ public class TeacherController {
 
     @PostMapping("/models")
     public ResponseEntity<com.smartlearning.backend.entity.Model> createModel(@RequestBody com.smartlearning.backend.entity.Model model) {
+        if (model.getApiFormat() == null) {
+            model.setApiFormat("openai");
+        }
         return ResponseEntity.ok(modelRepository.save(model));
     }
 
@@ -355,8 +379,25 @@ public class TeacherController {
         model.setConfig(modelDetails.getConfig());
         model.setIsActive(modelDetails.getIsActive());
         model.setSortOrder(modelDetails.getSortOrder());
+        if (modelDetails.getApiFormat() != null) {
+            model.setApiFormat(modelDetails.getApiFormat());
+        }
         model.setApiEndpointId(modelDetails.getApiEndpointId());
         return ResponseEntity.ok(modelRepository.save(model));
+    }
+
+    @PostMapping("/models/batch")
+    public ResponseEntity<Map<String, Object>> batchCreateModels(@RequestBody List<com.smartlearning.backend.entity.Model> models) {
+        List<com.smartlearning.backend.entity.Model> savedModels = new ArrayList<>();
+        for (com.smartlearning.backend.entity.Model model : models) {
+            if (!modelRepository.existsByModelId(model.getModelId())) {
+                if (model.getApiFormat() == null) {
+                    model.setApiFormat("openai");
+                }
+                savedModels.add(modelRepository.save(model));
+            }
+        }
+        return ResponseEntity.ok(Map.of("success", true, "count", savedModels.size()));
     }
 
     @DeleteMapping("/models/{id}")
