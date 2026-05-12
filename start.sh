@@ -47,7 +47,7 @@ trap cleanup SIGINT SIGTERM
 echo "⏳ [1/2] 正在启动后端 (Spring Boot: http://localhost:8080)..."
 cd backend
 # 跳过测试，加速启动
-mvn spring-boot:run -Dspring-boot.run.profiles=dev -DskipTests > /dev/null 2>&1 &
+mvn spring-boot:run -Dspring-boot.run.profiles=dev -DskipTests &
 BACKEND_PID=$!
 cd ..
 

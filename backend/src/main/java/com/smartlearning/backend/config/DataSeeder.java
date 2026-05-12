@@ -22,7 +22,7 @@ public class DataSeeder implements CommandLineRunner {
             // Create default Teacher
             User teacher = new User();
             teacher.setUsername("teacher");
-            teacher.setPassword(passwordEncoder.encode("123456"));
+            teacher.setPasswordHash(passwordEncoder.encode("123456"));
             teacher.setDisplayName("王老师 (Teacher)");
             teacher.setRole("TEACHER");
             teacher.setIsActive(true);
@@ -31,7 +31,7 @@ public class DataSeeder implements CommandLineRunner {
             // Create default Student
             User student = new User();
             student.setUsername("student");
-            student.setPassword(passwordEncoder.encode("123456"));
+            student.setPasswordHash(passwordEncoder.encode("123456"));
             student.setDisplayName("小明 (Student)");
             student.setRole("STUDENT");
             student.setTeacherId(teacher.getId());
