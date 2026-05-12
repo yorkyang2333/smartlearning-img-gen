@@ -126,11 +126,43 @@ const endpointFormData = ref({
 })
 
 const handleModelToggle = async (modelId: string, currentEnabled: boolean) => {
-  // Mock for now
   const model = models.value.find(m => m.id === modelId)
-  if (model) {
-    model.isActive = !currentEnabled
+  if (!model) return
+  
+  // Optimistic update
+  model.isActive = !currentEnabled
+  if ('teacherEnabled' in model) {
     model.teacherEnabled = !currentEnabled
+  }
+  
+  try {
+    const res = await fetch(`http://localhost:8080/api/teacher/models/${modelId}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}` 
+      },
+      body: JSON.stringify({
+        name: model.name,
+        modelId: model.modelId,
+        type: model.type,
+        provider: model.provider,
+        description: model.description,
+        config: model.config,
+        isActive: model.isActive,
+        sortOrder: model.sortOrder,
+        apiEndpointId: model.apiEndpointId || (model.apiEndpoint ? model.apiEndpoint.id : null)
+      })
+    })
+    
+    if (!res.ok) throw new Error('Update failed')
+  } catch (err) {
+    // Revert on error
+    model.isActive = currentEnabled
+    if ('teacherEnabled' in model) {
+      model.teacherEnabled = currentEnabled
+    }
+    alert('状态更新失败，请重试')
   }
 }
 
@@ -312,9 +344,9 @@ onMounted(() => {
                     <h3 class="card-title">{{ model.name }}</h3>
                     <span class="badge badge-provider">{{ model.provider }}</span>
                  </div>
-                 <div class="badge badge-type" :class="{ both: model.type === 'BOTH' }">
-                    {{ model.type === 'TEXT_TO_IMAGE' ? '仅文生图' : model.type === 'IMAGE_TO_IMAGE' ? '仅图生图' : '文/图生图' }}
-                 </div>
+                  <div class="badge badge-type" :class="{ both: model.type === 'BOTH' }">
+                    {{ model.type === 'TEXT_TO_IMAGE' ? '仅文生图' : model.type === 'IMAGE_TO_IMAGE' ? '仅图生图' : model.type === 'TEXT_GENERATION' ? '仅对话' : '生图+对话' }}
+                  </div>
               </div>
               
               <p class="card-desc">
@@ -579,14 +611,22 @@ onMounted(() => {
             <div class="input-group">
               <label>支持类型</label>
               <select class="editorial-input" v-model="modelFormData.type">
-                <option value="TEXT_TO_IMAGE">文生图 (Text to Image)</option>
+                <option value="TEXT_TO_IMAGE">文生图 (仅生图)</option>
+                <option value="TEXT_GENERATION">文本生成 (仅对话)</option>
+                <option value="BOTH">双模支持 (生图+对话)</option>
                 <option value="IMAGE_TO_IMAGE">图生图 (Image to Image)</option>
-                <option value="BOTH">双模支持 (Both)</option>
               </select>
             </div>
             <div class="input-group">
               <label>提供方标识</label>
-              <input type="text" class="editorial-input" required v-model="modelFormData.provider" placeholder="如: openai" />
+              <select class="editorial-input" v-model="modelFormData.provider">
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="google">Google</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="alibaba">Alibaba (Qwen)</option>
+                <option value="other">其它 (Other)</option>
+              </select>
             </div>
           </div>
 

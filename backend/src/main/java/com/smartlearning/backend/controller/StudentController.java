@@ -11,6 +11,7 @@ import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.UserRepository;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.ApiEndpointRepository;
+import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.service.AiService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -48,6 +49,9 @@ public class StudentController {
 
     @Autowired
     private ApiEndpointRepository apiEndpointRepository;
+
+    @Autowired
+    private ModelRepository modelRepository;
 
     @Autowired
     private AiService aiService;
@@ -143,6 +147,18 @@ public class StudentController {
         }
         List<Assignment> list = assignmentRepository.findByTeacherIdOrderByCreatedAtDesc(student.getTeacherId());
         return ResponseEntity.ok(Map.of("success", true, "data", list));
+    }
+
+    // --- MODELS ---
+    @GetMapping("/models")
+    public ResponseEntity<Map<String, Object>> getStudentModels() {
+        // Only return models that are marked as active
+        List<com.smartlearning.backend.entity.Model> models = modelRepository.findAllByOrderBySortOrderAsc()
+            .stream()
+            .filter(com.smartlearning.backend.entity.Model::getIsActive)
+            .collect(java.util.stream.Collectors.toList());
+            
+        return ResponseEntity.ok(Map.of("success", true, "data", models));
     }
 
     // --- ANALYTICS ---

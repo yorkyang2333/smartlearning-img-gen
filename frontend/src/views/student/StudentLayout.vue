@@ -337,7 +337,7 @@ const handleLogout = () => {
   max-width: 200px;
   margin-left: 12px;
   opacity: 1;
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, max-width 0.3s ease, margin-left 0.3s ease;
 }
 
 .sidebar.collapsed .navText {

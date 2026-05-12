@@ -47,7 +47,7 @@ const models = ref<any[]>([])
 // Fetch models
 const fetchModels = async () => {
   try {
-    const res = await fetch('http://localhost:8080/api/student-models', {
+    const res = await fetch('http://localhost:8080/api/student/models', {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     const data = await res.json()
