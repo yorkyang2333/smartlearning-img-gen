@@ -16,8 +16,16 @@ import com.smartlearning.backend.repository.TemplateRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
-
+import java.util.ArrayList;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.stream.Collectors;
+import com.smartlearning.backend.entity.Generation;
+import com.smartlearning.backend.entity.Model;
+import com.smartlearning.backend.repository.GenerationRepository;
+import com.smartlearning.backend.repository.ModelRepository;
 @RestController
 @RequestMapping("/api/teacher")
 @PreAuthorize("hasRole('TEACHER')")
@@ -38,9 +46,116 @@ public class TeacherController {
     @Autowired
     private TemplateRepository templateRepository;
 
+    @Autowired
+    private GenerationRepository generationRepository;
+
+    @Autowired
+    private ModelRepository modelRepository;
+
     private String getTeacherId() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return userRepository.findByUsername(userDetails.getUsername()).orElseThrow().getId();
+    }
+
+    @GetMapping("/analytics")
+    public ResponseEntity<Map<String, Object>> getAnalytics() {
+        try {
+            long totalStudents = userRepository.countByRole("STUDENT");
+            long totalGenerations = generationRepository.count();
+
+            List<Generation> allGens = generationRepository.findAll();
+            long activeModelsCount = allGens.stream().map(Generation::getModelId).distinct().count();
+
+            LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(6).withHour(0).withMinute(0).withSecond(0).withNano(0);
+            List<Generation> recentGenerations = generationRepository.findByCreatedAtAfter(sevenDaysAgo);
+
+            Map<String, Integer> trendMap = new java.util.LinkedHashMap<>();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM d");
+            for (int i = 0; i < 7; i++) {
+                LocalDateTime d = sevenDaysAgo.plusDays(i);
+                trendMap.put(d.format(formatter), 0);
+            }
+
+            for (Generation gen : recentGenerations) {
+                if (gen.getCreatedAt() != null) {
+                    String dateStr = gen.getCreatedAt().format(formatter);
+                    if (trendMap.containsKey(dateStr)) {
+                        trendMap.put(dateStr, trendMap.get(dateStr) + 1);
+                    }
+                }
+            }
+
+            List<Map<String, Object>> dailyTrend = new ArrayList<>();
+            for (Map.Entry<String, Integer> entry : trendMap.entrySet()) {
+                dailyTrend.add(Map.of("date", entry.getKey(), "count", entry.getValue()));
+            }
+
+            Map<String, Long> modelCounts = allGens.stream()
+                .collect(Collectors.groupingBy(Generation::getModelId, Collectors.counting()));
+            
+            List<Model> models = modelRepository.findAll();
+            List<Map<String, Object>> modelUsage = modelCounts.entrySet().stream()
+                .map(entry -> {
+                    String modelName = models.stream()
+                        .filter(m -> m.getId().equals(entry.getKey()))
+                        .findFirst()
+                        .map(Model::getName)
+                        .orElse("Unknown");
+                    return Map.<String, Object>of("name", modelName, "count", entry.getValue());
+                })
+                .sorted((a, b) -> Long.compare((Long) b.get("count"), (Long) a.get("count")))
+                .collect(Collectors.toList());
+
+            return ResponseEntity.ok(Map.of("data", Map.of(
+                "totalStudents", totalStudents,
+                "totalGenerations", totalGenerations,
+                "activeModels", activeModelsCount,
+                "dailyTrend", dailyTrend,
+                "modelUsage", modelUsage
+            )));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<Map<String, Object>> getHistory() {
+        try {
+            List<Generation> generations = generationRepository.findAllByOrderByCreatedAtDesc();
+            List<User> users = userRepository.findAll();
+            List<Model> models = modelRepository.findAll();
+
+            Map<String, User> userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u));
+            Map<String, Model> modelMap = models.stream().collect(Collectors.toMap(Model::getId, m -> m));
+
+            List<Map<String, Object>> enrichedGens = generations.stream()
+                .limit(100) // Limit to top 100 to avoid huge payload
+                .map(g -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", g.getId());
+                    map.put("outputImageUrl", g.getOutputImageUrl());
+                    map.put("prompt", g.getPrompt());
+                    map.put("createdAt", g.getCreatedAt());
+                    
+                    User user = userMap.get(g.getUserId());
+                    if (user != null) {
+                        map.put("user", Map.of("id", user.getId(), "displayName", user.getDisplayName() != null ? user.getDisplayName() : user.getUsername()));
+                    }
+                    
+                    Model model = modelMap.get(g.getModelId());
+                    if (model != null) {
+                        map.put("model", Map.of("id", model.getId(), "name", model.getName()));
+                    }
+                    
+                    return map;
+                }).collect(Collectors.toList());
+
+            return ResponseEntity.ok(Map.of("data", enrichedGens));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 
     // --- ASSIGNMENTS ---

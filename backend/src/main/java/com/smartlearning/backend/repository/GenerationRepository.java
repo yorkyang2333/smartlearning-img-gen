@@ -10,4 +10,6 @@ import java.util.List;
 public interface GenerationRepository extends JpaRepository<Generation, String> {
     List<Generation> findByUserIdOrderByCreatedAtDesc(String userId);
     List<Generation> findTop50ByUserIdInOrderByCreatedAtDesc(List<String> userIds);
+    List<Generation> findByCreatedAtAfter(java.time.LocalDateTime date);
+    List<Generation> findAllByOrderByCreatedAtDesc();
 }

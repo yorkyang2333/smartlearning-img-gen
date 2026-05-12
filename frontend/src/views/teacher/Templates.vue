@@ -1,60 +1,43 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 
-const router = useRouter()
 const authStore = useAuthStore()
-
-interface Template {
-  id: string
-  title: string
-  description: string
-  category: string
-  templateContent: string
-}
-
-const templates = ref<Template[]>([])
-const loading = ref(false)
+const templates = ref<any[]>([])
 const isModalOpen = ref(false)
 const isSubmitting = ref(false)
-
-const formData = ref({
-  title: '',
-  description: '',
-  category: '',
-  templateContent: ''
-})
+const formData = ref({ title: '', description: '', template: '', category: '' })
 
 const fetchTemplates = async () => {
-  loading.value = true
   try {
     const res = await fetch('http://localhost:8080/api/teacher/templates', {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     if (res.ok) {
-      templates.value = await res.json()
+      const data = await res.json()
+      templates.value = data
     }
-  } finally {
-    loading.value = false
+  } catch (e) {
+    console.error(e)
   }
 }
 
-const handleSubmit = async () => {
+const handleSubmit = async (e: Event) => {
+  e.preventDefault()
   isSubmitting.value = true
   try {
     const res = await fetch('http://localhost:8080/api/teacher/templates', {
       method: 'POST',
-      headers: {
+      headers: { 
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authStore.token}`
       },
       body: JSON.stringify(formData.value)
     })
     if (res.ok) {
-      await fetchTemplates()
+      fetchTemplates()
       isModalOpen.value = false
-      formData.value = { title: '', description: '', category: '', templateContent: '' }
+      formData.value = { title: '', description: '', template: '', category: '' }
     }
   } finally {
     isSubmitting.value = false
@@ -64,22 +47,16 @@ const handleSubmit = async () => {
 const handleDelete = async (id: string) => {
   if (!confirm('确定删除此模板吗？')) return
   try {
-    const res = await fetch(`http://localhost:8080/api/teacher/templates/${id}`, {
+    await fetch(`http://localhost:8080/api/teacher/templates/${id}`, { 
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
-    if (res.ok) {
-      await fetchTemplates()
-    }
-  } catch (e) {
-    console.error(e)
-  }
+    fetchTemplates()
+  } catch (e) {}
 }
 
-// Helper to highlight variables in braces {like_this}
-const renderTemplateParts = (content: string) => {
-  if (!content) return []
-  return content.split(/(\{.*?\})/)
+const parseTemplateParts = (templateStr: string) => {
+  return templateStr.split(/(\{.*?\})/)
 }
 
 onMounted(() => {
@@ -88,100 +65,221 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-canvas font-body text-ink pb-24 relative">
-    <header class="border-b border-hairline bg-canvas/80 backdrop-blur-md sticky top-0 z-40">
-      <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <button @click="router.push('/teacher/dashboard')" class="text-muted hover:text-ink transition-colors flex items-center gap-2 text-sm font-medium">
-          <span>&larr;</span> 返回控制台
-        </button>
-        <button @click="isModalOpen = true" class="bg-primary hover:bg-primary-active text-white px-5 py-2 rounded-md font-medium text-sm transition-all shadow-sm hover:shadow-md">
-          + 新增模板
-        </button>
+  <div class="tmpl-container">
+    <div class="tmpl-header">
+      <div>
+        <h1>提示词模板库</h1>
+        <p class="tmpl-subtitle">创建可重用的提示词框架，引导学生填空创作</p>
       </div>
-    </header>
+      <button @click="isModalOpen = true" class="btn btn-primary">
+        + 新增模板
+      </button>
+    </div>
 
-    <main class="max-w-6xl mx-auto px-6 mt-12">
-      <h1 class="font-display text-4xl mb-2">提示词模板库</h1>
-      <p class="text-body-md text-muted mb-12">创建包含变量的填空框架，降低学生编写 Prompt 的门槛。</p>
-      
-      <div v-if="loading" class="animate-pulse grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="h-48 bg-surface-card rounded-xl border border-hairline w-full" v-for="i in 3" :key="i"></div>
-      </div>
-
-      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div 
-          v-for="t in templates" 
-          :key="t.id"
-          class="bg-surface-card rounded-xl border border-hairline p-6 hover:-translate-y-1 hover:shadow-md transition-all duration-300 flex flex-col group"
-        >
-          <div class="flex justify-between items-start mb-4">
-            <h3 class="font-display text-xl text-ink">{{ t.title }}</h3>
-            <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-surface-dark/10 text-muted border border-hairline">
-              {{ t.category || '通用' }}
-            </span>
-          </div>
-          
-          <p class="text-body-sm text-muted mb-6">{{ t.description }}</p>
-          
-          <div class="bg-canvas border border-hairline rounded-lg p-4 font-mono text-sm leading-relaxed flex-grow">
-            <template v-for="(part, i) in renderTemplateParts(t.templateContent)" :key="i">
-              <span v-if="part.startsWith('{') && part.endsWith('}')" class="text-primary bg-primary/10 px-1 py-0.5 rounded mx-0.5">
-                {{ part }}
-              </span>
-              <span v-else class="text-ink/80">{{ part }}</span>
-            </template>
-          </div>
-
-          <div class="mt-6 pt-4 border-t border-hairline flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-            <button @click="handleDelete(t.id)" class="text-sm text-error hover:text-error/80 font-medium">
-              删除模板
-            </button>
-          </div>
+    <div class="tmpl-grid">
+      <div v-for="t in templates" :key="t.id" class="glass-panel tmpl-card">
+        <div class="tmpl-card-header">
+          <h3 class="tmpl-card-title">{{ t.title }}</h3>
+          <span class="tmpl-badge">{{ t.category || '通用' }}</span>
+        </div>
+        <p class="tmpl-desc">{{ t.description }}</p>
+        <div class="tmpl-content">
+          <template v-for="(part, i) in parseTemplateParts(t.template)" :key="i">
+            <span v-if="part.startsWith('{') && part.endsWith('}')" class="tmpl-var">{{ part }}</span>
+            <template v-else>{{ part }}</template>
+          </template>
+        </div>
+        <div class="tmpl-card-actions">
+          <button @click="handleDelete(t.id)" class="tmpl-btn-delete">删除模板</button>
         </div>
       </div>
-    </main>
+    </div>
 
-    <!-- Modal overlay -->
-    <div v-if="isModalOpen" class="fixed inset-0 bg-ink/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div class="bg-surface-card w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div class="px-8 py-6 border-b border-hairline bg-canvas">
-          <h2 class="font-display text-2xl">创建新模板</h2>
-        </div>
-        
-        <form @submit.prevent="handleSubmit" class="p-8 space-y-6">
-          <div>
-            <label class="block text-sm font-medium text-ink mb-2">模板名称</label>
-            <input required v-model="formData.title" type="text" class="w-full bg-canvas border border-hairline rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm" placeholder="例如：电影级人像">
+    <div v-if="isModalOpen" class="tmpl-modal-overlay">
+      <div class="glass-panel tmpl-modal">
+        <h2>创建新模板</h2>
+        <form @submit="handleSubmit" class="tmpl-form">
+          <div class="tmpl-form-group">
+            <label>模板名称</label>
+            <input required type="text" v-model="formData.title" placeholder="例如：电影级人像" />
           </div>
-          
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-ink mb-2">分类</label>
-              <input v-model="formData.category" type="text" class="w-full bg-canvas border border-hairline rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm" placeholder="例如：人物">
-            </div>
+          <div class="tmpl-form-group">
+            <label>分类</label>
+            <input type="text" v-model="formData.category" placeholder="例如：人物" />
           </div>
-
-          <div>
-            <label class="block text-sm font-medium text-ink mb-2">功能描述</label>
-            <input v-model="formData.description" type="text" class="w-full bg-canvas border border-hairline rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary transition-colors text-sm" placeholder="一句话描述该模板的用途">
+          <div class="tmpl-form-group">
+            <label>功能描述</label>
+            <input type="text" v-model="formData.description" />
           </div>
-          
-          <div>
-            <label class="block text-sm font-medium text-ink mb-2">模板内容 <span class="text-muted font-normal">(使用 {变量名} 设置填空项)</span></label>
-            <textarea required v-model="formData.templateContent" rows="4" class="w-full bg-canvas border border-hairline rounded-lg px-4 py-3 focus:outline-none focus:border-primary transition-colors text-sm font-mono" placeholder="例如: 一个{职业}在{场景}里，{光影}，8k分辨率"></textarea>
+          <div class="tmpl-form-group">
+            <label>模板内容 (使用 {变量名} 作为填空项)</label>
+            <textarea required rows="4" style="font-family: var(--font-mono)" v-model="formData.template" placeholder="例如: 一个{职业}在{场景}里，{光影}，8k分辨率"></textarea>
           </div>
-
-          <div class="pt-4 flex gap-3">
-            <button type="button" @click="isModalOpen = false" class="flex-1 px-4 py-2.5 border border-hairline rounded-lg text-ink font-medium hover:bg-surface-dark/5 transition-colors text-sm">
-              取消
-            </button>
-            <button type="submit" :disabled="isSubmitting" class="flex-1 px-4 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary-active transition-colors text-sm disabled:opacity-50">
-              {{ isSubmitting ? '保存中...' : '保存模板' }}
+          <div class="tmpl-modal-actions">
+            <button type="button" @click="isModalOpen = false" class="btn btn-secondary tmpl-flex-1">取消</button>
+            <button type="submit" :disabled="isSubmitting" class="btn btn-primary tmpl-flex-1">
+              保存模板
             </button>
           </div>
         </form>
       </div>
     </div>
-
   </div>
 </template>
+
+<style scoped>
+.tmpl-container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.tmpl-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.tmpl-subtitle {
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+
+.tmpl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
+}
+
+.tmpl-card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+}
+
+.tmpl-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.tmpl-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.tmpl-badge {
+  background: var(--surface-cream-strong);
+  color: var(--text-muted);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: var(--radius-xs);
+}
+
+.tmpl-desc {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  min-height: 2.5rem;
+}
+
+.tmpl-content {
+  background: var(--surface-soft);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--text-body);
+  word-break: break-all;
+  height: 6rem;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  border: 1px solid var(--hairline);
+}
+
+.tmpl-var {
+  background: rgba(93, 184, 166, 0.15);
+  color: var(--accent-teal);
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-xs);
+  margin: 0 0.2rem;
+}
+
+.tmpl-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tmpl-btn-delete {
+  color: var(--error);
+  font-size: 0.875rem;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.tmpl-btn-delete:hover {
+  text-decoration: underline;
+}
+
+.tmpl-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.tmpl-modal {
+  width: 100%;
+  max-width: 450px;
+  padding: 1.5rem;
+  background: var(--canvas);
+}
+
+.tmpl-modal h2 {
+  font-size: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.tmpl-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tmpl-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tmpl-form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-body);
+}
+
+.tmpl-form-group input, .tmpl-form-group textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+}
+
+.tmpl-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.tmpl-flex-1 {
+  flex: 1;
+}
+</style>

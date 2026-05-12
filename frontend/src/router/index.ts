@@ -23,40 +23,45 @@ const router = createRouter({
       component: Login
     },
     {
-      path: '/teacher/dashboard',
-      name: 'teacher-dashboard',
-      component: Dashboard,
-      meta: { requiresAuth: true, role: 'TEACHER' }
-    },
-    {
-      path: '/teacher/models',
-      name: 'teacher-models',
-      component: Models,
-      meta: { requiresAuth: true, role: 'TEACHER' }
-    },
-    {
-      path: '/teacher/assignments',
-      name: 'teacher-assignments',
-      component: Assignments,
-      meta: { requiresAuth: true, role: 'TEACHER' }
-    },
-    {
-      path: '/teacher/students',
-      name: 'teacher-students',
-      component: Students,
-      meta: { requiresAuth: true, role: 'TEACHER' }
-    },
-    {
-      path: '/teacher/templates',
-      name: 'teacher-templates',
-      component: Templates,
-      meta: { requiresAuth: true, role: 'TEACHER' }
-    },
-    {
-      path: '/teacher/live',
-      name: 'teacher-live',
-      component: Live,
-      meta: { requiresAuth: true, role: 'TEACHER' }
+      path: '/teacher',
+      component: () => import('../views/teacher/TeacherLayout.vue'),
+      meta: { requiresAuth: true, role: 'TEACHER' },
+      children: [
+        {
+          path: '',
+          redirect: '/teacher/dashboard'
+        },
+        {
+          path: 'dashboard',
+          name: 'teacher-dashboard',
+          component: Dashboard
+        },
+        {
+          path: 'models',
+          name: 'teacher-models',
+          component: Models
+        },
+        {
+          path: 'assignments',
+          name: 'teacher-assignments',
+          component: Assignments
+        },
+        {
+          path: 'students',
+          name: 'teacher-students',
+          component: Students
+        },
+        {
+          path: 'templates',
+          name: 'teacher-templates',
+          component: Templates
+        },
+        {
+          path: 'live',
+          name: 'teacher-live',
+          component: Live
+        }
+      ]
     },
     {
       path: '/student',
@@ -99,7 +104,7 @@ const router = createRouter({
 import { useAuthStore } from '../stores/auth'
 
 // Navigation guard
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
