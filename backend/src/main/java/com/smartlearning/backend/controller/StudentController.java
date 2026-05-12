@@ -70,6 +70,54 @@ public class StudentController {
         return ResponseEntity.ok(Map.of("success", true));
     }
 
+    @GetMapping("/conversations/{id}")
+    public ResponseEntity<Map<String, Object>> getConversationById(@PathVariable String id) {
+        Conversation conv = conversationRepository.findById(id).orElseThrow();
+        if (!conv.getUserId().equals(getCurrentStudent().getId())) {
+            return ResponseEntity.status(403).build();
+        }
+        
+        List<com.smartlearning.backend.entity.Generation> gens = generationRepository.findByConversationIdOrderByCreatedAtAsc(id);
+        
+        List<Map<String, Object>> messages = new java.util.ArrayList<>();
+        com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        
+        for (com.smartlearning.backend.entity.Generation g : gens) {
+            // User message
+            Map<String, Object> userMsg = new HashMap<>();
+            userMsg.put("id", g.getId() + "_user");
+            userMsg.put("role", "user");
+            userMsg.put("content", g.getPrompt());
+            if (g.getInputImageUrl() != null) {
+                userMsg.put("image", g.getInputImageUrl());
+            }
+            messages.add(userMsg);
+            
+            // Agent message
+            Map<String, Object> agentMsg = new HashMap<>();
+            agentMsg.put("id", g.getId() + "_agent");
+            agentMsg.put("role", "agent");
+            agentMsg.put("progress", 100);
+            agentMsg.put("image", g.getOutputImageUrl());
+            agentMsg.put("timeMs", g.getDurationMs());
+            
+            if (g.getApiResponse() != null) {
+                try {
+                    agentMsg.put("analysis", mapper.readValue(g.getApiResponse(), Map.class));
+                } catch (Exception e) {}
+            }
+            
+            messages.add(agentMsg);
+        }
+        
+        Map<String, Object> convMap = new HashMap<>();
+        convMap.put("id", conv.getId());
+        convMap.put("title", conv.getTitle());
+        convMap.put("messages", messages);
+        
+        return ResponseEntity.ok(Map.of("success", true, "data", convMap));
+    }
+
     // --- ASSIGNMENTS ---
     @GetMapping("/assignments")
     public ResponseEntity<Map<String, Object>> getAssignments() {
