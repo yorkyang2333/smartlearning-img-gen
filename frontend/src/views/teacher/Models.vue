@@ -367,25 +367,25 @@ onMounted(() => {
         </div>
         
         <div class="grid-layout">
-           <div v-for="ep in endpoints" :key="ep.id" class="editorial-card dark-card">
+           <div v-for="ep in endpoints" :key="ep.id" class="editorial-card">
               <div class="card-header">
                  <div>
                     <h3 class="card-title">{{ ep.name }}</h3>
                  </div>
-                 <span class="badge badge-dark">API Channel</span>
+                 <span class="badge badge-provider">API Channel</span>
               </div>
               
-              <div class="card-meta dark-meta">
-                <div class="meta-row"><span>Base URL</span> <div class="mono-text truncate">{{ ep.baseUrl }}</div></div>
+              <div class="card-meta">
+                <div class="meta-row"><span>Base URL</span> <div class="mono-text truncate" :title="ep.baseUrl">{{ ep.baseUrl }}</div></div>
                 <div class="meta-row"><span>关联模型</span> {{ ep._count?.models || 0 }} 个</div>
               </div>
               
-              <div class="card-footer dark-footer">
+              <div class="card-footer">
                  <div class="status-indicator">
                     <span class="dot dot-active"></span> 运行中
                  </div>
                  <div class="action-group">
-                   <button class="icon-btn dark" @click="openEndpointModal(ep)" title="编辑">
+                   <button class="icon-btn" @click="openEndpointModal(ep)" title="编辑">
                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                    </button>
                    <button class="icon-btn danger" @click="handleEndpointDelete(ep.id)" title="删除">
@@ -763,12 +763,6 @@ onMounted(() => {
   box-shadow: 0 12px 32px rgba(20,20,19,0.06);
 }
 
-.editorial-card.dark-card {
-  background: var(--surface-dark);
-  border-color: transparent;
-  color: var(--on-dark);
-}
-
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -797,7 +791,6 @@ onMounted(() => {
 .badge-provider { background: var(--surface-cream-strong); color: var(--muted); }
 .badge-type { background: var(--canvas); border: 1px solid var(--hairline); color: var(--muted); font-size: 11px; }
 .badge-type.both { background: var(--primary); color: white; border-color: var(--primary); }
-.badge-dark { background: var(--surface-dark-elevated); color: var(--on-dark-soft); border: 1px solid var(--surface-dark-soft); }
 
 .card-desc {
   font-size: 14px;
@@ -815,12 +808,6 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.dark-meta {
-  background: var(--surface-dark-elevated);
-  border-color: transparent;
-  color: var(--on-dark-soft);
-}
-
 .meta-row {
   display: flex;
   justify-content: space-between;
@@ -830,7 +817,6 @@ onMounted(() => {
 }
 
 .meta-row span:first-child { color: var(--muted-soft); font-family: var(--font-mono); text-transform: uppercase; font-size: 11px; }
-.dark-meta .meta-row span:first-child { color: var(--muted); }
 .error-text { color: var(--error); font-weight: 500; }
 .mono-text { font-family: var(--font-mono); font-size: 12px; opacity: 0.8; }
 .truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
@@ -842,8 +828,6 @@ onMounted(() => {
   padding-top: 16px;
   border-top: 1px dashed var(--hairline);
 }
-
-.dark-footer { border-color: var(--surface-dark-elevated); }
 
 .status-indicator {
   display: flex;
@@ -877,8 +861,6 @@ onMounted(() => {
 .icon-btn:hover { background: var(--surface-card); }
 .icon-btn.danger { color: var(--error); }
 .icon-btn.danger:hover { background: #fdf5f5; border-color: #fbd6d6; }
-.icon-btn.dark { background: var(--surface-dark-elevated); border-color: transparent; color: var(--on-dark); }
-.icon-btn.dark:hover { background: var(--surface-dark-soft); }
 
 /* Overlays & Modals */
 .overlay-backdrop {

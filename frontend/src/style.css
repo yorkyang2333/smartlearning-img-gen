@@ -16,7 +16,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap');
 
 :root {
-  --font-serif: 'Cormorant Garamond', serif;
+  --font-serif: 'Cormorant Garamond', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', 'Tiempos Headline', serif;
   --font-inter: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   /* Anthropic Colors from DESIGN.md */
@@ -153,13 +153,12 @@
 }
 
 /* Headings */
-h1, h2, h3, h4, .serif-display {
-  font-family: 'Cormorant Garamond', 'Tiempos Headline', serif;
+h1, h2, h3, h4, .serif-display, .editorial-title {
+  font-family: 'Cormorant Garamond', 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', 'Tiempos Headline', serif;
   font-weight: 400;
   color: var(--ink);
   letter-spacing: -0.5px;
 }
-
 h1 {
   font-size: 48px;
   line-height: 1.1;
