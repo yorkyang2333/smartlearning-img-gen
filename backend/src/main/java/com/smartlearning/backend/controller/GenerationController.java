@@ -146,6 +146,15 @@ public class GenerationController {
                                 String data = imageData.get("data").asText();
                                 return "data:" + mimeType + ";base64," + data;
                             }
+                            
+                            // Support text parts that might contain markdown image links (some Gemini proxies do this)
+                            if (part.has("text")) {
+                                String textContent = part.get("text").asText();
+                                java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("!\\[.*?\\]\\((.*?)\\)").matcher(textContent);
+                                if (matcher.find()) {
+                                    return matcher.group(1);
+                                }
+                            }
                         }
                     }
                 }
@@ -157,6 +166,20 @@ public class GenerationController {
                         return firstData.get("url").asText();
                     } else if (firstData.has("b64_json")) {
                         return "data:image/png;base64," + firstData.get("b64_json").asText();
+                    }
+                } else if (root.has("choices") && root.get("choices").isArray() && root.get("choices").size() > 0) {
+                    // Legacy proxy format: Some proxies return chat completions for image generation models
+                    JsonNode message = root.get("choices").get(0).get("message");
+                    if (message != null && message.has("content")) {
+                        String content = message.get("content").asText();
+                        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("!\\[.*?\\]\\((.*?)\\)").matcher(content);
+                        if (matcher.find()) {
+                            return matcher.group(1);
+                        } else {
+                            // If no markdown image is found, but there is content, return it as the rawUrl. 
+                            // It might be a raw URL string or base64 without markdown.
+                            return content;
+                        }
                     }
                 }
             }

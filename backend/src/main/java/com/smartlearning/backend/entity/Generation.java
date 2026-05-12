@@ -26,17 +26,17 @@ public class Generation {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String prompt;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "LONGTEXT")
     private String inputImageUrl;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "LONGTEXT")
     private String outputImageUrl;
 
     private String size;
     private String quality;
     private Integer durationMs;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "LONGTEXT")
     private String apiResponse; // JSON string
 
     @Column(name = "conversation_id")

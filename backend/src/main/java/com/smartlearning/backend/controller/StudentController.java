@@ -121,12 +121,6 @@ public class StudentController {
             agentMsg.put("image", g.getOutputImageUrl());
             agentMsg.put("timeMs", g.getDurationMs());
             
-            if (g.getApiResponse() != null) {
-                try {
-                    agentMsg.put("analysis", mapper.readValue(g.getApiResponse(), Map.class));
-                } catch (Exception e) {}
-            }
-            
             messages.add(agentMsg);
         }
         

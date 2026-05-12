@@ -19,7 +19,11 @@ public class AiServiceImpl implements AiService {
 
     @Override
     public String generateImage(String prompt, String modelId, String apiKey, String baseUrl, String apiFormat, Map<String, Object> config) {
-        if ("gemini".equalsIgnoreCase(apiFormat)) {
+        boolean isGeminiFormat = "gemini".equalsIgnoreCase(apiFormat);
+        boolean isGoogleApi = baseUrl != null && baseUrl.contains("generativelanguage.googleapis.com");
+
+        if (isGeminiFormat && isGoogleApi) {
+            // 1. Google Native Gemini API format
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("x-goog-api-key", apiKey);
@@ -36,9 +40,8 @@ public class AiServiceImpl implements AiService {
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             try {
-                // Ensure URL has a version if it's the standard Google domain
                 String finalUrl = baseUrl;
-                if (baseUrl.contains("generativelanguage.googleapis.com") && !baseUrl.contains("/v1")) {
+                if (!baseUrl.contains("/v1")) {
                     finalUrl = baseUrl.endsWith("/") ? baseUrl + "v1beta" : baseUrl + "/v1beta";
                 }
                 
@@ -46,29 +49,60 @@ public class AiServiceImpl implements AiService {
                 ResponseEntity<String> response = restTemplate.postForEntity(endpoint, request, String.class);
                 return response.getBody();
             } catch (Exception e) {
-                throw new RuntimeException("Image generation failed: " + e.getMessage());
+                throw new RuntimeException("Image generation failed (Google Native): " + e.getMessage());
             }
-        }
- else {
-            // OpenAI API format (default)
+        } else {
+            // 2. Proxy or OpenAI format (e.g. ChatAnywhere, OpenAI Native)
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.setBearerAuth(apiKey);
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("prompt", prompt);
-            requestBody.put("model", modelId);
             
-            if (config != null) {
-                requestBody.putAll(config);
-            }
-
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            // Check if the model is likely a text model that generates images via Chat Completions
+            boolean useChatCompletion = modelId.toLowerCase().contains("gemini") || modelId.toLowerCase().contains("claude");
+            
             try {
-                ResponseEntity<String> response = restTemplate.postForEntity(baseUrl + "/images/generations", request, String.class);
+                String endpoint = baseUrl;
+                if (endpoint.endsWith("/")) {
+                    endpoint = endpoint.substring(0, endpoint.length() - 1);
+                }
+                if (endpoint.endsWith("/v1")) {
+                    endpoint = endpoint.substring(0, endpoint.length() - 3);
+                }
+                
+                if (useChatCompletion) {
+                    // Send chat completion request
+                    endpoint += "/v1/chat/completions";
+                    
+                    requestBody.put("model", modelId);
+                    requestBody.put("messages", List.of(
+                        Map.of("role", "system", "content", "You are an AI image generator. Please directly output an image based on the prompt."),
+                        Map.of("role", "user", "content", prompt)
+                    ));
+                    
+                } else {
+                    // Send standard image generation request
+                    endpoint += "/v1/images/generations";
+
+                    
+                    requestBody.put("prompt", prompt);
+                    requestBody.put("model", modelId);
+                    
+                    Map<String, Object> configMap = new HashMap<>();
+                    configMap.put("n", 1);
+                    configMap.put("size", "1024x1024");
+                    if (config != null) {
+                        configMap.putAll(config);
+                    }
+                    requestBody.putAll(configMap);
+                }
+
+                HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+                ResponseEntity<String> response = restTemplate.postForEntity(endpoint, request, String.class);
                 return response.getBody();
             } catch (Exception e) {
-                throw new RuntimeException("Image generation failed: " + e.getMessage());
+                throw new RuntimeException("Image generation failed (Proxy API): " + e.getMessage());
             }
         }
     }
