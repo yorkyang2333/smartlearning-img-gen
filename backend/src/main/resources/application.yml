@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: smartcanvas-backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/smartcanvas?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: password # Replace with actual password or use env vars
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+server:
+  port: 8080
+
+jwt:
+  secret: 4578b6540c451da7ebf9d3b41e8f2d5e683713f01b0a9b3a3c9b7e452a1b94d1 # Example static 256-bit hex key
+  expiration: 86400000 # 24 hours
