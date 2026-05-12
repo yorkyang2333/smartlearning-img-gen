@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import Dashboard from '../views/teacher/Dashboard.vue'
 import Workspace from '../views/student/Workspace.vue'
+import Gallery from '../views/Gallery.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -22,6 +23,11 @@ const router = createRouter({
       name: 'student-workspace',
       component: Workspace,
       meta: { requiresAuth: true, role: 'STUDENT' }
+    },
+    {
+      path: '/gallery',
+      name: 'gallery',
+      component: Gallery
     },
     {
       path: '/',
