@@ -4,6 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import PromptBuilder from '../../components/PromptBuilder.vue'
 import PromptHelper from '../../components/PromptHelper.vue'
+import PromptOptimizer from '../../components/PromptOptimizer.vue'
+import TutorReview from '../../components/TutorReview.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -20,8 +22,9 @@ type Message = {
   loadingText?: string
   timeMs?: number
   analysis?: {
-    optimized: string
-    tips: Array<{ dimension: string; explanation: string }>
+    optimized?: string
+    tips?: Array<{ dimension: string; explanation: string }>
+    reviews?: Record<string, any>
   }
 }
 
@@ -416,8 +419,13 @@ const activeMsg = computed(() => {
             @updatePrompt="p => promptText = p" 
             @close="isBuilderOpen = false" 
           />
-          <textarea
+          <PromptOptimizer 
             v-else
+            :prompt="promptText"
+            @apply="p => promptText = p"
+          />
+          <textarea
+            v-if="!isBuilderOpen"
             class="prompt-textarea"
             placeholder="描述您想要的画面细节..."
             v-model="promptText"
@@ -532,33 +540,13 @@ const activeMsg = computed(() => {
           </h3>
           
           <div class="tutor-content">
-            <template v-if="activeMsg?.analysis">
-              <div class="analysis-result">
-                <div class="optimized-box">
-                  <div class="box-header" style="display: flex; align-items: center; gap: 6px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-                    优化建议
-                  </div>
-                  <p class="optimized-text">{{ activeMsg.analysis.optimized }}</p>
-                  <button class="apply-btn" @click="promptText = activeMsg.analysis?.optimized || ''" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
-                    应用此提示词
-                  </button>
-                </div>
-                
-                <div class="tips-box">
-                  <div class="box-header" style="display: flex; align-items: center; gap: 6px;">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                    维度解析
-                  </div>
-                  <div class="tips-list">
-                    <div v-for="(tip, idx) in activeMsg.analysis.tips" :key="idx" class="tip-item">
-                      <span class="tip-badge">{{ tip.dimension }}</span>
-                      <span class="tip-text">{{ tip.explanation }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            <template v-if="activeMsg?.image">
+              <TutorReview 
+                :generationId="activeMsg.id.replace('_agent', '')"
+                :prompt="activeMsg.content || ''"
+                :initialReviews="activeMsg.analysis?.reviews"
+                @applySuggestion="s => promptText = s"
+              />
             </template>
             <template v-else-if="activeMsg?.progress !== undefined && activeMsg.progress < 100">
               <div class="tutor-loading-state">

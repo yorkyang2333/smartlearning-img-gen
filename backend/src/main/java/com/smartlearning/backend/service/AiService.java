@@ -5,4 +5,5 @@ import java.util.Map;
 public interface AiService {
     String generateImage(String prompt, String modelId, String apiKey, String baseUrl, String apiFormat, Map<String, Object> config);
     String generateChatResponse(String systemPrompt, String userMessage, String modelName, String apiKey, String baseUrl, String apiFormat);
+    String generateChatResponseWithImage(String systemPrompt, String userMessage, String imageUrl, String modelName, String apiKey, String baseUrl, String apiFormat);
 }

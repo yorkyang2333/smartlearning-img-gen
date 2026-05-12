@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -113,9 +114,6 @@ public class GenerationController {
             generation.setDurationMs((int) durationMs);
             generation.setConversationId(conversationId);
             
-            // Generate tutor analysis asynchronously
-            generateTutorAnalysisAsync(generation, user, prompt);
-
             generation = generationRepository.save(generation);
 
             Map<String, Object> result = new HashMap<>();
@@ -154,60 +152,134 @@ public class GenerationController {
         return null;
     }
 
-    private void generateTutorAnalysisAsync(Generation generation, User student, String prompt) {
-        new Thread(() -> {
-            try {
-                if (student.getTeacherId() == null) return;
-                
-                TutorConfig tutorConfig = tutorConfigRepository.findByTeacherId(student.getTeacherId()).orElse(null);
-                if (tutorConfig == null || !tutorConfig.getEnabled() || tutorConfig.getApiEndpointId() == null) return;
-                
-                ApiEndpoint endpoint = apiEndpointRepository.findById(tutorConfig.getApiEndpointId()).orElse(null);
-                if (endpoint == null) return;
+    @PostMapping("/optimize-prompt")
+    public ResponseEntity<?> optimizePrompt(@RequestBody Map<String, String> request) {
+        try {
+            String prompt = request.get("prompt");
+            TutorConfig tutorConfig = getTutorConfig();
+            if (tutorConfig == null) return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
 
-                String systemPrompt = tutorConfig.getSystemPrompt();
-                if (systemPrompt == null || systemPrompt.isEmpty()) {
-                    systemPrompt = "你是一个专业的美术导师。请返回严格的JSON格式，包含 optimized 和 tips (数组，包含 dimension 和 explanation) 字段。";
-                }
-                
-                String userMessage = "分析这个绘画提示词：" + prompt;
-                
-                String response = aiService.generateChatResponse(
-                    systemPrompt, 
-                    userMessage, 
-                    tutorConfig.getModelName(), 
-                    endpoint.getApiKey(), 
-                    endpoint.getBaseUrl(), 
-                    endpoint.getApiFormat()
+            ApiEndpoint endpoint = apiEndpointRepository.findById(tutorConfig.getApiEndpointId()).orElseThrow();
+            
+            String systemPrompt = "你是一个文生图专家。请将用户提供的原始提示词优化为更具艺术感、细节更丰富、更容易生成高质量图片的专业提示词。仅返回优化后的提示词，不要有其他解释。";
+            String userMessage = "原始提示词：" + prompt;
+
+            String response = aiService.generateChatResponse(
+                systemPrompt, userMessage, tutorConfig.getModelName(), 
+                endpoint.getApiKey(), endpoint.getBaseUrl(), endpoint.getApiFormat()
+            );
+
+            String content = extractChatContent(response, endpoint.getApiFormat());
+            return ResponseEntity.ok(Map.of("success", true, "optimized", content.trim()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/analyze-prompt")
+    public ResponseEntity<?> analyzePrompt(@RequestBody Map<String, String> request) {
+        try {
+            String prompt = request.get("prompt");
+            TutorConfig tutorConfig = getTutorConfig();
+            if (tutorConfig == null) return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
+
+            ApiEndpoint endpoint = apiEndpointRepository.findById(tutorConfig.getApiEndpointId()).orElseThrow();
+            
+            String systemPrompt = "你是一个文生图专家。请分析用户提供的原始提示词，并从构图、细节、光影、材质等维度给出改进建议。请返回 JSON 格式，包含 suggestions 数组，每个元素包含 dimension、currentStatus、suggestion 字段。";
+            String userMessage = "原始提示词：" + prompt;
+
+            String response = aiService.generateChatResponse(
+                systemPrompt, userMessage, tutorConfig.getModelName(), 
+                endpoint.getApiKey(), endpoint.getBaseUrl(), endpoint.getApiFormat()
+            );
+
+            String content = extractChatContent(response, endpoint.getApiFormat());
+            content = content.replace("```json", "").replace("```", "").trim();
+            
+            return ResponseEntity.ok(Map.of("success", true, "data", objectMapper.readTree(content)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/review")
+    public ResponseEntity<?> reviewGeneration(@RequestBody Map<String, Object> request) {
+        try {
+            String generationId = (String) request.get("generationId");
+            List<String> perspectives = (List<String>) request.get("perspectives");
+            
+            Generation generation = generationRepository.findById(generationId).orElseThrow();
+            TutorConfig tutorConfig = getTutorConfig();
+            if (tutorConfig == null) return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
+
+            ApiEndpoint endpoint = apiEndpointRepository.findById(tutorConfig.getApiEndpointId()).orElseThrow();
+            
+            Map<String, Object> finalResults = new HashMap<>();
+            
+            for (String p : perspectives) {
+                String systemPrompt = getSystemPromptForPerspective(p);
+                String userMessage = "分析这个绘画作品。提示词是：" + generation.getPrompt();
+                String imageUrl = generation.getOutputImageUrl();
+
+                String response = aiService.generateChatResponseWithImage(
+                    systemPrompt, userMessage, imageUrl, tutorConfig.getModelName(), 
+                    endpoint.getApiKey(), endpoint.getBaseUrl(), endpoint.getApiFormat()
                 );
-                
-                // Parse response to extract JSON
-                JsonNode root = objectMapper.readTree(response);
-                String content = "";
-                
-                if ("gemini".equalsIgnoreCase(endpoint.getApiFormat())) {
-                    if (root.has("candidates") && root.get("candidates").isArray() && root.get("candidates").size() > 0) {
-                        content = root.get("candidates").get(0).get("content").get("parts").get(0).get("text").asText();
-                    }
-                } else {
-                    if (root.has("choices") && root.get("choices").isArray() && root.get("choices").size() > 0) {
-                        content = root.get("choices").get(0).get("message").get("content").asText();
-                    }
-                }
-                
-                // Clean markdown JSON block
+
+                String content = extractChatContent(response, endpoint.getApiFormat());
                 content = content.replace("```json", "").replace("```", "").trim();
-                
-                // Validate JSON
-                objectMapper.readTree(content);
-                
-                generation.setApiResponse(content);
-                generationRepository.save(generation);
-                
-            } catch (Exception e) {
-                System.err.println("Tutor analysis failed: " + e.getMessage());
+                finalResults.put(p, objectMapper.readTree(content));
             }
-        }).start();
+
+            // Save back to DB for persistence
+            String existingResponse = generation.getApiResponse();
+            Map<String, Object> apiResponseMap = existingResponse != null ? objectMapper.readValue(existingResponse, Map.class) : new HashMap<>();
+            Map<String, Object> reviews = apiResponseMap.containsKey("reviews") ? (Map<String, Object>) apiResponseMap.get("reviews") : new HashMap<>();
+            reviews.putAll(finalResults);
+            apiResponseMap.put("reviews", reviews);
+            
+            generation.setApiResponse(objectMapper.writeValueAsString(apiResponseMap));
+            generationRepository.save(generation);
+
+            return ResponseEntity.ok(Map.of("success", true, "results", finalResults));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    private TutorConfig getTutorConfig() {
+        UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+        if (user.getTeacherId() == null) return null;
+        return tutorConfigRepository.findByTeacherId(user.getTeacherId()).orElse(null);
+    }
+
+    private String getSystemPromptForPerspective(String perspective) {
+        switch (perspective) {
+            case "composition":
+                return "你是一个美术导师。请根据提供的图片和原始提示词，从光影和构图的角度进行评审。请返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (针对光影构图的提示词优化建议)。";
+            case "style":
+                return "你是一个美术导师。请根据提供的图片和原始提示词，从艺术风格的角度进行评审。请返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (针对风格一致性的提示词优化建议)。";
+            case "completeness":
+                return "你是一个美术导师。请根据提供的图片和原始提示词，从内容完整性和意图匹配度的角度进行评审。请返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (补全或修正内容的提示词优化建议)。";
+            default:
+                return "你是一个美术导师。请评价这个作品。请返回 JSON 格式，包含 score, analysis, promptSuggestion。";
+        }
+    }
+
+    private String extractChatContent(String response, String apiFormat) throws Exception {
+        JsonNode root = objectMapper.readTree(response);
+        if ("gemini".equalsIgnoreCase(apiFormat)) {
+            if (root.has("candidates") && root.get("candidates").isArray() && root.get("candidates").size() > 0) {
+                return root.get("candidates").get(0).get("content").get("parts").get(0).get("text").asText();
+            }
+        } else {
+            if (root.has("choices") && root.get("choices").isArray() && root.get("choices").size() > 0) {
+                return root.get("choices").get(0).get("message").get("content").asText();
+            }
+        }
+        return "";
     }
 
     @Data

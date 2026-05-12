@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -112,6 +113,74 @@ public class AiServiceImpl implements AiService {
                 return response.getBody();
             } catch (Exception e) {
                 throw new RuntimeException("Chat generation failed: " + e.getMessage());
+            }
+        }
+    }
+
+    @Override
+    public String generateChatResponseWithImage(String systemPrompt, String userMessage, String imageUrl, String modelName, String apiKey, String baseUrl, String apiFormat) {
+        if ("gemini".equalsIgnoreCase(apiFormat)) {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.set("x-goog-api-key", apiKey);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            Map<String, Object> systemInstruction = new HashMap<>();
+            systemInstruction.put("parts", List.of(Map.of("text", systemPrompt != null ? systemPrompt : "You are a helpful AI tutor.")));
+            requestBody.put("systemInstruction", systemInstruction);
+
+            Map<String, Object> textPart = Map.of("text", userMessage);
+            Map<String, Object> imagePart = new HashMap<>();
+            if (imageUrl.startsWith("data:")) {
+                String[] parts = imageUrl.split(",");
+                String mimeType = parts[0].split(":")[1].split(";")[0];
+                String base64Data = parts[1];
+                imagePart.put("inlineData", Map.of("mimeType", mimeType, "data", base64Data));
+            } else {
+                // If it's a URL, Gemini requires File API or slightly different format depending on the exact endpoint, 
+                // but usually for simplicity we assume base64 or public URL.
+                // For now, let's support data URI which is common in our app.
+                imagePart.put("text", "[Image: " + imageUrl + "]");
+            }
+
+            List<Map<String, Object>> contents = List.of(
+                    Map.of("role", "user", "parts", List.of(textPart, imagePart))
+            );
+            requestBody.put("contents", contents);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            try {
+                String endpoint = baseUrl + "/models/" + modelName + ":generateContent";
+                ResponseEntity<String> response = restTemplate.postForEntity(endpoint, request, String.class);
+                return response.getBody();
+            } catch (Exception e) {
+                throw new RuntimeException("Multimodal chat generation failed: " + e.getMessage());
+            }
+        } else {
+            // OpenAI Vision format
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(apiKey);
+
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("model", modelName);
+            
+            List<Map<String, Object>> contentParts = new ArrayList<>();
+            contentParts.add(Map.of("type", "text", "text", userMessage));
+            contentParts.add(Map.of("type", "image_url", "image_url", Map.of("url", imageUrl)));
+
+            List<Map<String, Object>> messages = List.of(
+                    Map.of("role", "system", "content", systemPrompt != null ? systemPrompt : "You are a helpful AI tutor."),
+                    Map.of("role", "user", "content", contentParts)
+            );
+            requestBody.put("messages", messages);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
+            try {
+                ResponseEntity<String> response = restTemplate.postForEntity(baseUrl + "/chat/completions", request, String.class);
+                return response.getBody();
+            } catch (Exception e) {
+                throw new RuntimeException("Multimodal chat generation failed: " + e.getMessage());
             }
         }
     }
