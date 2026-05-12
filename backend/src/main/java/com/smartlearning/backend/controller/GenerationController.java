@@ -139,9 +139,12 @@ public class GenerationController {
                     JsonNode candidate = root.get("candidates").get(0);
                     if (candidate.has("content") && candidate.get("content").has("parts")) {
                         for (JsonNode part : candidate.get("content").get("parts")) {
-                            if (part.has("inlineData")) {
-                                JsonNode inlineData = part.get("inlineData");
-                                return "data:" + inlineData.get("mimeType").asText() + ";base64," + inlineData.get("data").asText();
+                            // Support both camelCase and snake_case
+                            JsonNode imageData = part.has("inlineData") ? part.get("inlineData") : part.get("inline_data");
+                            if (imageData != null) {
+                                String mimeType = imageData.has("mimeType") ? imageData.get("mimeType").asText() : imageData.get("mime_type").asText();
+                                String data = imageData.get("data").asText();
+                                return "data:" + mimeType + ";base64," + data;
                             }
                         }
                     }
@@ -158,7 +161,8 @@ public class GenerationController {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Failed to extract image URL. Response was: " + apiResponse);
+            String sample = apiResponse.length() > 300 ? apiResponse.substring(0, 300) + "..." : apiResponse;
+            System.err.println("Failed to extract image URL. Response sample: " + sample);
             e.printStackTrace();
         }
         return null;

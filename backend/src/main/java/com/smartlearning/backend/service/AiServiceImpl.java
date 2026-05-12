@@ -25,18 +25,24 @@ public class AiServiceImpl implements AiService {
             headers.set("x-goog-api-key", apiKey);
 
             Map<String, Object> requestBody = new HashMap<>();
-            requestBody.put("contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
+            requestBody.put("contents", List.of(Map.of(
+                "role", "user", 
+                "parts", List.of(Map.of("text", prompt))
+            )));
             
             Map<String, Object> generationConfig = new HashMap<>();
             generationConfig.put("responseModalities", List.of("IMAGE", "TEXT"));
-            if (config != null && config.containsKey("size")) {
-                // You can add more constraints here if needed for specialized models
-            }
             requestBody.put("generationConfig", generationConfig);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
             try {
-                String endpoint = baseUrl + "/models/" + modelId + ":generateContent";
+                // Ensure URL has a version if it's the standard Google domain
+                String finalUrl = baseUrl;
+                if (baseUrl.contains("generativelanguage.googleapis.com") && !baseUrl.contains("/v1")) {
+                    finalUrl = baseUrl.endsWith("/") ? baseUrl + "v1beta" : baseUrl + "/v1beta";
+                }
+                
+                String endpoint = finalUrl + "/models/" + modelId + ":generateContent";
                 ResponseEntity<String> response = restTemplate.postForEntity(endpoint, request, String.class);
                 return response.getBody();
             } catch (Exception e) {

@@ -265,22 +265,18 @@ const handleSend = async () => {
           ...messages.value[msgIndex], 
           progress: 100, 
           loadingText: undefined,
-          content: '图片生成成功，但 API 响应解析失败 (rawUrl is null)。请检查后端日志。'
+          content: '图片生成成功，但无法解析出画面。请检查模型是否支持生图或后端日志。'
         }
       } else {
         messages.value[msgIndex] = { 
           ...messages.value[msgIndex], 
-          id: data.generationId ? data.generationId + '_agent' : agentMsgId,
+          // Keep the same frontend ID to avoid rendering issues
+          generationId: data.generationId,
           progress: 100, 
           loadingText: undefined,
           image: data.rawUrl,
           timeMs: data.data?.durationMs,
           analysis: data.apiResponse ? data.apiResponse : undefined
-        }
-        
-        // Update activeMsgId if it was the one being generated
-        if (activeMsgId.value === agentMsgId && data.generationId) {
-          activeMsgId.value = data.generationId + '_agent'
         }
       }
     }
@@ -561,7 +557,7 @@ const activeMsg = computed(() => {
           <div class="tutor-content">
             <template v-if="activeMsg?.image">
               <TutorReview 
-                :generationId="activeMsg.id.replace('_agent', '')"
+                :generationId="activeMsg.generationId || activeMsg.id.replace('_agent', '')"
                 :prompt="activeMsg.content || ''"
                 :initialReviews="activeMsg.analysis?.reviews"
                 @applySuggestion="s => promptText = s"
