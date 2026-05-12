@@ -212,12 +212,13 @@ const handleLogout = () => {
   display: flex;
   flex-direction: column;
   background: var(--surface-card);
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, padding 0.3s ease;
   position: relative;
 }
 
 .sidebar.collapsed {
   width: 80px;
+  padding: 1.5rem 0.75rem;
 }
 
 .collapseToggle {
@@ -250,10 +251,20 @@ const handleLogout = () => {
   padding: 0 0.5rem;
 }
 
+.sidebar.collapsed .brand {
+  padding: 0;
+  display: flex;
+  justify-content: center;
+}
+
 .brandTitle {
   display: flex;
   align-items: center;
-  gap: 12px;
+}
+
+.sidebar.collapsed .brandTitle {
+  justify-content: center;
+  gap: 0;
 }
 
 .brandIcon {
@@ -265,16 +276,19 @@ const handleLogout = () => {
 .brandText {
   font-family: var(--font-serif);
   font-size: 1.5rem;
-  margin: 0;
+  margin: 0 0 0 12px;
   color: var(--ink);
   white-space: nowrap;
+  overflow: hidden;
+  max-width: 200px;
   opacity: 1;
-  transition: opacity 0.2s;
+  transition: all 0.3s ease;
 }
 
 .sidebar.collapsed .brandText {
   opacity: 0;
-  display: none;
+  max-width: 0;
+  margin-left: 0;
 }
 
 .nav {
@@ -287,12 +301,16 @@ const handleLogout = () => {
 .navItem {
   display: flex;
   align-items: center;
-  gap: 12px;
   padding: 12px 16px;
   border-radius: var(--radius-md);
   color: var(--text-body);
   transition: all 0.2s ease;
   text-decoration: none;
+}
+
+.sidebar.collapsed .navItem {
+  padding: 12px;
+  justify-content: center;
 }
 
 .navItem:hover {
@@ -315,16 +333,21 @@ const handleLogout = () => {
   font-weight: 500;
   font-size: 0.95rem;
   white-space: nowrap;
-  transition: opacity 0.2s;
+  overflow: hidden;
+  max-width: 200px;
+  margin-left: 12px;
+  opacity: 1;
+  transition: all 0.3s ease;
 }
 
 .sidebar.collapsed .navText {
   opacity: 0;
-  display: none;
+  max-width: 0;
+  margin-left: 0;
 }
 
 .sidebarSection {
-  transition: opacity 0.2s;
+  transition: all 0.3s ease;
   opacity: 1;
   overflow: hidden;
   display: flex;
@@ -442,10 +465,16 @@ const handleLogout = () => {
   padding: 0 0.5rem;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  max-width: 200px;
+  opacity: 1;
+  transition: all 0.3s ease;
 }
 
 .sidebar.collapsed .userInfo {
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  padding: 0;
 }
 
 .userName {
@@ -465,7 +494,6 @@ const handleLogout = () => {
 .logoutBtn {
   display: flex;
   align-items: center;
-  gap: 12px;
   padding: 10px 16px;
   color: var(--error);
   border-radius: var(--radius-md);
@@ -487,14 +515,26 @@ const handleLogout = () => {
   flex-shrink: 0;
 }
 
+.sidebar.collapsed .logoutBtn {
+  justify-content: center;
+  padding: 10px;
+}
+
 .logoutText {
   font-weight: 500;
   font-size: 0.95rem;
   white-space: nowrap;
+  overflow: hidden;
+  max-width: 200px;
+  margin-left: 12px;
+  opacity: 1;
+  transition: all 0.3s ease;
 }
 
 .sidebar.collapsed .logoutText {
-  display: none;
+  opacity: 0;
+  max-width: 0;
+  margin-left: 0;
 }
 
 .main-content {
