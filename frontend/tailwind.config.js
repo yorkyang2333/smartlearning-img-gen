@@ -48,8 +48,8 @@ export default {
         error: "#c64545",
       },
       fontFamily: {
-        display: ["Copernicus", "Tiempos Headline", "Cormorant Garamond", "serif"],
-        body: ["StyreneB", "Inter", "sans-serif"],
+        display: ["Cormorant Garamond", "Noto Serif SC", "Songti SC", "STSong", "SimSun", "Tiempos Headline", "serif"],
+        body: ["Inter", "PingFang SC", "Microsoft YaHei", "sans-serif"],
         mono: ["JetBrains Mono", "ui-monospace", "monospace"],
       },
       spacing: {

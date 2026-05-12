@@ -13,7 +13,7 @@ if [[ "$OS_NAME" == "Darwin" ]]; then
     INSTALL_HINT="👉 提示: 请在终端执行 brew install maven"
 elif [[ "$OS_NAME" == "Linux" ]]; then
     if command -v apt &> /dev/null; then
-        INSTALL_HINT="👉 提示: 请在终端执行 sudo apt install maven"
+        INSTALL_HINT="👉 提示: 请在终端执行 sudo apt 啊install maven"
     elif command -v yum &> /dev/null; then
         INSTALL_HINT="👉 提示: 请在终端执行 sudo yum install maven"
     fi
