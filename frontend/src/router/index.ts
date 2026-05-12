@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import Dashboard from '../views/teacher/Dashboard.vue'
+import Models from '../views/teacher/Models.vue'
+import Assignments from '../views/teacher/Assignments.vue'
+import Students from '../views/teacher/Students.vue'
 import Workspace from '../views/student/Workspace.vue'
 import Gallery from '../views/Gallery.vue'
 
@@ -16,6 +19,24 @@ const router = createRouter({
       path: '/teacher/dashboard',
       name: 'teacher-dashboard',
       component: Dashboard,
+      meta: { requiresAuth: true, role: 'TEACHER' }
+    },
+    {
+      path: '/teacher/models',
+      name: 'teacher-models',
+      component: Models,
+      meta: { requiresAuth: true, role: 'TEACHER' }
+    },
+    {
+      path: '/teacher/assignments',
+      name: 'teacher-assignments',
+      component: Assignments,
+      meta: { requiresAuth: true, role: 'TEACHER' }
+    },
+    {
+      path: '/teacher/students',
+      name: 'teacher-students',
+      component: Students,
       meta: { requiresAuth: true, role: 'TEACHER' }
     },
     {

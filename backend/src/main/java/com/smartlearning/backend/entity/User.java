@@ -31,6 +31,9 @@ public class User {
     @Column(nullable = false)
     private Boolean isActive = true;
 
+    @Column(nullable = false)
+    private Integer tokenQuota = 1000;
+
     @Column(name = "teacher_id")
     private String teacherId;
 
