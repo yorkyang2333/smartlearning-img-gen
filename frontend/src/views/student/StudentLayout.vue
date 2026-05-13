@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 
@@ -38,6 +38,10 @@ const fetchAnalytics = async () => {
 onMounted(() => {
   fetchConversations()
   fetchAnalytics()
+})
+
+watch(() => route.fullPath, () => {
+  fetchConversations()
 })
 
 const handleDelete = async (e: Event, id: string) => {

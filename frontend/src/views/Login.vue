@@ -30,7 +30,7 @@ const handleLogin = async () => {
     if (authStore.isTeacher) {
       router.push('/teacher/dashboard')
     } else {
-      router.push('/student/workspace')
+      router.push('/student/generate')
     }
   } catch (e: any) {
     error.value = e.message || '登录失败，请稍后重试'

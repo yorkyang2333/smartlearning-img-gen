@@ -16,6 +16,7 @@ const chatId = computed(() => route.params.id as string || null)
 type Message = {
   id: string
   role: 'user' | 'agent'
+  generationId?: string
   content?: string
   image?: string
   progress?: number
@@ -130,9 +131,30 @@ const availableModels = computed(() => {
   })
 })
 
+const isPreferredGptImage2 = (model: any) => {
+  const name = model.name?.toLowerCase() || ''
+  return model.modelId === 'gpt-image-2' || name.includes('gpt image 2')
+}
+
+const getModelBrand = (model: any) => {
+  const name = model.name?.toLowerCase() || ''
+  if (name.includes('gpt') || name.includes('dall')) return 'OpenAI 系列'
+  if (name.includes('gemini') || name.includes('google')) return 'Google 系列'
+  return '其他生态'
+}
+
+const getDefaultModel = () => {
+  if (currentMode.value === 't2i') {
+    return availableModels.value.find((m: any) => isPreferredGptImage2(m))
+      || availableModels.value[0]
+  }
+
+  return availableModels.value[0]
+}
+
 watch([availableModels, currentMode], () => {
   if (availableModels.value.length > 0 && !availableModels.value.find((m: any) => m.modelId === modelId.value)) {
-    modelId.value = availableModels.value[0].modelId
+    modelId.value = getDefaultModel()?.modelId || ''
   }
 }, { immediate: true })
 
@@ -141,12 +163,24 @@ const config = computed(() => selectedModel.value ? JSON.parse(selectedModel.val
 
 const groupedModels = computed(() => {
   const acc: any = {}
-  availableModels.value.forEach((model: any) => {
-    let brand = '其他生态'
-    const name = model.name.toLowerCase()
-    if (name.includes('gpt') || name.includes('dall')) brand = 'OpenAI 系列'
-    else if (name.includes('gemini') || name.includes('google')) brand = 'Google 系列'
-    
+  const brandPriority: Record<string, number> = {
+    'OpenAI 系列': 0,
+    'Google 系列': 1,
+    '其他生态': 2
+  }
+
+  const sortedModels = [...availableModels.value].sort((a: any, b: any) => {
+    const preferredDiff = Number(isPreferredGptImage2(b)) - Number(isPreferredGptImage2(a))
+    if (preferredDiff !== 0) return preferredDiff
+
+    const brandDiff = (brandPriority[getModelBrand(a)] ?? 99) - (brandPriority[getModelBrand(b)] ?? 99)
+    if (brandDiff !== 0) return brandDiff
+
+    return (a.name || '').localeCompare(b.name || '', 'zh-CN')
+  })
+
+  sortedModels.forEach((model: any) => {
+    const brand = getModelBrand(model)
     if (!acc[brand]) acc[brand] = []
     acc[brand].push(model)
   })
@@ -237,11 +271,15 @@ const handleSend = async () => {
       body = JSON.stringify(bodyObj)
       headers['Content-Type'] = 'application/json'
     } else {
+      if (!imageFile.value) {
+        throw new Error('请先上传参考图片')
+      }
+
       body = new FormData()
       body.append('prompt', currentPrompt)
       body.append('modelId', modelId.value)
       body.append('size', size.value)
-      body.append('image', imageFile.value as Blob)
+      body.append('image', imageFile.value)
       if (chatId.value) body.append('conversationId', chatId.value)
     }
 

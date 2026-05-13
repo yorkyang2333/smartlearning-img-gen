@@ -73,7 +73,7 @@ const router = createRouter({
           redirect: '/student/generate'
         },
         {
-          path: 'generate',
+          path: 'generate/:id?',
           name: 'student-generate',
           component: Workspace
         },
