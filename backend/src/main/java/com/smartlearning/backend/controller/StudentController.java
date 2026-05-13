@@ -10,6 +10,7 @@ import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.UserRepository;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.ModelRepository;
+import com.smartlearning.backend.repository.TemplateRepository;
 import com.smartlearning.backend.service.GatewayAiClient;
 import com.smartlearning.backend.util.GatewayResponseUtil;
 import com.smartlearning.backend.util.ModelConfigUtil;
@@ -49,6 +50,9 @@ public class StudentController {
 
     @Autowired
     private ModelRepository modelRepository;
+
+    @Autowired
+    private TemplateRepository templateRepository;
 
     @Autowired
     private GatewayAiClient gatewayAiClient;
@@ -146,6 +150,17 @@ public class StudentController {
             return ResponseEntity.ok(Map.of("success", true, "data", List.of()));
         }
         List<Assignment> list = assignmentRepository.findByTeacherIdOrderByCreatedAtDesc(student.getTeacherId());
+        return ResponseEntity.ok(Map.of("success", true, "data", list));
+    }
+
+    // --- TEMPLATES ---
+    @GetMapping("/templates")
+    public ResponseEntity<Map<String, Object>> getStudentTemplates() {
+        User student = getCurrentStudent();
+        if (student.getTeacherId() == null) {
+            return ResponseEntity.ok(Map.of("success", true, "data", List.of()));
+        }
+        List<com.smartlearning.backend.entity.Template> list = templateRepository.findByTeacherIdOrderByCreatedAtDesc(student.getTeacherId());
         return ResponseEntity.ok(Map.of("success", true, "data", list));
     }
 

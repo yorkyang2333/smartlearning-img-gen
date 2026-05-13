@@ -14,7 +14,7 @@ const variables = ref<Record<string, string>>({})
 
 onMounted(async () => {
   try {
-    const res = await fetch('http://localhost:8080/api/templates', {
+    const res = await fetch('http://localhost:8080/api/student/templates', {
       headers: { 'Authorization': `Bearer ${authStore.token}` }
     })
     const data = await res.json()

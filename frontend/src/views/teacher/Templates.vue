@@ -6,7 +6,7 @@ const authStore = useAuthStore()
 const templates = ref<any[]>([])
 const isModalOpen = ref(false)
 const isSubmitting = ref(false)
-const formData = ref({ title: '', description: '', template: '', category: '' })
+const formData = ref({ title: '', description: '', templateContent: '', category: '' })
 
 const fetchTemplates = async () => {
   try {
@@ -37,7 +37,7 @@ const handleSubmit = async (e: Event) => {
     if (res.ok) {
       fetchTemplates()
       isModalOpen.value = false
-      formData.value = { title: '', description: '', template: '', category: '' }
+      formData.value = { title: '', description: '', templateContent: '', category: '' }
     }
   } finally {
     isSubmitting.value = false
@@ -56,6 +56,7 @@ const handleDelete = async (id: string) => {
 }
 
 const parseTemplateParts = (templateStr: string) => {
+  if (!templateStr) return []
   return templateStr.split(/(\{.*?\})/)
 }
 
@@ -84,7 +85,7 @@ onMounted(() => {
         </div>
         <p class="tmpl-desc">{{ t.description }}</p>
         <div class="tmpl-content">
-          <template v-for="(part, i) in parseTemplateParts(t.template)" :key="i">
+          <template v-for="(part, i) in parseTemplateParts(t.templateContent)" :key="i">
             <span v-if="part.startsWith('{') && part.endsWith('}')" class="tmpl-var">{{ part }}</span>
             <template v-else>{{ part }}</template>
           </template>
@@ -113,7 +114,7 @@ onMounted(() => {
           </div>
           <div class="tmpl-form-group">
             <label>模板内容 (使用 {变量名} 作为填空项)</label>
-            <textarea required rows="4" style="font-family: var(--font-mono)" v-model="formData.template" placeholder="例如: 一个{职业}在{场景}里，{光影}，8k分辨率"></textarea>
+            <textarea required rows="4" style="font-family: var(--font-mono)" v-model="formData.templateContent" placeholder="例如: 一个{职业}在{场景}里，{光影}，8k分辨率"></textarea>
           </div>
           <div class="tmpl-modal-actions">
             <button type="button" @click="isModalOpen = false" class="btn btn-secondary tmpl-flex-1">取消</button>
