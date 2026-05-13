@@ -27,9 +27,9 @@ const isReviewing = ref(false)
 const reviewError = ref<string | null>(null)
 
 const perspectives = [
-  { id: 'composition', name: '光影构图', icon: '📐' },
-  { id: 'style', name: '艺术风格', icon: '🎨' },
-  { id: 'completeness', name: '内容完整性', icon: '📋' }
+  { id: 'composition', name: '光影构图' },
+  { id: 'style', name: '艺术风格' },
+  { id: 'completeness', name: '内容完整性' }
 ]
 
 const getScoreClass = (score: number) => {
@@ -314,13 +314,25 @@ const handleChatKey = (e: KeyboardEvent) => {
         <!-- ========= REVIEW TAB ========= -->
         <div v-if="activeTab === 'review'" class="tab-content">
           <template v-if="hasImage && generationId">
-            <div class="perspective-selector">
-              <button v-for="p in perspectives" :key="p.id" class="p-chip" :class="{ active: activePerspectives.includes(p.id) }" @click="togglePerspective(p.id)">
-                <span>{{ p.icon }}</span> {{ p.name }}
-              </button>
-              <button class="review-trigger" @click="handleReview" :disabled="isReviewing || activePerspectives.length === 0">
+            <div class="review-config-panel">
+              <div class="config-header">
+                <label>选择评审维度</label>
+                <span class="sub-label">可多选</span>
+              </div>
+              <div class="perspective-selector">
+                <button v-for="p in perspectives" :key="p.id" class="p-chip" :class="{ active: activePerspectives.includes(p.id) }" @click="togglePerspective(p.id)">
+                  <svg v-if="p.id === 'composition'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H3V3"></path><path d="M21 3L3 21"></path></svg>
+                  <svg v-else-if="p.id === 'style'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c-5.5 0-10 4.5-10 10s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/><path d="M12 18a6 6 0 100-12 6 6 0 000 12z" fill="currentColor" fill-opacity="0.2"/></svg>
+                  <svg v-else-if="p.id === 'completeness'" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                  {{ p.name }}
+                </button>
+              </div>
+              <button class="btn-review-submit" @click="handleReview" :disabled="isReviewing || activePerspectives.length === 0">
                 <span v-if="isReviewing" class="spinner"></span>
-                <span v-else>开始评审</span>
+                <template v-else>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
+                  开始智能评审
+                </template>
               </button>
             </div>
             <div v-if="reviewError" class="error-msg">{{ reviewError }}</div>
@@ -336,7 +348,12 @@ const handleChatKey = (e: KeyboardEvent) => {
                       <span class="score-num" :class="getScoreClass(reviews[p.id].score)">{{ reviews[p.id].score }}</span>
                     </div>
                     <div class="review-meta">
-                      <span class="perspective-name">{{ p.icon }} {{ p.name }}</span>
+                      <span class="perspective-name">
+                        <svg v-if="p.id === 'composition'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px;"><path d="M21 21H3V3"></path><path d="M21 3L3 21"></path></svg>
+                        <svg v-else-if="p.id === 'style'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px;"><path d="M12 2c-5.5 0-10 4.5-10 10s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/><path d="M12 18a6 6 0 100-12 6 6 0 000 12z" fill="currentColor" fill-opacity="0.2"/></svg>
+                        <svg v-else-if="p.id === 'completeness'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px;"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                        {{ p.name }}
+                      </span>
                       <p class="analysis-text">{{ reviews[p.id].analysis }}</p>
                     </div>
                   </div>
@@ -351,8 +368,12 @@ const handleChatKey = (e: KeyboardEvent) => {
                 </div>
               </div>
             </div>
-            <div v-if="Object.keys(reviews).length === 0 && !isReviewing" class="empty-hint">
-              选择维度后点击「开始评审」获取导师反馈
+            <div v-if="Object.keys(reviews).length === 0 && !isReviewing" class="review-empty-state">
+              <div class="empty-icon-wrap">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </div>
+              <p>等待评审</p>
+              <span>选择上方维度后，点击开始获取导师反馈</span>
             </div>
           </template>
           <template v-else>
@@ -361,17 +382,23 @@ const handleChatKey = (e: KeyboardEvent) => {
               <h3 class="welcome-title serif-display">我能帮你做什么？</h3>
               <div class="welcome-cards">
                 <div class="welcome-card">
-                  <span class="wc-icon">📐</span>
+                  <span class="wc-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  </span>
                   <h4>多维评审</h4>
                   <p>从光影构图、艺术风格、内容完整性三个角度评价你的作品</p>
                 </div>
                 <div class="welcome-card">
-                  <span class="wc-icon">✨</span>
+                  <span class="wc-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  </span>
                   <h4>智能优化</h4>
                   <p>AI 帮你润色提示词，提升画面细节与艺术表现力</p>
                 </div>
                 <div class="welcome-card">
-                  <span class="wc-icon">💬</span>
+                  <span class="wc-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  </span>
                   <h4>自由问答</h4>
                   <p>随时向导师提问关于构图、色彩、风格的艺术知识</p>
                 </div>
@@ -386,9 +413,18 @@ const handleChatKey = (e: KeyboardEvent) => {
             <div v-if="chatMessages.length === 0" class="chat-empty">
               <p>向 AI 导师提问任何关于构图、色彩、风格的问题</p>
               <div class="chat-starters">
-                <button @click="chatInput = '如何改善画面的光影效果？'; sendChat()">如何改善光影效果？</button>
-                <button @click="chatInput = '这张图的构图有什么问题？'; sendChat()">构图有什么问题？</button>
-                <button @click="chatInput = '推荐一些适合这个主题的艺术风格'; sendChat()">推荐艺术风格</button>
+                <button @click="chatInput = '如何改善画面的光影效果？'; sendChat()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                  如何改善光影效果？
+                </button>
+                <button @click="chatInput = '这张图的构图有什么问题？'; sendChat()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H3V3"></path><path d="M21 3L3 21"></path></svg>
+                  构图有什么问题？
+                </button>
+                <button @click="chatInput = '推荐一些适合这个主题的艺术风格'; sendChat()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c-5.5 0-10 4.5-10 10s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/><path d="M12 18a6 6 0 100-12 6 6 0 000 12z" fill="currentColor" fill-opacity="0.2"/></svg>
+                  推荐艺术风格
+                </button>
               </div>
             </div>
             <div v-for="(msg, i) in chatMessages" :key="i" class="chat-bubble" :class="msg.role">
@@ -508,27 +544,70 @@ const handleChatKey = (e: KeyboardEvent) => {
 }
 
 /* ===== REVIEW TAB ===== */
-.perspective-selector {
-  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-  padding-bottom: 16px; border-bottom: 1px dashed var(--hairline);
+.review-config-panel {
+  background: white;
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.02);
+}
+.config-header {
+  display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 16px;
 }
-.p-chip {
-  padding: 6px 14px; border-radius: 20px; border: 1px solid var(--hairline);
-  background: white; font-size: 13px; color: var(--muted);
-  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+.config-header label {
+  font-size: 14px; font-weight: 600; color: var(--ink);
 }
-.p-chip:hover { border-color: var(--primary); color: var(--primary); }
+.config-header .sub-label {
+  font-size: 12px; color: var(--muted);
+}
+.perspective-selector {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+}
+.p-chip {
+  padding: 10px 16px; border-radius: 10px; border: 1px solid var(--hairline);
+  background: var(--surface-card); font-size: 13px; color: var(--muted);
+  cursor: pointer; transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  display: flex; align-items: center; gap: 8px; font-weight: 500;
+}
+.p-chip:hover { 
+  border-color: var(--primary); color: var(--primary); 
+  background: white; box-shadow: 0 4px 12px rgba(204,120,92,0.08); 
+}
 .p-chip.active {
   background: var(--primary); color: white; border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(204,120,92,0.25);
 }
-.review-trigger {
-  margin-left: auto; padding: 8px 18px; background: var(--ink); color: white;
-  border: none; border-radius: 8px; font-size: 13px; font-weight: 500;
-  cursor: pointer; display: flex; align-items: center; gap: 6px;
-  transition: opacity 0.2s;
+.btn-review-submit {
+  width: 100%; padding: 12px; border-radius: 10px;
+  background: var(--ink); color: white; border: none;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.2s;
 }
-.review-trigger:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-review-submit:hover:not(:disabled) {
+  background: var(--primary);
+  box-shadow: 0 4px 12px rgba(204,120,92,0.2);
+}
+.btn-review-submit:disabled {
+  opacity: 0.5; cursor: not-allowed; background: var(--muted);
+}
+
+.review-empty-state {
+  text-align: center; padding: 48px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  background: var(--surface-card); border-radius: 16px;
+  border: 1px dashed var(--hairline-soft);
+}
+.empty-icon-wrap {
+  width: 56px; height: 56px; border-radius: 28px;
+  background: white; color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+}
+.review-empty-state p { margin: 0; font-size: 16px; font-weight: 600; color: var(--ink); }
+.review-empty-state span { font-size: 13px; color: var(--muted); }
 
 .reviews-list { display: flex; flex-direction: column; gap: 16px; }
 .review-card {
@@ -579,10 +658,8 @@ const handleChatKey = (e: KeyboardEvent) => {
 }
 .apply-btn { width: 100%; font-size: 13px; height: 36px; }
 
-.empty-hint {
-  text-align: center; padding: 40px 20px; color: var(--muted);
-  font-size: 14px; border: 1px dashed var(--hairline); border-radius: 12px;
-}
+.apply-btn { width: 100%; font-size: 13px; height: 36px; }
+
 .error-msg {
   font-size: 12px; color: var(--error); text-align: center;
   margin-bottom: 12px;
@@ -597,8 +674,8 @@ const handleChatKey = (e: KeyboardEvent) => {
   border: 1px solid var(--hairline-soft);
   transition: transform 0.2s;
 }
-.welcome-card:hover { transform: translateY(-2px); }
-.wc-icon { font-size: 24px; display: block; margin-bottom: 8px; }
+.welcome-card:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: 0 4px 12px rgba(204,120,92,0.08); }
+.wc-icon { display: flex; margin-bottom: 12px; color: var(--primary); }
 .welcome-card h4 {
   font-family: var(--font-inter); font-size: 15px; font-weight: 600;
   color: var(--ink); margin: 0 0 6px;
@@ -622,13 +699,16 @@ const handleChatKey = (e: KeyboardEvent) => {
 .chat-empty p { font-size: 14px; margin-bottom: 16px; }
 .chat-starters { display: flex; flex-direction: column; gap: 8px; align-items: center; }
 .chat-starters button {
-  background: var(--surface-card); border: 1px solid var(--hairline);
-  border-radius: 20px; padding: 8px 16px; font-size: 13px;
+  background: white; border: 1px solid var(--hairline);
+  border-radius: 12px; padding: 10px 16px; font-size: 13px;
   color: var(--ink); cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; gap: 8px; font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
 }
 .chat-starters button:hover {
   border-color: var(--primary); color: var(--primary);
-  background: rgba(204,120,92,0.06);
+  background: var(--surface-card);
+  box-shadow: 0 4px 12px rgba(204,120,92,0.08);
 }
 .chat-bubble { display: flex; }
 .chat-bubble.student { justify-content: flex-end; }
