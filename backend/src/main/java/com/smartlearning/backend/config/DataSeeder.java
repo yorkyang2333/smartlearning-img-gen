@@ -8,6 +8,7 @@ import com.smartlearning.backend.repository.ApiEndpointRepository;
 import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.UserRepository;
+import com.smartlearning.backend.util.ModelConfigUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -90,7 +91,10 @@ public class DataSeeder implements CommandLineRunner {
         m.setType(type);
         m.setProvider(provider);
         m.setDescription(desc);
-        m.setConfig(type.equals("TEXT_TO_IMAGE") ? "{\"sizes\":[\"1024x1024\"]}" : "{}");
+        m.setApiFormat("openai");
+        m.setConfig(type.equals("TEXT_TO_IMAGE")
+            ? ModelConfigUtil.buildImageConfigJson(modelId, m.getApiFormat())
+            : "{}");
         m.setApiEndpointId(endpointId);
         return m;
     }

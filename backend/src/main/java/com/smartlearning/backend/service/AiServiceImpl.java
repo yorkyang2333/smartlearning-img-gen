@@ -1,5 +1,6 @@
 package com.smartlearning.backend.service;
 
+import com.smartlearning.backend.util.ModelConfigUtil;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ public class AiServiceImpl implements AiService {
     public String generateImage(String prompt, String modelId, String apiKey, String baseUrl, String apiFormat, Map<String, Object> config) {
         boolean isGeminiFormat = "gemini".equalsIgnoreCase(apiFormat);
         boolean isGoogleApi = baseUrl != null && baseUrl.contains("generativelanguage.googleapis.com");
+        String finalPrompt = prompt;
 
         if (isGeminiFormat && isGoogleApi) {
             // 1. Google Native Gemini API format
@@ -36,6 +38,15 @@ public class AiServiceImpl implements AiService {
             
             Map<String, Object> generationConfig = new HashMap<>();
             generationConfig.put("responseModalities", List.of("IMAGE", "TEXT"));
+            if (config != null) {
+                Object selectedSize = config.get("size");
+                if (selectedSize instanceof String sizeValue) {
+                    Map<String, Object> responseFormat = ModelConfigUtil.buildGeminiResponseFormat(modelId, sizeValue);
+                    if (!responseFormat.isEmpty()) {
+                        generationConfig.put("responseFormat", responseFormat);
+                    }
+                }
+            }
             requestBody.put("generationConfig", generationConfig);
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(requestBody, headers);
@@ -59,8 +70,14 @@ public class AiServiceImpl implements AiService {
 
             Map<String, Object> requestBody = new HashMap<>();
             
-            // Check if the model is likely a text model that generates images via Chat Completions
-            boolean useChatCompletion = modelId.toLowerCase().contains("gemini") || modelId.toLowerCase().contains("claude");
+            // OpenAI-compatible proxies such as ChatAnywhere expose image models through images/generations.
+            boolean useImagesEndpoint = ModelConfigUtil.shouldUseImagesEndpoint(modelId);
+            if (!useImagesEndpoint && ModelConfigUtil.isGeminiImageModel(modelId) && config != null) {
+                Object selectedSize = config.get("size");
+                if (selectedSize instanceof String sizeValue) {
+                    finalPrompt = prompt + ModelConfigUtil.buildAspectRatioPromptHint(sizeValue);
+                }
+            }
             
             try {
                 String endpoint = baseUrl;
@@ -71,14 +88,14 @@ public class AiServiceImpl implements AiService {
                     endpoint = endpoint.substring(0, endpoint.length() - 3);
                 }
                 
-                if (useChatCompletion) {
+                if (!useImagesEndpoint) {
                     // Send chat completion request
                     endpoint += "/v1/chat/completions";
                     
                     requestBody.put("model", modelId);
                     requestBody.put("messages", List.of(
                         Map.of("role", "system", "content", "You are an AI image generator. Please directly output an image based on the prompt."),
-                        Map.of("role", "user", "content", prompt)
+                        Map.of("role", "user", "content", finalPrompt)
                     ));
                     
                 } else {
@@ -86,7 +103,7 @@ public class AiServiceImpl implements AiService {
                     endpoint += "/v1/images/generations";
 
                     
-                    requestBody.put("prompt", prompt);
+                    requestBody.put("prompt", finalPrompt);
                     requestBody.put("model", modelId);
                     
                     Map<String, Object> configMap = new HashMap<>();

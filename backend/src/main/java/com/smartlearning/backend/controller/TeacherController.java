@@ -27,6 +27,7 @@ import com.smartlearning.backend.entity.Model;
 import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.service.ModelDiscoveryService;
+import com.smartlearning.backend.util.ModelConfigUtil;
 
 @RestController
 @RequestMapping("/api/teacher")
@@ -339,7 +340,7 @@ public class TeacherController {
             map.put("type", m.getType());
             map.put("provider", m.getProvider());
             map.put("description", m.getDescription());
-            map.put("config", m.getConfig());
+            map.put("config", ModelConfigUtil.normalizeConfig(m.getModelId(), m.getType(), m.getApiFormat(), m.getConfig()));
             map.put("isActive", m.getIsActive());
             map.put("sortOrder", m.getSortOrder());
             map.put("apiFormat", m.getApiFormat());
@@ -365,6 +366,7 @@ public class TeacherController {
         if (model.getApiFormat() == null) {
             model.setApiFormat("openai");
         }
+        model.setConfig(ModelConfigUtil.normalizeConfig(model.getModelId(), model.getType(), model.getApiFormat(), model.getConfig()));
         return ResponseEntity.ok(modelRepository.save(model));
     }
 
@@ -376,13 +378,13 @@ public class TeacherController {
         model.setType(modelDetails.getType());
         model.setProvider(modelDetails.getProvider());
         model.setDescription(modelDetails.getDescription());
-        model.setConfig(modelDetails.getConfig());
         model.setIsActive(modelDetails.getIsActive());
         model.setSortOrder(modelDetails.getSortOrder());
         if (modelDetails.getApiFormat() != null) {
             model.setApiFormat(modelDetails.getApiFormat());
         }
         model.setApiEndpointId(modelDetails.getApiEndpointId());
+        model.setConfig(ModelConfigUtil.normalizeConfig(model.getModelId(), model.getType(), model.getApiFormat(), modelDetails.getConfig()));
         return ResponseEntity.ok(modelRepository.save(model));
     }
 
@@ -394,6 +396,7 @@ public class TeacherController {
                 if (model.getApiFormat() == null) {
                     model.setApiFormat("openai");
                 }
+                model.setConfig(ModelConfigUtil.normalizeConfig(model.getModelId(), model.getType(), model.getApiFormat(), model.getConfig()));
                 savedModels.add(modelRepository.save(model));
             }
         }

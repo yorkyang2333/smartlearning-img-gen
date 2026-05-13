@@ -160,6 +160,14 @@ watch([availableModels, currentMode], () => {
 
 const selectedModel = computed(() => availableModels.value.find((m: any) => m.modelId === modelId.value))
 const config = computed(() => selectedModel.value ? JSON.parse(selectedModel.value.config) : {})
+const availableSizes = computed(() => Array.isArray(config.value?.sizes) ? config.value.sizes : [])
+
+watch(availableSizes, (sizes) => {
+  if (sizes.length === 0) return
+  if (!sizes.includes(size.value)) {
+    size.value = sizes[0]
+  }
+}, { immediate: true })
 
 const groupedModels = computed(() => {
   const acc: any = {}
@@ -199,16 +207,41 @@ const getModelMeta = (name: string) => {
   return { icon: '📦', desc: '标准创作引擎' }
 }
 
+const canonicalRatios = [
+  { key: '1:1', value: 1, label: '正方形' },
+  { key: '2:3', value: 2 / 3, label: '海报竖版' },
+  { key: '3:2', value: 3 / 2, label: '经典横版' },
+  { key: '3:4', value: 3 / 4, label: '经典竖版' },
+  { key: '4:3', value: 4 / 3, label: '经典横版' },
+  { key: '4:5', value: 4 / 5, label: '社媒竖版' },
+  { key: '5:4', value: 5 / 4, label: '方形横版' },
+  { key: '9:16', value: 9 / 16, label: '手机竖屏' },
+  { key: '16:9', value: 16 / 9, label: '宽画幅' },
+  { key: '21:9', value: 21 / 9, label: '电影宽屏' }
+]
+
 const getSizeMeta = (sizeStr: string) => {
-  const ratioMap: Record<string, { label: string, shape: any }> = {
-    '1024x1024': { label: '1:1 正方形', shape: { width: '14px', height: '14px' } },
-    '512x512': { label: '1:1 小正方', shape: { width: '12px', height: '12px' } },
-    '1024x1792': { label: '9:16 手机竖屏', shape: { width: '9px', height: '16px' } },
-    '1792x1024': { label: '16:9 宽画幅', shape: { width: '16px', height: '9px' } },
-    '768x1024': { label: '3:4 经典竖版', shape: { width: '11px', height: '15px' } },
-    '1024x768': { label: '4:3 经典横版', shape: { width: '15px', height: '11px' } }
+  const parts = sizeStr.split('x').map(v => Number(v))
+  if (parts.length !== 2 || Number.isNaN(parts[0]) || Number.isNaN(parts[1]) || parts[0] <= 0 || parts[1] <= 0) {
+    return { label: sizeStr, shape: { width: '14px', height: '14px' } }
   }
-  return ratioMap[sizeStr] || { label: sizeStr, shape: { width: '14px', height: '14px' } }
+
+  const [width, height] = parts
+  const ratio = width / height
+
+  const matchedRatio = canonicalRatios.reduce((best, candidate) => {
+    const diff = Math.abs(candidate.value - ratio)
+    return diff < best.diff ? { candidate, diff } : best
+  }, { candidate: canonicalRatios[0], diff: Number.POSITIVE_INFINITY }).candidate
+
+  const scale = 16
+  const normalizedWidth = Math.max(6, Math.round((width / Math.max(width, height)) * scale))
+  const normalizedHeight = Math.max(6, Math.round((height / Math.max(width, height)) * scale))
+
+  return {
+    label: `${matchedRatio.key} ${matchedRatio.label}`,
+    shape: { width: `${normalizedWidth}px`, height: `${normalizedHeight}px` }
+  }
 }
 
 const handleImageChange = (e: Event) => {
@@ -529,7 +562,7 @@ const activeMsg = computed(() => {
               </div>
             </div>
             
-            <div v-if="config.sizes && config.sizes.length > 0" class="control-group">
+            <div v-if="availableSizes.length > 0" class="control-group">
               <label>画面比例</label>
               <div class="custom-dropdown-container">
                 <div 
@@ -546,9 +579,9 @@ const activeMsg = computed(() => {
                   </span>
                 </div>
 
-                <div v-if="sizeMenuOpen" class="custom-dropdown-menu sizes-menu">
-                  <div 
-                    v-for="s in config.sizes" 
+                  <div v-if="sizeMenuOpen" class="custom-dropdown-menu sizes-menu">
+                    <div 
+                    v-for="s in availableSizes" 
                     :key="s" 
                     class="menu-item size-item"
                     :class="{ selected: size === s }"

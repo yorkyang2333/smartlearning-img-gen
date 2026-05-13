@@ -13,6 +13,7 @@ import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.ApiEndpointRepository;
 import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.service.AiService;
+import com.smartlearning.backend.util.ModelConfigUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -149,6 +150,7 @@ public class StudentController {
         // Only return models that are marked as active and are NOT text generation only
         List<com.smartlearning.backend.entity.Model> models = modelRepository.findByIsActiveTrueOrderBySortOrderAsc()
             .stream()
+            .peek(m -> m.setConfig(ModelConfigUtil.normalizeConfig(m.getModelId(), m.getType(), m.getApiFormat(), m.getConfig())))
             .filter(m -> !"TEXT_GENERATION".equals(m.getType()))
             .collect(java.util.stream.Collectors.toList());
             
