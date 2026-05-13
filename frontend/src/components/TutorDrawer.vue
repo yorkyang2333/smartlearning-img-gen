@@ -21,7 +21,7 @@ const authStore = useAuthStore()
 const activeTab = ref<'review' | 'chat' | 'optimize'>('review')
 
 // Review state
-const activePerspectives = ref<string[]>(['composition'])
+const activePerspectives = ref<string[]>(['composition', 'style', 'completeness'])
 const reviews = ref<Record<string, any>>(props.initialReviews || {})
 const isReviewing = ref(false)
 const reviewError = ref<string | null>(null)

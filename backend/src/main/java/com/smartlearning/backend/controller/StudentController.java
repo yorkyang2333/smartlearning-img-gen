@@ -113,10 +113,19 @@ public class StudentController {
             // Agent message
             Map<String, Object> agentMsg = new HashMap<>();
             agentMsg.put("id", g.getId() + "_agent");
+            agentMsg.put("generationId", g.getId());
             agentMsg.put("role", "agent");
             agentMsg.put("progress", 100);
             agentMsg.put("image", g.getOutputImageUrl());
             agentMsg.put("timeMs", g.getDurationMs());
+            
+            if (g.getApiResponse() != null && !g.getApiResponse().trim().isEmpty()) {
+                try {
+                    agentMsg.put("analysis", mapper.readValue(g.getApiResponse(), Map.class));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
             
             messages.add(agentMsg);
         }

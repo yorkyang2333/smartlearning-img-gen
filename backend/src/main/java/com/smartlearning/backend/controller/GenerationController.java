@@ -242,7 +242,8 @@ public class GenerationController {
             String generationId = (String) request.get("generationId");
             List<String> perspectives = (List<String>) request.get("perspectives");
             
-            Generation generation = generationRepository.findById(generationId).orElseThrow();
+            Generation generation = generationRepository.findById(generationId)
+                .orElseThrow(() -> new RuntimeException("图片记录不存在或已失效"));
             TutorConfig tutorConfig = getTutorConfig();
             if (tutorConfig == null || tutorConfig.getModelName() == null || tutorConfig.getModelName().isBlank()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
