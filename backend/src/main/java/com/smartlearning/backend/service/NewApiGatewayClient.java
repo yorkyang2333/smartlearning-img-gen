@@ -16,6 +16,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 public class NewApiGatewayClient implements GatewayAiClient {
@@ -161,6 +167,68 @@ public class NewApiGatewayClient implements GatewayAiClient {
             return response.getBody();
         } catch (Exception e) {
             throw new RuntimeException("Multimodal chat generation failed via AI Gateway: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void generateChatStream(String systemPrompt, String userMessage, String modelName, java.util.function.Consumer<String> onNext, Runnable onComplete, java.util.function.Consumer<Throwable> onError) {
+        try {
+            GatewayConfigService.ResolvedGatewayConfig configInfo = requireEnabledConfig();
+            
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("model", modelName);
+            requestBody.put("stream", true);
+            requestBody.put("messages", List.of(
+                Map.of("role", "system", "content", systemPrompt != null ? systemPrompt : "You are a helpful AI tutor."),
+                Map.of("role", "user", "content", userMessage)
+            ));
+
+            String jsonBody = new ObjectMapper().writeValueAsString(requestBody);
+
+            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                    .uri(URI.create(configInfo.baseUrl() + "/v1/chat/completions"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody));
+
+            String apiKey = configInfo.apiKey();
+            if (!apiKey.isBlank()) {
+                requestBuilder.header("Authorization", "Bearer " + apiKey);
+            }
+
+            HttpRequest request = requestBuilder.build();
+            HttpClient client = HttpClient.newBuilder().build();
+
+            client.sendAsync(request, HttpResponse.BodyHandlers.ofLines())
+                    .thenAccept(response -> {
+                        if (response.statusCode() != 200) {
+                            onError.accept(new RuntimeException("API error: " + response.statusCode()));
+                            return;
+                        }
+                        response.body().forEach(line -> {
+                            if (!line.isBlank()) {
+                                if (line.startsWith("data: ")) {
+                                    String dataStr = line.substring(6);
+                                    if ("[DONE]".equals(dataStr)) {
+                                        return;
+                                    }
+                                    onNext.accept(dataStr);
+                                } else if (line.startsWith("data:")) {
+                                    String dataStr = line.substring(5);
+                                    if ("[DONE]".equals(dataStr)) {
+                                        return;
+                                    }
+                                    onNext.accept(dataStr);
+                                }
+                            }
+                        });
+                        onComplete.run();
+                    })
+                    .exceptionally(ex -> {
+                        onError.accept(ex);
+                        return null;
+                    });
+        } catch (Exception e) {
+            onError.accept(e);
         }
     }
 

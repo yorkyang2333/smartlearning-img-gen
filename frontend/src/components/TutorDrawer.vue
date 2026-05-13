@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, computed, nextTick } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { marked } from 'marked'
 
 const props = defineProps<{
   generationId?: string | null
@@ -96,35 +97,90 @@ const chatInput = ref('')
 const isChatting = ref(false)
 const chatScrollRef = ref<HTMLDivElement | null>(null)
 
+const renderMarkdown = (text: string) => {
+  if (!text) return ''
+  return marked.parse(text) as string
+}
+
 const sendChat = async () => {
   if (!chatInput.value.trim()) return
   const msg = chatInput.value.trim()
   chatMessages.value.push({ role: 'student', text: msg })
   chatInput.value = ''
   isChatting.value = true
+  
+  // Add empty tutor message to append stream to
+  const tutorMsgIndex = chatMessages.value.length
+  chatMessages.value.push({ role: 'tutor', text: '' })
+  
   nextTick(() => {
     if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
   })
+  
   try {
-    const res = await fetch('http://localhost:8080/api/generate/tutor-chat', {
+    const res = await fetch('http://localhost:8080/api/generate/tutor-chat-stream', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${authStore.token}`
       },
       body: JSON.stringify({
-        generationId: props.generationId,
+        generationId: props.generationId || null,
         message: msg
       })
     })
-    const data = await res.json()
-    if (data.success) {
-      chatMessages.value.push({ role: 'tutor', text: data.reply })
-    } else {
-      chatMessages.value.push({ role: 'tutor', text: '抱歉，我暂时无法回答。' })
+
+    if (!res.body) throw new Error('No streaming body')
+
+    isChatting.value = false // Hide typing indicator since we are streaming now
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let done = false
+    let buffer = ''
+
+    while (!done) {
+      const { value, done: readerDone } = await reader.read()
+      done = readerDone
+      if (value) {
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || '' 
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6)
+            if (dataStr === '[DONE]') continue
+            try {
+              const data = JSON.parse(dataStr)
+              if (data.choices && data.choices[0]?.delta?.content) {
+                chatMessages.value[tutorMsgIndex].text += data.choices[0].delta.content
+                nextTick(() => {
+                  if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
+                })
+              } else if (data.error) {
+                chatMessages.value[tutorMsgIndex].text += '\n[Error: ' + data.error + ']'
+              }
+            } catch (e) {
+              // Not JSON (e.g. raw string stream from some providers), just append it if we changed backend format
+              if (!dataStr.startsWith('{')) {
+                 chatMessages.value[tutorMsgIndex].text += dataStr
+                 nextTick(() => {
+                   if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
+                 })
+              }
+            }
+          } else if (line.trim().length > 0 && !line.startsWith('event:')) {
+             // In case backend sends raw strings instead of SSE data wrapper
+             chatMessages.value[tutorMsgIndex].text += line + '\n'
+             nextTick(() => {
+               if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
+             })
+          }
+        }
+      }
     }
-  } catch {
-    chatMessages.value.push({ role: 'tutor', text: '网络错误，请稍后再试。' })
+  } catch (err) {
+    chatMessages.value[tutorMsgIndex].text += '\n(网络错误，请稍后再试)'
   } finally {
     isChatting.value = false
     nextTick(() => {
@@ -311,7 +367,8 @@ const handleChatKey = (e: KeyboardEvent) => {
               </div>
             </div>
             <div v-for="(msg, i) in chatMessages" :key="i" class="chat-bubble" :class="msg.role">
-              <div class="bubble-content">{{ msg.text }}</div>
+              <div v-if="msg.role === 'tutor'" class="bubble-content markdown-body" v-html="renderMarkdown(msg.text)"></div>
+              <div v-else class="bubble-content">{{ msg.text }}</div>
             </div>
             <div v-if="isChatting" class="chat-bubble tutor">
               <div class="bubble-content typing">
@@ -563,6 +620,18 @@ const handleChatKey = (e: KeyboardEvent) => {
   background: var(--surface-card); color: var(--ink);
   border-bottom-left-radius: 4px;
 }
+
+/* Markdown Styles */
+.markdown-body {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.markdown-body p { margin-bottom: 8px; }
+.markdown-body p:last-child { margin-bottom: 0; }
+.markdown-body strong { font-weight: 600; color: var(--primary); }
+.markdown-body ul { padding-left: 20px; margin-bottom: 8px; list-style-type: disc; }
+.markdown-body ol { padding-left: 20px; margin-bottom: 8px; list-style-type: decimal; }
+.markdown-body li { margin-bottom: 4px; }
 .typing { display: flex; gap: 4px; align-items: center; padding: 12px 18px; }
 .dot {
   width: 6px; height: 6px; background: var(--muted); border-radius: 50%;
