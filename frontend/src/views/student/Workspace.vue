@@ -4,8 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import PromptBuilder from '../../components/PromptBuilder.vue'
 import PromptHelper from '../../components/PromptHelper.vue'
-import PromptOptimizer from '../../components/PromptOptimizer.vue'
-import TutorReview from '../../components/TutorReview.vue'
+import TutorDrawer from '../../components/TutorDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -37,11 +36,18 @@ const imageFile = ref<File | null>(null)
 const imagePreview = ref<string | null>(null)
 const isGenerating = ref(false)
 const activeMsgId = ref<string | null>(null)
-const sidebarMode = ref<'half' | 'full'>('half')
 const modelMenuOpen = ref(false)
 const sizeMenuOpen = ref(false)
 const isBuilderOpen = ref(false)
 const isHelperOpen = ref(false)
+
+// Learning step: 1=构思 2=优化 3=生成 4=点评
+const learningStep = computed(() => {
+  if (activeMsg.value?.image) return 4
+  if (isGenerating.value) return 3
+  if (promptText.value.trim()) return 2
+  return 1
+})
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const dropdownRef = ref<HTMLDivElement | null>(null)
@@ -341,7 +347,6 @@ const handleSend = async () => {
       } else {
         messages.value[msgIndex] = { 
           ...messages.value[msgIndex], 
-          // Keep the same frontend ID to avoid rendering issues
           generationId: data.generationId,
           progress: 100, 
           loadingText: undefined,
@@ -349,6 +354,7 @@ const handleSend = async () => {
           timeMs: data.data?.durationMs,
           analysis: data.apiResponse ? data.apiResponse : undefined
         }
+        // Auto-open tutor drawer after generation success
       }
     }
 
@@ -391,7 +397,7 @@ const activeMsg = computed(() => {
 <template>
   <div class="workspace-layout">
     <!-- 左侧画板与历史记录 -->
-    <div class="canvas-area" :class="{ hidden: sidebarMode === 'full' }">
+    <div class="canvas-area">
       <div class="canvas-main">
         <template v-if="activeMsg">
           <div class="canvas-content">
@@ -433,7 +439,12 @@ const activeMsg = computed(() => {
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
             </span>
             <h2 class="serif-display">开启智慧创作之旅</h2>
-            <p>在右侧输入提示词，体验 AI 导师辅助的学习过程</p>
+            <p>输入提示词，体验 AI 导师辅助的学习过程</p>
+            <div class="quick-prompts">
+              <button class="quick-chip" @click="promptText = 'A beautiful sunset over the ocean, watercolor painting style'">🌅 海上日落</button>
+              <button class="quick-chip" @click="promptText = 'A girl in a cyberpunk city, neon lighting, cinematic'">🌆 赛博少女</button>
+              <button class="quick-chip" @click="promptText = 'An astronaut on a snowy mountain, realistic photography'">👨‍🚀 雪山宇航员</button>
+            </div>
           </div>
         </template>
       </div>
@@ -456,20 +467,10 @@ const activeMsg = computed(() => {
       </div>
     </div>
 
-    <!-- Divider -->
-    <div class="layout-divider">
-      <button 
-        class="layout-toggle-btn" 
-        @click="sidebarMode = sidebarMode === 'half' ? 'full' : 'half'"
-        :title="sidebarMode === 'half' ? '展开为全屏阅读' : '缩小为侧边栏'"
-      >
-        <svg v-if="sidebarMode === 'half'" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        <svg v-else width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
-      </button>
-    </div>
+
 
     <!-- 右侧工作区 -->
-    <div class="workspace-sidebar" :class="sidebarMode">
+    <div class="workspace-sidebar">
       <div class="sidebar-inner">
         <div class="panel prompt-panel">
           <div class="prompt-header">
@@ -505,11 +506,7 @@ const activeMsg = computed(() => {
             @updatePrompt="p => promptText = p" 
             @close="isBuilderOpen = false" 
           />
-          <PromptOptimizer 
-            v-else
-            :prompt="promptText"
-            @apply="p => promptText = p"
-          />
+
           <textarea
             v-if="!isBuilderOpen"
             class="prompt-textarea"
@@ -619,35 +616,29 @@ const activeMsg = computed(() => {
           </div>
         </div>
 
-        <div class="panel tutor-panel">
-          <h3 class="panel-title serif-display" style="display: flex; align-items: center; gap: 8px;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="tutor-icon" style="color: var(--primary);"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            AI 智能导师
-          </h3>
-          
-          <div class="tutor-content">
-            <template v-if="activeMsg?.image">
-              <TutorReview 
-                :generationId="activeMsg.generationId || activeMsg.id.replace('_agent', '')"
-                :prompt="activeMsg.content || ''"
-                :initialReviews="activeMsg.analysis?.reviews"
-                @applySuggestion="s => promptText = s"
-              />
-            </template>
-            <template v-else-if="activeMsg?.progress !== undefined && activeMsg.progress < 100">
-              <div class="tutor-loading-state">
-                <div class="pulse-dot"></div>
-                <p>导师正在分析您的提示词维度...</p>
-              </div>
-            </template>
-            <template v-else>
-              <div class="tutor-empty-state">
-                <p>生成作品后，导师将为您提供光影、构图等多维度的专业分析与建议。</p>
-              </div>
-            </template>
-          </div>
+        <!-- Learning Steps -->
+        <div class="learning-steps">
+          <div class="step" :class="{ active: learningStep >= 1, current: learningStep === 1 }"><span class="step-num">1</span><span class="step-label">构思</span></div>
+          <div class="step-line" :class="{ done: learningStep >= 2 }"></div>
+          <div class="step" :class="{ active: learningStep >= 2, current: learningStep === 2 }"><span class="step-num">2</span><span class="step-label">优化</span></div>
+          <div class="step-line" :class="{ done: learningStep >= 3 }"></div>
+          <div class="step" :class="{ active: learningStep >= 3, current: learningStep === 3 }"><span class="step-num">3</span><span class="step-label">生成</span></div>
+          <div class="step-line" :class="{ done: learningStep >= 4 }"></div>
+          <div class="step" :class="{ active: learningStep >= 4, current: learningStep === 4 }"><span class="step-num">4</span><span class="step-label">点评</span></div>
         </div>
       </div>
+    </div>
+
+    <!-- 右侧 AI 导师区 -->
+    <div class="tutor-column">
+      <TutorDrawer
+        :generationId="activeMsg?.generationId || activeMsg?.id"
+        :prompt="promptText"
+        :hasImage="!!activeMsg?.image"
+        :initialReviews="activeMsg?.analysis?.reviews"
+        @applySuggestion="s => promptText = s"
+        @applyOptimized="p => promptText = p"
+      />
     </div>
   </div>
 </template>
@@ -656,7 +647,7 @@ const activeMsg = computed(() => {
 .workspace-layout {
   display: flex;
   height: 100vh;
-  margin: -48px; /* 抵消 main-content 的 48px padding */
+  margin: -48px;
   background: var(--surface-cream);
   overflow: hidden;
 }
@@ -664,53 +655,17 @@ const activeMsg = computed(() => {
 /* Left Canvas */
 .canvas-area {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 32px 16px 32px 32px;
-  min-width: 0;
+  padding: 24px 16px 24px 24px;
   max-width: 100%;
   transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.canvas-area.hidden {
-  flex: 0 0 0%;
-  max-width: 0;
-  padding-left: 0;
-  padding-right: 0;
-  opacity: 0;
-  pointer-events: none;
-}
 
-.layout-divider {
-  width: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 10;
-}
 
-.layout-toggle-btn {
-  width: 16px;
-  height: 64px;
-  background: var(--surface-card);
-  border: 1px solid var(--hairline);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 10px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  transition: all 0.2s;
-}
 
-.layout-toggle-btn:hover {
-  background: var(--canvas);
-  color: var(--primary);
-  transform: scale(1.05);
-}
 
 .canvas-main {
   flex: 1;
@@ -818,8 +773,15 @@ const activeMsg = computed(() => {
 }
 
 .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   color: var(--muted);
+  height: 100%;
+  gap: 8px;
+  padding: 40px 20px;
 }
 
 .empty-icon { font-size: 48px; display: block; margin-bottom: 16px; opacity: 0.5; }
@@ -899,19 +861,13 @@ const activeMsg = computed(() => {
 
 /* Right Sidebar */
 .workspace-sidebar {
-  width: 480px;
+  width: 340px;
+  min-width: 0;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  padding: 32px 32px 32px 0;
-  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  padding: 24px 8px 24px 0;
   overflow-y: auto;
-}
-
-.workspace-sidebar.full {
-  flex: 1;
-  width: 100%;
-  padding: 32px;
 }
 
 .sidebar-inner {
@@ -921,15 +877,9 @@ const activeMsg = computed(() => {
   box-shadow: 0 4px 24px rgba(0,0,0,0.02);
   display: flex;
   flex-direction: column;
-  width: 448px; 
+  width: 100%;
   min-height: 100%;
   transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.workspace-sidebar.full .sidebar-inner {
-  width: 100%;
-  max-width: 1000px;
-  margin: 0 auto;
 }
 
 .panel {
@@ -940,13 +890,6 @@ const activeMsg = computed(() => {
 
 .prompt-panel {
   border-bottom: 1px solid var(--hairline);
-}
-
-.tutor-panel {
-  background: var(--surface-cream-strong);
-  border-bottom-left-radius: 16px;
-  border-bottom-right-radius: 16px;
-  flex: 1;
 }
 
 .prompt-header {
@@ -1244,15 +1187,74 @@ const activeMsg = computed(() => {
   border: 1px solid var(--hairline);
 }
 
-.tutor-empty-state, .tutor-loading-state {
-  padding: 32px 16px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.6;
+.hidden-input { display: none; }
+
+/* Learning Steps */
+.learning-steps {
+  display: flex; align-items: center; gap: 0;
+  padding: 16px 24px; border-top: 1px solid var(--hairline);
+}
+.step {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.step-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600;
+  background: var(--hairline); color: var(--muted);
+  transition: all 0.3s;
+}
+.step.active .step-num {
+  background: var(--surface-cream-strong); color: var(--ink);
+}
+.step.current .step-num {
+  background: var(--primary); color: white;
+  box-shadow: 0 0 0 4px rgba(204,120,92,0.15);
+}
+.step-label {
+  font-size: 11px; color: var(--muted); font-weight: 500;
+}
+.step.current .step-label { color: var(--primary); font-weight: 600; }
+.step-line {
+  flex: 1; height: 2px; background: var(--hairline); margin: 0 4px;
+  margin-bottom: 18px; transition: background 0.3s;
+}
+.step-line.done { background: var(--primary); }
+
+/* Tutor Column (Third Column) */
+.tutor-column {
+  width: 380px;
+  min-width: 0;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 24px 24px 0;
+}
+.tutor-column > * {
+  flex: 1;
+  background: var(--canvas);
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  overflow: hidden;
 }
 
-.hidden-input { display: none; }
+/* Quick Prompts */
+.quick-prompts {
+  display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;
+  justify-content: center;
+}
+.quick-chip {
+  padding: 8px 14px; border-radius: 20px;
+  border: 1px solid var(--hairline); background: white;
+  font-size: 13px; color: var(--muted); cursor: pointer;
+  transition: all 0.2s;
+}
+.quick-chip:hover {
+  border-color: var(--primary); color: var(--primary);
+  background: rgba(204,120,92,0.05);
+  transform: translateY(-1px);
+}
 
 .image-preview-box {
   position: relative;

@@ -1,0 +1,659 @@
+<script setup lang="ts">
+import { ref, watch, computed, nextTick } from 'vue'
+import { useAuthStore } from '../stores/auth'
+
+const props = defineProps<{
+  generationId?: string | null
+  prompt?: string
+  initialReviews?: Record<string, any>
+  hasImage: boolean
+}>()
+
+const emit = defineEmits<{
+  (e: 'applySuggestion', suggestion: string): void
+  (e: 'applyOptimized', prompt: string): void
+}>()
+
+const authStore = useAuthStore()
+
+// Tabs
+const activeTab = ref<'review' | 'chat' | 'optimize'>('review')
+
+// Review state
+const activePerspectives = ref<string[]>(['composition'])
+const reviews = ref<Record<string, any>>(props.initialReviews || {})
+const isReviewing = ref(false)
+const reviewError = ref<string | null>(null)
+
+const perspectives = [
+  { id: 'composition', name: '光影构图', icon: '📐' },
+  { id: 'style', name: '艺术风格', icon: '🎨' },
+  { id: 'completeness', name: '内容完整性', icon: '📋' }
+]
+
+const getScoreClass = (score: number) => {
+  if (score >= 80) return 'score-high'
+  if (score >= 60) return 'score-mid'
+  return 'score-low'
+}
+
+const getScoreColor = (score: number) => {
+  if (score >= 80) return '#5db872'
+  if (score >= 60) return '#d4a017'
+  return '#c64545'
+}
+
+const togglePerspective = (id: string) => {
+  if (activePerspectives.value.includes(id)) {
+    activePerspectives.value = activePerspectives.value.filter(p => p !== id)
+  } else {
+    activePerspectives.value.push(id)
+  }
+}
+
+const handleReview = async () => {
+  if (activePerspectives.value.length === 0 || !props.generationId) return
+  isReviewing.value = true
+  reviewError.value = null
+  try {
+    const res = await fetch('http://localhost:8080/api/generate/review', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify({
+        generationId: props.generationId,
+        perspectives: activePerspectives.value
+      })
+    })
+    const data = await res.json()
+    if (data.success) {
+      reviews.value = { ...reviews.value, ...data.results }
+    } else {
+      reviewError.value = data.error || '评审失败'
+    }
+  } catch (e) {
+    reviewError.value = '网络请求失败'
+  } finally {
+    isReviewing.value = false
+  }
+}
+
+// Auto-review when generationId changes
+watch(() => props.generationId, (newId) => {
+  reviews.value = props.initialReviews || {}
+  if (newId && props.hasImage) {
+    activeTab.value = 'review'
+    nextTick(() => handleReview())
+  }
+})
+
+// Chat state
+type ChatMsg = { role: 'student' | 'tutor'; text: string }
+const chatMessages = ref<ChatMsg[]>([])
+const chatInput = ref('')
+const isChatting = ref(false)
+const chatScrollRef = ref<HTMLDivElement | null>(null)
+
+const sendChat = async () => {
+  if (!chatInput.value.trim() || !props.generationId) return
+  const msg = chatInput.value.trim()
+  chatMessages.value.push({ role: 'student', text: msg })
+  chatInput.value = ''
+  isChatting.value = true
+  nextTick(() => {
+    if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
+  })
+  try {
+    const res = await fetch('http://localhost:8080/api/generate/tutor-chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify({
+        generationId: props.generationId,
+        message: msg
+      })
+    })
+    const data = await res.json()
+    if (data.success) {
+      chatMessages.value.push({ role: 'tutor', text: data.reply })
+    } else {
+      chatMessages.value.push({ role: 'tutor', text: '抱歉，我暂时无法回答。' })
+    }
+  } catch {
+    chatMessages.value.push({ role: 'tutor', text: '网络错误，请稍后再试。' })
+  } finally {
+    isChatting.value = false
+    nextTick(() => {
+      if (chatScrollRef.value) chatScrollRef.value.scrollTop = chatScrollRef.value.scrollHeight
+    })
+  }
+}
+
+// Optimize state
+const isOptimizing = ref(false)
+const isAnalyzing = ref(false)
+const optimizedResult = ref<string | null>(null)
+const suggestions = ref<any[] | null>(null)
+const optError = ref<string | null>(null)
+
+const handleOptimize = async () => {
+  if (!props.prompt?.trim()) return
+  isOptimizing.value = true
+  optError.value = null
+  optimizedResult.value = null
+  suggestions.value = null
+  try {
+    const res = await fetch('http://localhost:8080/api/generate/optimize-prompt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify({ prompt: props.prompt })
+    })
+    const data = await res.json()
+    if (data.success) optimizedResult.value = data.optimized
+    else optError.value = data.error || '优化失败'
+  } catch { optError.value = '网络请求失败' }
+  finally { isOptimizing.value = false }
+}
+
+const handleAnalyze = async () => {
+  if (!props.prompt?.trim()) return
+  isAnalyzing.value = true
+  optError.value = null
+  optimizedResult.value = null
+  suggestions.value = null
+  try {
+    const res = await fetch('http://localhost:8080/api/generate/analyze-prompt', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify({ prompt: props.prompt })
+    })
+    const data = await res.json()
+    if (data.success && data.data) suggestions.value = data.data.suggestions
+    else optError.value = data.error || '分析失败'
+  } catch { optError.value = '网络请求失败' }
+  finally { isAnalyzing.value = false }
+}
+
+const applyOptimization = () => {
+  if (optimizedResult.value) {
+    emit('applyOptimized', optimizedResult.value)
+    optimizedResult.value = null
+  }
+}
+
+const handleChatKey = (e: KeyboardEvent) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    sendChat()
+  }
+}
+</script>
+
+<template>
+  <div class="tutor-panel-root">
+    <!-- Header -->
+    <div class="drawer-header">
+      <div class="drawer-title-row">
+        <div class="drawer-brand">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);">
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+          </svg>
+          <span class="drawer-title serif-display">AI 智能导师</span>
+        </div>
+      </div>
+        <!-- Tabs -->
+        <div class="drawer-tabs">
+          <button class="tab-btn" :class="{ active: activeTab === 'review' }" @click="activeTab = 'review'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            作品评审
+          </button>
+          <button class="tab-btn" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            导师对话
+          </button>
+          <button class="tab-btn" :class="{ active: activeTab === 'optimize' }" @click="activeTab = 'optimize'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            智能优化
+          </button>
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="drawer-body">
+        <!-- ========= REVIEW TAB ========= -->
+        <div v-if="activeTab === 'review'" class="tab-content">
+          <template v-if="hasImage && generationId">
+            <div class="perspective-selector">
+              <button v-for="p in perspectives" :key="p.id" class="p-chip" :class="{ active: activePerspectives.includes(p.id) }" @click="togglePerspective(p.id)">
+                <span>{{ p.icon }}</span> {{ p.name }}
+              </button>
+              <button class="review-trigger" @click="handleReview" :disabled="isReviewing || activePerspectives.length === 0">
+                <span v-if="isReviewing" class="spinner"></span>
+                <span v-else>开始评审</span>
+              </button>
+            </div>
+            <div v-if="reviewError" class="error-msg">{{ reviewError }}</div>
+            <div class="reviews-list">
+              <div v-for="p in perspectives" :key="p.id">
+                <div v-if="reviews[p.id]" class="review-card">
+                  <div class="review-card-top">
+                    <div class="score-ring-wrap">
+                      <svg viewBox="0 0 36 36" class="score-ring">
+                        <path class="ring-bg" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="3"/>
+                        <path class="ring-fg" :stroke="getScoreColor(reviews[p.id].score)" :stroke-dasharray="`${reviews[p.id].score}, 100`" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="3" stroke-linecap="round"/>
+                      </svg>
+                      <span class="score-num" :class="getScoreClass(reviews[p.id].score)">{{ reviews[p.id].score }}</span>
+                    </div>
+                    <div class="review-meta">
+                      <span class="perspective-name">{{ p.icon }} {{ p.name }}</span>
+                      <p class="analysis-text">{{ reviews[p.id].analysis }}</p>
+                    </div>
+                  </div>
+                  <div class="suggestion-box">
+                    <label>优化建议词</label>
+                    <code>{{ reviews[p.id].promptSuggestion }}</code>
+                  </div>
+                  <button class="btn btn-primary apply-btn" @click="emit('applySuggestion', reviews[p.id].promptSuggestion)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    应用改进建议
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div v-if="Object.keys(reviews).length === 0 && !isReviewing" class="empty-hint">
+              选择维度后点击「开始评审」获取导师反馈
+            </div>
+          </template>
+          <template v-else>
+            <!-- Welcome cards -->
+            <div class="welcome-section">
+              <h3 class="welcome-title serif-display">我能帮你做什么？</h3>
+              <div class="welcome-cards">
+                <div class="welcome-card">
+                  <span class="wc-icon">📐</span>
+                  <h4>多维评审</h4>
+                  <p>从光影构图、艺术风格、内容完整性三个角度评价你的作品</p>
+                </div>
+                <div class="welcome-card">
+                  <span class="wc-icon">✨</span>
+                  <h4>智能优化</h4>
+                  <p>AI 帮你润色提示词，提升画面细节与艺术表现力</p>
+                </div>
+                <div class="welcome-card">
+                  <span class="wc-icon">💬</span>
+                  <h4>自由问答</h4>
+                  <p>随时向导师提问关于构图、色彩、风格的艺术知识</p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- ========= CHAT TAB ========= -->
+        <div v-if="activeTab === 'chat'" class="tab-content chat-tab">
+          <div class="chat-scroll" ref="chatScrollRef">
+            <div v-if="chatMessages.length === 0" class="chat-empty">
+              <p>向 AI 导师提问任何关于构图、色彩、风格的问题</p>
+              <div class="chat-starters">
+                <button @click="chatInput = '如何改善画面的光影效果？'; sendChat()">如何改善光影效果？</button>
+                <button @click="chatInput = '这张图的构图有什么问题？'; sendChat()">构图有什么问题？</button>
+                <button @click="chatInput = '推荐一些适合这个主题的艺术风格'; sendChat()">推荐艺术风格</button>
+              </div>
+            </div>
+            <div v-for="(msg, i) in chatMessages" :key="i" class="chat-bubble" :class="msg.role">
+              <div class="bubble-content">{{ msg.text }}</div>
+            </div>
+            <div v-if="isChatting" class="chat-bubble tutor">
+              <div class="bubble-content typing">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              </div>
+            </div>
+          </div>
+          <div class="chat-input-bar">
+            <textarea v-model="chatInput" placeholder="向导师提问..." @keydown="handleChatKey" rows="1"></textarea>
+            <button class="send-btn" @click="sendChat" :disabled="!chatInput.trim() || isChatting">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ========= OPTIMIZE TAB ========= -->
+        <div v-if="activeTab === 'optimize'" class="tab-content">
+          <div class="opt-section">
+            <p class="opt-hint">基于你当前的提示词，AI 导师可以帮你优化或分析改进方向。</p>
+            <div class="opt-actions">
+              <button class="opt-btn" @click="handleOptimize" :disabled="isOptimizing || !prompt?.trim()">
+                <span v-if="isOptimizing" class="spinner"></span>
+                <span v-else>✨ 一键优化提示词</span>
+              </button>
+              <button class="opt-btn" @click="handleAnalyze" :disabled="isAnalyzing || !prompt?.trim()">
+                <span v-if="isAnalyzing" class="spinner"></span>
+                <span v-else>🔍 维度分析建议</span>
+              </button>
+            </div>
+            <div v-if="optError" class="error-msg">{{ optError }}</div>
+            <div v-if="optimizedResult" class="opt-result">
+              <div class="opt-result-header">
+                <span>优化结果</span>
+                <button class="close-sm" @click="optimizedResult = null">✕</button>
+              </div>
+              <div class="opt-compare">
+                <div class="compare-box original"><label>原文</label><p>{{ prompt }}</p></div>
+                <div class="compare-arrow">→</div>
+                <div class="compare-box improved"><label>优化后</label><p>{{ optimizedResult }}</p></div>
+              </div>
+              <button class="btn btn-primary apply-btn" @click="applyOptimization">应用优化结果</button>
+            </div>
+            <div v-if="suggestions" class="opt-suggestions">
+              <div class="opt-result-header">
+                <span>维度分析</span>
+                <button class="close-sm" @click="suggestions = null">✕</button>
+              </div>
+              <div v-for="(s, i) in suggestions" :key="i" class="sug-item">
+                <span class="sug-dim">{{ s.dimension }}</span>
+                <div class="sug-body">
+                  <div class="sug-status">{{ s.currentStatus }}</div>
+                  <div class="sug-advice">{{ s.suggestion }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* Panel Root */
+.tutor-panel-root {
+  display: flex; flex-direction: column;
+  height: 100%; overflow: hidden;
+}
+
+/* Header */
+.drawer-header {
+  padding: 20px 24px 0; border-bottom: 1px solid var(--hairline);
+  background: var(--surface-card);
+}
+.drawer-title-row {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px;
+}
+.drawer-brand { display: flex; align-items: center; gap: 10px; }
+.drawer-title {
+  font-size: 20px; color: var(--ink); letter-spacing: -0.3px;
+}
+.drawer-close {
+  width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--hairline);
+  background: var(--canvas); color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.drawer-close:hover { color: var(--ink); border-color: var(--primary); }
+
+/* Tabs */
+.drawer-tabs { display: flex; gap: 4px; }
+.tab-btn {
+  flex: 1; padding: 10px 8px; background: none; border: none;
+  font-size: 13px; font-weight: 500; color: var(--muted);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  gap: 6px; border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active {
+  color: var(--primary); border-bottom-color: var(--primary);
+}
+
+/* Body */
+.drawer-body { flex: 1; overflow-y: auto; }
+.tab-content { padding: 20px 24px; }
+
+/* ===== REVIEW TAB ===== */
+.perspective-selector {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  padding-bottom: 16px; border-bottom: 1px dashed var(--hairline);
+  margin-bottom: 16px;
+}
+.p-chip {
+  padding: 6px 14px; border-radius: 20px; border: 1px solid var(--hairline);
+  background: white; font-size: 13px; color: var(--muted);
+  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px;
+}
+.p-chip:hover { border-color: var(--primary); color: var(--primary); }
+.p-chip.active {
+  background: var(--primary); color: white; border-color: var(--primary);
+}
+.review-trigger {
+  margin-left: auto; padding: 8px 18px; background: var(--ink); color: white;
+  border: none; border-radius: 8px; font-size: 13px; font-weight: 500;
+  cursor: pointer; display: flex; align-items: center; gap: 6px;
+  transition: opacity 0.2s;
+}
+.review-trigger:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.reviews-list { display: flex; flex-direction: column; gap: 16px; }
+.review-card {
+  background: white; border-radius: 12px; border: 1px solid var(--hairline);
+  padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  animation: cardIn 0.4s ease-out;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.review-card-top { display: flex; gap: 16px; margin-bottom: 16px; }
+.score-ring-wrap {
+  width: 56px; height: 56px; position: relative; flex-shrink: 0;
+}
+.score-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-bg { stroke: var(--hairline); }
+.ring-fg { transition: stroke-dasharray 1s ease-out; }
+.score-num {
+  position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; font-size: 15px; font-weight: 700;
+}
+.score-high { color: #5db872; }
+.score-mid { color: #d4a017; }
+.score-low { color: #c64545; }
+
+.review-meta { flex: 1; min-width: 0; }
+.perspective-name {
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  display: block; margin-bottom: 6px;
+}
+.analysis-text {
+  font-size: 14px; line-height: 1.55; color: var(--body);
+  margin: 0;
+}
+.suggestion-box {
+  background: var(--surface-soft); padding: 12px; border-radius: 8px;
+  border: 1px solid var(--hairline); margin-bottom: 12px;
+}
+.suggestion-box label {
+  display: block; font-size: 11px; color: var(--muted);
+  margin-bottom: 4px; font-weight: 500;
+}
+.suggestion-box code {
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--primary); word-break: break-all;
+}
+.apply-btn { width: 100%; font-size: 13px; height: 36px; }
+
+.empty-hint {
+  text-align: center; padding: 40px 20px; color: var(--muted);
+  font-size: 14px; border: 1px dashed var(--hairline); border-radius: 12px;
+}
+.error-msg {
+  font-size: 12px; color: var(--error); text-align: center;
+  margin-bottom: 12px;
+}
+
+/* ===== WELCOME ===== */
+.welcome-section { padding-top: 8px; }
+.welcome-title { font-size: 22px; margin: 0 0 20px; color: var(--ink); }
+.welcome-cards { display: flex; flex-direction: column; gap: 12px; }
+.welcome-card {
+  background: var(--surface-card); border-radius: 12px; padding: 20px;
+  border: 1px solid var(--hairline-soft);
+  transition: transform 0.2s;
+}
+.welcome-card:hover { transform: translateY(-2px); }
+.wc-icon { font-size: 24px; display: block; margin-bottom: 8px; }
+.welcome-card h4 {
+  font-family: var(--font-inter); font-size: 15px; font-weight: 600;
+  color: var(--ink); margin: 0 0 6px;
+}
+.welcome-card p {
+  font-size: 13px; color: var(--muted); line-height: 1.5; margin: 0;
+}
+
+/* ===== CHAT TAB ===== */
+.chat-tab {
+  display: flex; flex-direction: column; padding: 0 !important;
+  flex: 1; min-height: 0;
+}
+.chat-scroll {
+  flex: 1; overflow-y: auto; padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.chat-empty {
+  text-align: center; padding: 40px 0; color: var(--muted);
+}
+.chat-empty p { font-size: 14px; margin-bottom: 16px; }
+.chat-starters { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.chat-starters button {
+  background: var(--surface-card); border: 1px solid var(--hairline);
+  border-radius: 20px; padding: 8px 16px; font-size: 13px;
+  color: var(--ink); cursor: pointer; transition: all 0.2s;
+}
+.chat-starters button:hover {
+  border-color: var(--primary); color: var(--primary);
+  background: rgba(204,120,92,0.06);
+}
+.chat-bubble { display: flex; }
+.chat-bubble.student { justify-content: flex-end; }
+.chat-bubble.tutor { justify-content: flex-start; }
+.bubble-content {
+  max-width: 80%; padding: 10px 14px; border-radius: 12px;
+  font-size: 14px; line-height: 1.5;
+}
+.student .bubble-content {
+  background: var(--primary); color: white;
+  border-bottom-right-radius: 4px;
+}
+.tutor .bubble-content {
+  background: var(--surface-card); color: var(--ink);
+  border-bottom-left-radius: 4px;
+}
+.typing { display: flex; gap: 4px; align-items: center; padding: 12px 18px; }
+.dot {
+  width: 6px; height: 6px; background: var(--muted); border-radius: 50%;
+  animation: dotBounce 1.4s infinite ease-in-out both;
+}
+.dot:nth-child(1) { animation-delay: 0s; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+.chat-input-bar {
+  padding: 12px 24px 20px; border-top: 1px solid var(--hairline);
+  display: flex; gap: 8px; align-items: flex-end;
+  background: var(--canvas);
+}
+.chat-input-bar textarea {
+  flex: 1; padding: 10px 14px; border: 1px solid var(--hairline);
+  border-radius: 8px; font-size: 14px; resize: none;
+  font-family: var(--font-inter); background: white;
+  max-height: 80px;
+}
+.chat-input-bar textarea:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(204,120,92,0.1);
+}
+.send-btn {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: var(--primary); color: white; border: none;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.2s; flex-shrink: 0;
+}
+.send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.send-btn:hover:not(:disabled) { background: var(--primary-active); }
+
+/* ===== OPTIMIZE TAB ===== */
+.opt-section { display: flex; flex-direction: column; gap: 16px; }
+.opt-hint { font-size: 14px; color: var(--muted); line-height: 1.5; margin: 0; }
+.opt-actions { display: flex; gap: 8px; }
+.opt-btn {
+  flex: 1; padding: 10px 14px; border-radius: 8px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  border: 1px solid var(--hairline); background: white;
+  font-size: 13px; font-weight: 500; color: var(--muted);
+  transition: all 0.2s;
+}
+.opt-btn:hover:not(:disabled) {
+  border-color: var(--primary); color: var(--primary);
+  background: rgba(204,120,92,0.04);
+}
+.opt-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.opt-result, .opt-suggestions {
+  background: white; border: 1px solid var(--primary);
+  border-radius: 12px; padding: 16px;
+  box-shadow: 0 4px 12px rgba(204,120,92,0.08);
+  animation: cardIn 0.3s ease-out;
+}
+.opt-result-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; font-size: 13px; font-weight: 600; color: var(--primary);
+}
+.close-sm {
+  background: none; border: none; color: var(--muted);
+  cursor: pointer; font-size: 14px;
+}
+.opt-compare { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
+.compare-box {
+  flex: 1; background: var(--surface-soft); padding: 10px;
+  border-radius: 8px; font-size: 12px;
+}
+.compare-box label {
+  display: block; font-size: 10px; color: var(--muted);
+  margin-bottom: 4px; text-transform: uppercase;
+}
+.compare-box p { margin: 0; color: var(--ink); line-height: 1.4; }
+.compare-arrow { color: var(--primary); font-weight: bold; font-size: 16px; }
+.sug-item {
+  display: flex; gap: 10px; padding: 10px 0;
+  border-bottom: 1px solid var(--hairline-soft);
+}
+.sug-item:last-child { border-bottom: none; }
+.sug-dim {
+  font-size: 11px; background: var(--surface-cream-strong);
+  color: var(--primary); padding: 2px 8px; border-radius: 4px;
+  height: fit-content; white-space: nowrap; font-weight: 500;
+}
+.sug-body { flex: 1; }
+.sug-status { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+.sug-advice { font-size: 13px; color: var(--ink); line-height: 1.5; }
+
+/* Spinner */
+.spinner {
+  width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white; border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>

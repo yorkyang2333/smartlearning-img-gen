@@ -299,6 +299,39 @@ public class GenerationController {
         }
     }
 
+    @PostMapping("/tutor-chat")
+    public ResponseEntity<?> tutorChat(@RequestBody Map<String, String> request) {
+        try {
+            String generationId = request.get("generationId");
+            String message = request.get("message");
+
+            TutorConfig tutorConfig = getTutorConfig();
+            if (tutorConfig == null || tutorConfig.getModelName() == null || tutorConfig.getModelName().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
+            }
+
+            String systemPrompt = "你是一个友善的美术导师，正在辅导学生进行 AI 图片创作学习。请用简洁易懂的语言回答学生的问题，涉及构图、色彩、风格、光影等方面。回答应该有教育意义，帮助学生理解艺术原理。";
+            String userMessage = message;
+
+            // If generationId is provided, add context
+            if (generationId != null && !generationId.isEmpty()) {
+                Optional<Generation> genOpt = generationRepository.findById(generationId);
+                if (genOpt.isPresent()) {
+                    Generation gen = genOpt.get();
+                    userMessage = "（上下文：学生正在查看一张由提示词「" + gen.getPrompt() + "」生成的图片）\n学生提问：" + message;
+                }
+            }
+
+            String response = gatewayAiClient.generateChatResponse(systemPrompt, userMessage, tutorConfig.getModelName());
+            String content = GatewayResponseUtil.extractChatContent(response);
+
+            return ResponseEntity.ok(Map.of("success", true, "reply", content.trim()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @Data
     static class GenerationRequest {
         private String prompt;
