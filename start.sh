@@ -33,9 +33,14 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
+# Removed uv check
+
 # 捕获 Ctrl+C 信号以同时结束前后端进程
 cleanup() {
     echo -e "\n🛑 正在关闭前后端服务..."
+    if [ -x "./scripts/gateway/stop_gateway.sh" ]; then
+        ./scripts/gateway/stop_gateway.sh >/dev/null 2>&1 || true
+    fi
     # 杀掉所有当前脚本启动的后台子进程
     kill $(jobs -p) 2>/dev/null
     echo "✅ 服务已安全关闭。"
@@ -43,16 +48,20 @@ cleanup() {
 }
 trap cleanup SIGINT SIGTERM
 
-# 1. 启动后端 (Spring Boot)
-echo "⏳ [1/2] 正在启动后端 (Spring Boot: http://localhost:8080)..."
+# 1. 启动 AI Gateway
+echo "⏳ [1/3] 正在启动 AI Gateway (http://localhost:4000)..."
+./scripts/gateway/start_gateway.sh
+
+# 2. 启动后端 (Spring Boot)
+echo "⏳ [2/3] 正在启动后端 (Spring Boot: http://localhost:8080)..."
 cd backend
 # 跳过测试，加速启动
 mvn spring-boot:run -Dspring-boot.run.profiles=dev -DskipTests &
 BACKEND_PID=$!
 cd ..
 
-# 2. 启动前端 (Vue 3 / Vite)
-echo "⏳ [2/2] 正在检查并启动前端 (Vue 3)..."
+# 3. 启动前端 (Vue 3 / Vite)
+echo "⏳ [3/3] 正在检查并启动前端 (Vue 3)..."
 cd frontend
 # 如果 node_modules 不存在，则自动 install
 if [ ! -d "node_modules" ]; then

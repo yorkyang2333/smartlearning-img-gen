@@ -11,7 +11,7 @@ import com.smartlearning.backend.repository.UserRepository;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.service.GatewayAiClient;
-import com.smartlearning.backend.util.LiteLlmResponseUtil;
+import com.smartlearning.backend.util.GatewayResponseUtil;
 import com.smartlearning.backend.util.ModelConfigUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -193,7 +193,7 @@ public class StudentController {
                 userMessage,
                 tutorConfig.getModelName()
             );
-            String replyContent = LiteLlmResponseUtil.extractChatContent(rawResponse);
+            String replyContent = GatewayResponseUtil.extractChatContent(rawResponse);
             if (replyContent == null || replyContent.isBlank()) {
                 replyContent = "抱歉，无法解析AI返回的响应。";
             }

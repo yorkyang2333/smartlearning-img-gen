@@ -20,15 +20,15 @@ const models = ref<ModelRecord[]>([])
 const modelsLoading = ref(true)
 const isSyncing = ref(false)
 const syncMessage = ref('')
-const liteLlmFormData = ref({
+const gatewayFormData = ref({
   enabled: true,
   baseUrl: 'http://localhost:4000',
   apiKey: ''
 })
-const liteLlmResolvedBaseUrl = ref('http://localhost:4000')
-const liteLlmUpdatedAt = ref('')
-const isSavingLiteLlm = ref(false)
-const liteLlmMessage = ref('')
+const gatewayResolvedBaseUrl = ref('http://localhost:4000')
+const gatewayUpdatedAt = ref('')
+const isSavingGateway = ref(false)
+const gatewayMessage = ref('')
 
 const isModelModalOpen = ref(false)
 const editingModel = ref<ModelRecord | null>(null)
@@ -64,20 +64,20 @@ const fetchModels = async () => {
   }
 }
 
-const fetchLiteLlmConfig = async () => {
+const fetchGatewayConfig = async () => {
   try {
-    const res = await fetch('http://localhost:8080/api/teacher/litellm-config', {
+    const res = await fetch('http://localhost:8080/api/teacher/gateway-config', {
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
     if (!res.ok) return
     const data = await res.json()
-    liteLlmFormData.value = {
+    gatewayFormData.value = {
       enabled: data.enabled ?? true,
       baseUrl: data.baseUrl || 'http://localhost:4000',
       apiKey: data.apiKey || ''
     }
-    liteLlmResolvedBaseUrl.value = data.resolvedBaseUrl || liteLlmFormData.value.baseUrl
-    liteLlmUpdatedAt.value = data.updatedAt || ''
+    gatewayResolvedBaseUrl.value = data.resolvedBaseUrl || gatewayFormData.value.baseUrl
+    gatewayUpdatedAt.value = data.updatedAt || ''
   } catch (e) {}
 }
 
@@ -263,31 +263,31 @@ const handleSyncModels = async () => {
   }
 }
 
-const handleLiteLlmSubmit = async (e: Event) => {
+const handleGatewaySubmit = async (e: Event) => {
   e.preventDefault()
-  isSavingLiteLlm.value = true
-  liteLlmMessage.value = ''
+  isSavingGateway.value = true
+  gatewayMessage.value = ''
   try {
-    const res = await fetch('http://localhost:8080/api/teacher/litellm-config', {
+    const res = await fetch('http://localhost:8080/api/teacher/gateway-config', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${authStore.token}`
       },
-      body: JSON.stringify(liteLlmFormData.value)
+      body: JSON.stringify(gatewayFormData.value)
     })
     const data = await res.json()
     if (!res.ok || data.success === false) {
       throw new Error(data.error || '保存失败')
     }
-    liteLlmResolvedBaseUrl.value = data.resolvedBaseUrl || liteLlmFormData.value.baseUrl
-    liteLlmUpdatedAt.value = data.updatedAt || ''
-    liteLlmMessage.value = 'LiteLLM 配置保存成功'
+    gatewayResolvedBaseUrl.value = data.resolvedBaseUrl || gatewayFormData.value.baseUrl
+    gatewayUpdatedAt.value = data.updatedAt || ''
+    gatewayMessage.value = 'AI Gateway 配置保存成功'
   } catch (err: any) {
-    liteLlmMessage.value = `LiteLLM 配置保存失败：${err.message}`
+    gatewayMessage.value = `AI Gateway 配置保存失败：${err.message}`
   } finally {
-    isSavingLiteLlm.value = false
-    setTimeout(() => (liteLlmMessage.value = ''), 3000)
+    isSavingGateway.value = false
+    setTimeout(() => (gatewayMessage.value = ''), 3000)
   }
 }
 
@@ -314,7 +314,7 @@ const handleTutorSubmit = async (e: Event) => {
 }
 
 onMounted(async () => {
-  await fetchLiteLlmConfig()
+  await fetchGatewayConfig()
   await fetchModels()
   await fetchTutorConfig()
 })
@@ -327,11 +327,11 @@ onMounted(async () => {
     <div class="page-header">
       <div>
         <h1 class="editorial-title">模型目录</h1>
-        <p class="editorial-subtitle">应用现在通过 LiteLLM 网关统一接入模型，这里只保留模型目录与教学配置。</p>
+        <p class="editorial-subtitle">应用现在通过 AI Gateway 网关统一接入模型，这里只保留模型目录与教学配置。</p>
       </div>
       <div class="header-actions">
         <button class="ghost-button" @click="handleSyncModels" :disabled="isSyncing">
-          {{ isSyncing ? '同步中...' : '同步 LiteLLM 模型' }}
+          {{ isSyncing ? '同步中...' : '同步 AI Gateway 模型' }}
         </button>
         <button class="primary-button" @click="openModelModal()">
           手动添加模型
@@ -341,8 +341,8 @@ onMounted(async () => {
 
     <div class="gateway-banner">
       <div>
-        <strong>LiteLLM 网关模式已启用</strong>
-        <p>上游渠道、密钥和路由策略由 LiteLLM 管理。应用侧仅维护可见模型目录、启停、排序和教学用途。</p>
+        <strong>AI Gateway 网关模式已启用</strong>
+        <p>上游渠道、密钥和路由策略由 AI Gateway 管理。应用侧仅维护可见模型目录、启停、排序和教学用途。</p>
       </div>
       <span v-if="syncMessage" :class="syncMessage.includes('失败') ? 'error-text' : 'success-text'">
         {{ syncMessage }}
@@ -352,16 +352,16 @@ onMounted(async () => {
     <section class="config-section">
       <div class="section-header">
         <div>
-          <h2 class="section-title">LiteLLM 网关管理</h2>
-          <p class="section-desc">在平台内维护 LiteLLM 的开关、网关地址和访问凭证。未填写时会使用后端环境变量作为默认值。</p>
+          <h2 class="section-title">AI Gateway 网关管理</h2>
+          <p class="section-desc">在平台内维护 AI Gateway 的开关、网关地址和访问凭证。未填写时会使用后端环境变量作为默认值。</p>
         </div>
       </div>
 
-      <form class="editorial-card gateway-config-card" @submit="handleLiteLlmSubmit">
+      <form class="editorial-card gateway-config-card" @submit="handleGatewaySubmit">
         <div class="card-header switch-header">
-          <h3 class="card-title">启用 LiteLLM 网关</h3>
+          <h3 class="card-title">启用 AI Gateway 网关</h3>
           <label class="switch-container">
-            <input v-model="liteLlmFormData.enabled" type="checkbox" style="display: none;" />
+            <input v-model="gatewayFormData.enabled" type="checkbox" style="display: none;" />
             <span class="switch-slider"></span>
           </label>
         </div>
@@ -369,23 +369,23 @@ onMounted(async () => {
           <div class="input-row">
             <div class="input-group">
               <label>Base URL</label>
-              <input type="url" class="editorial-input" v-model="liteLlmFormData.baseUrl" placeholder="http://localhost:4000" />
+              <input type="url" class="editorial-input" v-model="gatewayFormData.baseUrl" placeholder="http://localhost:4000" />
             </div>
             <div class="input-group">
               <label>API Key</label>
-              <input type="password" class="editorial-input" v-model="liteLlmFormData.apiKey" placeholder="留空表示网关无需鉴权" />
+              <input type="password" class="editorial-input" v-model="gatewayFormData.apiKey" placeholder="留空表示网关无需鉴权" />
             </div>
           </div>
           <div class="gateway-meta">
-            <span>当前生效地址：{{ liteLlmResolvedBaseUrl }}</span>
-            <span v-if="liteLlmUpdatedAt">最近更新：{{ new Date(liteLlmUpdatedAt).toLocaleString() }}</span>
+            <span>当前生效地址：{{ gatewayResolvedBaseUrl }}</span>
+            <span v-if="gatewayUpdatedAt">最近更新：{{ new Date(gatewayUpdatedAt).toLocaleString() }}</span>
           </div>
           <div class="form-actions">
-            <span v-if="liteLlmMessage" :class="liteLlmMessage.includes('失败') ? 'error-text' : 'success-text'">
-              {{ liteLlmMessage }}
+            <span v-if="gatewayMessage" :class="gatewayMessage.includes('失败') ? 'error-text' : 'success-text'">
+              {{ gatewayMessage }}
             </span>
-            <button type="submit" class="primary-button" :disabled="isSavingLiteLlm">
-              {{ isSavingLiteLlm ? '保存中...' : '保存 LiteLLM 配置' }}
+            <button type="submit" class="primary-button" :disabled="isSavingGateway">
+              {{ isSavingGateway ? '保存中...' : '保存 AI Gateway 配置' }}
             </button>
           </div>
         </div>
@@ -402,7 +402,7 @@ onMounted(async () => {
 
       <div v-if="models.length === 0" class="empty-state">
         <h3>暂无模型</h3>
-        <p>先从 LiteLLM 同步模型，或手动录入一批模型目录。</p>
+        <p>先从 AI Gateway 同步模型，或手动录入一批模型目录。</p>
       </div>
 
       <div v-else class="config-table-container">
@@ -456,7 +456,7 @@ onMounted(async () => {
       <div class="section-header cursor-pointer" @click="isTutorExpanded = !isTutorExpanded">
         <div>
           <h2 class="section-title">AI 学伴分析配置</h2>
-          <p class="section-desc">分析模型也走 LiteLLM 网关，但选项来源于模型目录中的文本/多模态模型。</p>
+          <p class="section-desc">分析模型也走 AI Gateway 网关，但选项来源于模型目录中的文本/多模态模型。</p>
         </div>
         <div class="tutor-status" :class="tutorFormData.enabled ? 'active' : 'inactive'">
           {{ tutorFormData.enabled ? '运行中' : '已关闭' }}
@@ -526,7 +526,7 @@ onMounted(async () => {
               <input type="text" class="editorial-input" required v-model="modelFormData.name" placeholder="如: GPT Image 2" />
             </div>
             <div class="input-group">
-              <label>LiteLLM 模型 ID</label>
+              <label>AI Gateway 模型 ID</label>
               <input type="text" class="editorial-input" required v-model="modelFormData.modelId" placeholder="如: gpt-image-1 或 openai/gpt-4o-mini" />
             </div>
           </div>

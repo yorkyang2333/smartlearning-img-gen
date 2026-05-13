@@ -7,79 +7,54 @@
 - **基于角色的权限控制**：为教师（教学管理）和学生（创意生成）提供独立且专属的界面与功能。
 - **强大的 AI 生成能力**：通过集成标准大模型 API 接口，全面支持文生图 (T2I) 和 图生图 (I2I) 工作流。
 - **对话式智能交互界面**：提供直观的对话式 UI，让提示词输入和视觉探索无缝衔接，带来自然流畅的交互体验。
+- **网关统一路由 (AI Gateway)**：借助 One API 网关统一管理多模型渠道，实现文本模型自动路由与图片兜底，彻底解耦应用层与渠道逻辑。
 - **模型管理**：教师可以轻松配置并控制不同 AI 模型的访问权限，定义 API 参数，以及管理支持的生成尺寸。
 - **画廊与历史记录**：所有生成的作品都会被永久保存，支持历史记录追踪，方便课堂管理与学生回顾。
 - **暖色编辑设计语言**：使用精心挑选的色板和排版，打造一个高端、极具视觉吸引力的界面。
 
 ## 🛠️ 技术栈
 
-- **前端**：Next.js 14+ (App Router), React 19, 自定义 CSS Modules
-- **后端**：Next.js API Routes (`/api/*`)
-- **数据库**：Prisma ORM 搭配 SQLite（轻量级，非常适合本地开发与快速部署）
-- **身份认证**：NextAuth.js (账号密码凭证模式)
-- **数据请求**：SWR（用于实时的客户端数据请求与变更）
+- **前端**：Vue 3 + TypeScript + Vite
+- **后端**：Java 21 + Spring Boot 3
+- **数据库**：内置 SQLite（前端、后端、网关均由 SQLite 驱动，轻量级，极易本地部署）
+- **AI 路由层**：AI Gateway (基于 One API 二进制服务)
 
 ## 🚀 快速开始
 
-请按照以下说明在本地设置并运行该项目。
+本项目经过重构，移除了过去复杂的运行环境依赖。您只需安装基本的 Node 和 Java 环境即可一键启动。
 
 ### 1. 环境依赖
-- Node.js (v18 或更高版本)
-- npm, yarn, 或 pnpm
+- **Node.js** (推荐 v20 或更高版本)
+- **Java JDK** (v21 或更高版本，例如 Eclipse Temurin 21)
+- **Maven** (部分系统可能需要，项目自带 `mvnw` wrapper 可选)
+- （可选）无需安装数据库或额外中间件，项目内嵌 SQLite 支持。
 
-### 2. 安装
-克隆仓库并安装依赖项：
-```bash
-npm install
-# 或者
-yarn install
-```
-
-### 3. 环境配置
-在根目录下创建一个 `.env.local` 文件，并配置必要的环境变量：
-
-```env
-# NextAuth 配置
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-super-secret-string-here"
-
-# AI 图像生成 API Key (请配置您选择的 AI 服务商凭证)
-AI_API_KEY="your-api-key"
-```
-
-### 4. 数据库设置
-初始化 SQLite 数据库，并注入初始的管理员/学生账号数据：
+### 2. 一键启动
+在项目根目录下直接运行：
 
 ```bash
-# 将 Prisma schema 推送到数据库
-npx prisma db push
-
-# 注入初始测试数据 (包含初始用户和模型配置)
-npx prisma db seed
+sh start.sh
 ```
 
-*注意：数据注入脚本 (`prisma/seed.ts`) 会自动创建默认的测试用户。您可以查看该文件获取默认的登录凭证（例如：`admin / password`）。*
+该脚本将自动执行以下操作：
+1. **下载并启动 AI Gateway**：第一次运行时会自动下载兼容 Mac 的 `one-api` 网关，并运行在后台 (端口 4000)。
+2. **启动 Spring Boot 后端**：编译并在端口 8080 启动。
+3. **启动 Vue 前端**：在端口 5173 启动，并打开浏览器。
 
-### 5. 运行应用
-启动本地开发服务器：
+关闭时，只需按下 `Ctrl + C`，脚本会自动安全停止前后端进程和网关守护进程。
 
-```bash
-npm run dev
-# 或者
-yarn dev
-```
-
-在浏览器中打开 [http://localhost:3000](http://localhost:3000) 即可访问应用。你将被自动重定向到登录页面。
+### 3. 访问入口
+- **应用前端**：[http://localhost:5173](http://localhost:5173) (初始默认账号请参见控制台输出，一般内置 `admin / 123456`)
+- **后端接口**：[http://localhost:8080](http://localhost:8080)
+- **AI 网关面板**：[http://localhost:4000](http://localhost:4000) (默认账号：`root` / 密码：`123456`)
 
 ## 📁 项目结构概览
 
-核心的应用逻辑存放在 `src/app` 目录下：
-
-- `api/` - 后端 API 接口，处理身份认证、模型管理以及 AI 生成请求。
-- `login/` - 登录页面及相关逻辑。
-- `teacher/` - 教师控制台（管理模型、学生，以及查看所有人的生成历史）。
-- `student/` - 学生专属区（包含 AI 图像生成的聊天界面和个人专属画廊）。
-- `globals.css` - 全局样式表、CSS 变量以及核心设计系统的基础参数。
+- `backend/` - Spring Boot 后端项目源码，处理核心业务逻辑、数据库读写。
+- `frontend/` - Vue 前端项目源码，包含 Teacher 和 Student 端专属视图。
+- `scripts/` - 运维部署与网关脚本，包含 AI Gateway 的下载、启停控制等。
+- `docs/` - 进阶开发与环境配置说明文档。
+- `start.sh` - 一键启动脚本，聚合了完整的生命周期管理。
 
 ## 🤝 参与贡献
 

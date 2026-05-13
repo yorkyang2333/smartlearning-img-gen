@@ -22,6 +22,6 @@ jwt:
   secret: 4578b6540c451da7ebf9d3b41e8f2d5e683713f01b0a9b3a3c9b7e452a1b94d1 # Example static 256-bit hex key
   expiration: 86400000 # 24 hours
 
-litellm:
+gateway:
   base-url: ${LITELLM_BASE_URL:http://localhost:4000}
   api-key: ${LITELLM_API_KEY:}

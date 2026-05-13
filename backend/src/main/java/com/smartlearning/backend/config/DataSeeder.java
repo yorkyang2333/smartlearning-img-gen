@@ -70,7 +70,7 @@ public class DataSeeder implements CommandLineRunner {
             tutorConfigRepository.save(tutorConfig);
 
             System.out.println("✅ 已自动配置默认模型目录和 AI 学伴。");
-            System.out.println("⚠️ 请通过环境变量 LITELLM_BASE_URL / LITELLM_API_KEY 连接 LiteLLM 网关。");
+            System.out.println("⚠️ 请通过环境变量 LITELLM_BASE_URL / LITELLM_API_KEY 连接 AI Gateway 网关。");
         }
     }
 

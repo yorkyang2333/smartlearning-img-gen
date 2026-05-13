@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartlearning.backend.entity.*;
 import com.smartlearning.backend.repository.*;
 import com.smartlearning.backend.service.GatewayAiClient;
-import com.smartlearning.backend.util.LiteLlmResponseUtil;
+import com.smartlearning.backend.util.GatewayResponseUtil;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -84,13 +84,13 @@ public class GenerationController {
 
             long startTime = System.currentTimeMillis();
             
-            // 2. Call LiteLLM gateway
-            String apiResponse = gatewayAiClient.generateImage(prompt, aiModel.getModelId(), config);
+            // 2. Call AI Gateway
+            String apiResponse = gatewayAiClient.generateImage(prompt, aiModel, config);
             
             long durationMs = System.currentTimeMillis() - startTime;
 
             // Extract image URL from response
-            String outputImageUrl = LiteLlmResponseUtil.extractImageUrl(apiResponse);
+            String outputImageUrl = GatewayResponseUtil.extractImageUrl(apiResponse);
 
             // 3. Save to DB
             Generation generation = new Generation();
@@ -145,7 +145,7 @@ public class GenerationController {
             long startTime = System.currentTimeMillis();
             String apiResponse = gatewayAiClient.editImage(
                 prompt,
-                aiModel.getModelId(),
+                aiModel,
                 image.getBytes(),
                 image.getOriginalFilename() != null ? image.getOriginalFilename() : "reference.png",
                 image.getContentType(),
@@ -153,7 +153,7 @@ public class GenerationController {
             );
             long durationMs = System.currentTimeMillis() - startTime;
 
-            String outputImageUrl = LiteLlmResponseUtil.extractImageUrl(apiResponse);
+            String outputImageUrl = GatewayResponseUtil.extractImageUrl(apiResponse);
 
             Generation generation = new Generation();
             generation.setUserId(user.getId());
@@ -195,7 +195,7 @@ public class GenerationController {
 
             String response = gatewayAiClient.generateChatResponse(systemPrompt, userMessage, tutorConfig.getModelName());
 
-            String content = LiteLlmResponseUtil.extractChatContent(response);
+            String content = GatewayResponseUtil.extractChatContent(response);
             return ResponseEntity.ok(Map.of("success", true, "optimized", content.trim()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
@@ -216,7 +216,7 @@ public class GenerationController {
 
             String response = gatewayAiClient.generateChatResponse(systemPrompt, userMessage, tutorConfig.getModelName());
 
-            String content = LiteLlmResponseUtil.extractChatContent(response);
+            String content = GatewayResponseUtil.extractChatContent(response);
             content = content.replace("```json", "").replace("```", "").trim();
             
             return ResponseEntity.ok(Map.of("success", true, "data", objectMapper.readTree(content)));
@@ -248,7 +248,7 @@ public class GenerationController {
                     systemPrompt, userMessage, imageUrl, tutorConfig.getModelName()
                 );
 
-                String content = LiteLlmResponseUtil.extractChatContent(response);
+                String content = GatewayResponseUtil.extractChatContent(response);
                 content = content.replace("```json", "").replace("```", "").trim();
                 finalResults.put(p, objectMapper.readTree(content));
             }

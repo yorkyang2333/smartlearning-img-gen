@@ -39,3 +39,7 @@ frontend/pnpm-debug.log*
 backend/dev.db
 backend/dev.db-journal
 backend/data/
+
+# AI Gateway
+.gateway/
+

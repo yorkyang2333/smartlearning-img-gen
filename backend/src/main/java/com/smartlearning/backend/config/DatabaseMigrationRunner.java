@@ -2,8 +2,8 @@ package com.smartlearning.backend.config;
 
 import com.smartlearning.backend.entity.Model;
 import com.smartlearning.backend.entity.TutorConfig;
-import com.smartlearning.backend.entity.LiteLlmConfig;
-import com.smartlearning.backend.repository.LiteLlmConfigRepository;
+import com.smartlearning.backend.entity.GatewayConfig;
+import com.smartlearning.backend.repository.GatewayConfigRepository;
 import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.util.ModelConfigUtil;
@@ -27,7 +27,7 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
     private TutorConfigRepository tutorConfigRepository;
 
     @Autowired
-    private LiteLlmConfigRepository liteLlmConfigRepository;
+    private GatewayConfigRepository gatewayConfigRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -90,14 +90,14 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         }
 
         try {
-            if (!liteLlmConfigRepository.existsById("default")) {
-                LiteLlmConfig config = new LiteLlmConfig();
+            if (!gatewayConfigRepository.existsById("default")) {
+                GatewayConfig config = new GatewayConfig();
                 config.setId("default");
-                liteLlmConfigRepository.save(config);
-                System.out.println("Successfully created default LiteLLM config row.");
+                gatewayConfigRepository.save(config);
+                System.out.println("Successfully created default AI Gateway config row.");
             }
         } catch (Exception e) {
-            System.err.println("LiteLLM config bootstrap warning: " + e.getMessage());
+            System.err.println("AI Gateway config bootstrap warning: " + e.getMessage());
         }
     }
 }

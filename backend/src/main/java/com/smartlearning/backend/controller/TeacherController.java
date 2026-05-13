@@ -10,7 +10,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import com.smartlearning.backend.entity.TutorConfig;
 import com.smartlearning.backend.entity.User;
 import com.smartlearning.backend.entity.Template;
-import com.smartlearning.backend.entity.LiteLlmConfig;
+import com.smartlearning.backend.entity.GatewayConfig;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.UserRepository;
 import com.smartlearning.backend.repository.TemplateRepository;
@@ -27,8 +27,8 @@ import com.smartlearning.backend.entity.Generation;
 import com.smartlearning.backend.entity.Model;
 import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.ModelRepository;
-import com.smartlearning.backend.service.LiteLlmConfigService;
-import com.smartlearning.backend.service.LiteLlmModelSyncService;
+import com.smartlearning.backend.service.GatewayConfigService;
+import com.smartlearning.backend.service.GatewayModelSyncService;
 import com.smartlearning.backend.util.ModelConfigUtil;
 
 @RestController
@@ -58,10 +58,10 @@ public class TeacherController {
     private ModelRepository modelRepository;
 
     @Autowired
-    private LiteLlmModelSyncService liteLlmModelSyncService;
+    private GatewayModelSyncService gatewayModelSyncService;
 
     @Autowired
-    private LiteLlmConfigService liteLlmConfigService;
+    private GatewayConfigService gatewayConfigService;
 
     private String getTeacherId() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -206,10 +206,10 @@ public class TeacherController {
         return ResponseEntity.ok(tutorConfigRepository.save(config));
     }
 
-    @GetMapping("/litellm-config")
-    public ResponseEntity<Map<String, Object>> getLiteLlmConfig() {
-        LiteLlmConfig config = liteLlmConfigService.getOrCreate();
-        LiteLlmConfigService.ResolvedLiteLlmConfig resolved = liteLlmConfigService.getResolvedConfig();
+    @GetMapping("/gateway-config")
+    public ResponseEntity<Map<String, Object>> getGatewayConfig() {
+        GatewayConfig config = gatewayConfigService.getOrCreate();
+        GatewayConfigService.ResolvedGatewayConfig resolved = gatewayConfigService.getResolvedConfig();
         Map<String, Object> payload = new HashMap<>();
         payload.put("enabled", config.getEnabled());
         payload.put("baseUrl", config.getBaseUrl());
@@ -220,10 +220,10 @@ public class TeacherController {
         return ResponseEntity.ok(payload);
     }
 
-    @PutMapping("/litellm-config")
-    public ResponseEntity<Map<String, Object>> updateLiteLlmConfig(@RequestBody LiteLlmConfig configDetails) {
-        LiteLlmConfig saved = liteLlmConfigService.update(configDetails);
-        LiteLlmConfigService.ResolvedLiteLlmConfig resolved = liteLlmConfigService.getResolvedConfig();
+    @PutMapping("/gateway-config")
+    public ResponseEntity<Map<String, Object>> updateGatewayConfig(@RequestBody GatewayConfig configDetails) {
+        GatewayConfig saved = gatewayConfigService.update(configDetails);
+        GatewayConfigService.ResolvedGatewayConfig resolved = gatewayConfigService.getResolvedConfig();
         Map<String, Object> payload = new HashMap<>();
         payload.put("success", true);
         payload.put("enabled", saved.getEnabled());
@@ -302,7 +302,11 @@ public class TeacherController {
     // --- MODELS ---
     @PostMapping("/models/sync")
     public ResponseEntity<Map<String, Object>> syncModels() {
-        return ResponseEntity.ok(liteLlmModelSyncService.syncModels());
+        try {
+            return ResponseEntity.ok(gatewayModelSyncService.syncModels());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+        }
     }
 
     @GetMapping("/models")
