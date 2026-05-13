@@ -89,8 +89,17 @@ public class GenerationController {
             
             long durationMs = System.currentTimeMillis() - startTime;
 
+            // DEBUG: Log raw response to diagnose Gemini image generation issues
+            String responseSample = apiResponse != null && apiResponse.length() > 500 
+                ? apiResponse.substring(0, 500) + "...[truncated, total=" + apiResponse.length() + "]" 
+                : apiResponse;
+            System.out.println("=== [DEBUG] Raw API Response from model [" + aiModel.getModelId() + "] ===");
+            System.out.println(responseSample);
+            System.out.println("=== [DEBUG] End Raw Response ===");
+
             // Extract image URL from response
             String outputImageUrl = GatewayResponseUtil.extractImageUrl(apiResponse);
+            System.out.println("=== [DEBUG] Extracted imageUrl: " + (outputImageUrl != null ? outputImageUrl.substring(0, Math.min(200, outputImageUrl.length())) + "..." : "null") + " ===");
 
             // 3. Save to DB
             Generation generation = new Generation();
