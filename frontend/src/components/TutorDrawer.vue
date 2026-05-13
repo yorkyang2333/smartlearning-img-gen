@@ -85,9 +85,12 @@ const handleReview = async () => {
 watch(() => props.generationId, (newId) => {
   reviews.value = props.initialReviews || {}
   loadChat(newId)
+  loadOpt(newId)
   if (newId && props.hasImage) {
     activeTab.value = 'review'
-    nextTick(() => handleReview())
+    if (Object.keys(reviews.value).length === 0) {
+      nextTick(() => handleReview())
+    }
   }
 })
 
@@ -220,6 +223,32 @@ const isAnalyzing = ref(false)
 const optimizedResult = ref<string | null>(null)
 const suggestions = ref<any[] | null>(null)
 const optError = ref<string | null>(null)
+
+const getOptStorageKey = (id: string | null | undefined) => `tutor_opt_${id || 'default'}`
+const loadOpt = (id: string | null | undefined) => {
+  try {
+    const saved = localStorage.getItem(getOptStorageKey(id))
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      optimizedResult.value = parsed.optimizedResult || null
+      suggestions.value = parsed.suggestions || null
+    } else {
+      optimizedResult.value = null
+      suggestions.value = null
+    }
+  } catch {
+    optimizedResult.value = null
+    suggestions.value = null
+  }
+}
+loadOpt(props.generationId)
+
+watch([optimizedResult, suggestions], () => {
+  localStorage.setItem(getOptStorageKey(props.generationId), JSON.stringify({
+    optimizedResult: optimizedResult.value,
+    suggestions: suggestions.value
+  }))
+}, { deep: true })
 
 const handleOptimize = async () => {
   if (!props.prompt?.trim()) return

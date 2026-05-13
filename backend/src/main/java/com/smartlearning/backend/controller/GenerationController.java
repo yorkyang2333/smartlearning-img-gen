@@ -252,17 +252,22 @@ public class GenerationController {
             Map<String, Object> finalResults = new HashMap<>();
             
             for (String p : perspectives) {
-                String systemPrompt = getSystemPromptForPerspective(p);
-                String userMessage = "分析这个绘画作品。提示词是：" + generation.getPrompt();
-                String imageUrl = generation.getOutputImageUrl();
+                try {
+                    String systemPrompt = getSystemPromptForPerspective(p);
+                    String userMessage = "分析这个绘画作品。提示词是：" + generation.getPrompt();
+                    String imageUrl = generation.getOutputImageUrl();
 
-                String response = gatewayAiClient.generateChatResponseWithImage(
-                    systemPrompt, userMessage, imageUrl, tutorConfig.getModelName()
-                );
+                    String response = gatewayAiClient.generateChatResponseWithImage(
+                        systemPrompt, userMessage, imageUrl, tutorConfig.getModelName()
+                    );
 
-                String content = GatewayResponseUtil.extractChatContent(response);
-                content = content.replace("```json", "").replace("```", "").trim();
-                finalResults.put(p, objectMapper.readTree(content));
+                    String content = GatewayResponseUtil.extractChatContent(response);
+                    content = content.replace("```json", "").replace("```", "").trim();
+                    finalResults.put(p, objectMapper.readTree(content));
+                } catch (Exception e) {
+                    System.err.println("Failed to review perspective: " + p);
+                    e.printStackTrace();
+                }
             }
 
             // Save back to DB for persistence
