@@ -3,56 +3,43 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-GATEWAY_DIR="$ROOT_DIR/.gateway"
-GATEWAY_BIN="$GATEWAY_DIR/one-api"
 GATEWAY_PORT="${PORT:-4000}"
-SCREEN_NAME="smartcanvas-gateway"
 
-mkdir -p "$GATEWAY_DIR"
+# Check if Docker is available
+if ! command -v docker &> /dev/null; then
+  echo "❌ 错误: 未检测到 Docker。New API 需要 Docker 运行。"
+  echo "👉 请安装 Docker Desktop 或 Colima"
+  exit 1
+fi
 
 # Check if AI Gateway is already running
-if lsof -nP -iTCP:"$GATEWAY_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
-  echo "✅ AI Gateway (One API) 已在运行 (端口 $GATEWAY_PORT)"
+if curl --silent --max-time 2 "http://localhost:${GATEWAY_PORT}/api/status" >/dev/null 2>&1; then
+  echo "✅ AI Gateway (New API) 已在运行 (端口 $GATEWAY_PORT)"
   exit 0
 fi
 
-# Download AI Gateway if not present
-if [[ ! -f "$GATEWAY_BIN" ]]; then
-  echo "📥 正在下载 AI Gateway (One API)..."
-  OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-  ARCH="$(uname -m)"
-  
-  if [[ "$OS" == "darwin" ]]; then
-    DOWNLOAD_URL="https://github.com/songquanpeng/one-api/releases/latest/download/one-api-macos"
-  else
-    DOWNLOAD_URL="https://github.com/songquanpeng/one-api/releases/latest/download/one-api-$ARCH"
-  fi
-  
-  if ! curl -L "$DOWNLOAD_URL" -o "$GATEWAY_BIN"; then
-    echo "❌ 下载 AI Gateway 失败，请检查网络或配置代理。"
-    exit 1
-  fi
-  chmod +x "$GATEWAY_BIN"
-fi
+echo "🚀 正在启动 AI Gateway (New API via Docker)..."
 
-echo "🚀 正在启动 AI Gateway (One API)..."
-cd "$GATEWAY_DIR"
+# Create data directory
+mkdir -p "$ROOT_DIR/.gateway/data"
 
-# Run in screen
-screen -S "$SCREEN_NAME" -X quit >/dev/null 2>&1 || true
-export PORT="$GATEWAY_PORT"
-export SSL_CERT_FILE="/etc/ssl/cert.pem"
-screen -dmS "$SCREEN_NAME" bash -lc "exec '$GATEWAY_BIN' >> gateway.log 2>&1"
+# Start Docker Compose
+cd "$ROOT_DIR"
+docker compose -f docker-compose.gateway.yml up -d 2>&1
 
-for _ in {1..20}; do
+# Wait for health check
+echo "⏳ 等待 New API 启动..."
+for i in {1..30}; do
   if curl --silent --max-time 2 "http://localhost:${GATEWAY_PORT}/api/status" >/dev/null 2>&1; then
-    echo "✅ AI Gateway (One API) 已启动: http://localhost:${GATEWAY_PORT}"
-    echo "🔑 默认账号: root | 默认密码: 123456"
-    echo "📄 日志: $GATEWAY_DIR/gateway.log"
+    echo "✅ AI Gateway (New API) 已启动: http://localhost:${GATEWAY_PORT}"
+    echo "🔑 管理面板: http://localhost:${GATEWAY_PORT}"
+    echo "   账号: root"
+    echo "   密码: 12345678"
     exit 0
   fi
-  sleep 1
+  sleep 2
 done
 
-echo "❌ AI Gateway (One API) 启动失败，请查看日志: $GATEWAY_DIR/gateway.log"
+echo "❌ AI Gateway (New API) 启动超时，请检查 Docker 日志:"
+echo "   docker compose -f docker-compose.gateway.yml logs new-api"
 exit 1

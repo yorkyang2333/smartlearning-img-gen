@@ -268,7 +268,7 @@ onMounted(async () => {
     <section class="section-block">
       <div class="section-head">
         <h2 class="section-title">AI Gateway 网关</h2>
-        <p class="section-desc">配置 One API 网关连接参数，管理上游渠道。</p>
+        <p class="section-desc">配置 New API 网关连接参数，管理上游渠道。</p>
       </div>
 
       <div class="gateway-grid">
@@ -309,7 +309,7 @@ onMounted(async () => {
           </div>
           <div class="card-inner channel-list-area">
             <div v-if="channels.length === 0" class="empty-hint">
-              <p>暂无渠道数据。请先保存网关配置，或前往 One API 管理面板添加渠道。</p>
+              <p>暂无渠道数据。请先保存网关配置，或前往 New API 管理面板添加渠道。</p>
             </div>
             <div v-else class="channel-list">
               <div v-for="ch in channels" :key="ch.id" class="channel-item">

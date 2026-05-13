@@ -23,5 +23,5 @@ jwt:
   expiration: 86400000 # 24 hours
 
 gateway:
-  base-url: ${LITELLM_BASE_URL:http://localhost:4000}
-  api-key: ${LITELLM_API_KEY:}
+  base-url: ${NEWAPI_BASE_URL:http://localhost:4000}
+  api-key: ${NEWAPI_API_KEY:sk-ieu1YGBX7s5Us7moCyvOEHRFG7T2pUv83kTwn2uCffuhLn5w}

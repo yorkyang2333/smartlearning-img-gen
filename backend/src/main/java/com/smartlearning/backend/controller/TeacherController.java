@@ -243,16 +243,18 @@ public class TeacherController {
             }
             String baseUrl = config.baseUrl();
             org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
-            // Step 1: Login to One API to get session cookie
+            // Step 1: Login to New API to get session cookie + user ID
             org.springframework.http.HttpHeaders loginHeaders = new org.springframework.http.HttpHeaders();
             loginHeaders.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-            Map<String, String> loginBody = Map.of("username", "root", "password", "123456");
+            Map<String, String> loginBody = Map.of("username", "root", "password", "12345678");
             org.springframework.http.HttpEntity<Map<String, String>> loginEntity = new org.springframework.http.HttpEntity<>(loginBody, loginHeaders);
             org.springframework.http.ResponseEntity<String> loginResponse = restTemplate.exchange(
                 baseUrl + "/api/user/login", org.springframework.http.HttpMethod.POST, loginEntity, String.class
             );
-            // Extract session cookie from Set-Cookie header
+
+            // Extract session cookie
             String sessionCookie = "";
             java.util.List<String> cookies = loginResponse.getHeaders().get("Set-Cookie");
             if (cookies != null) {
@@ -264,25 +266,42 @@ public class TeacherController {
                 }
             }
 
-            // Step 2: Get channel list with session cookie
+            // Extract user ID from login response (New API requires New-Api-User header)
+            String userId = "1"; // default root user ID
+            com.fasterxml.jackson.databind.JsonNode loginRoot = mapper.readTree(
+                loginResponse.getBody() != null ? loginResponse.getBody() : "{}"
+            );
+            if (loginRoot.has("data") && loginRoot.get("data").has("id")) {
+                userId = String.valueOf(loginRoot.get("data").get("id").asInt());
+            }
+
+            // Step 2: Get channel list with session cookie + New-Api-User header
             org.springframework.http.HttpHeaders chHeaders = new org.springframework.http.HttpHeaders();
             if (!sessionCookie.isEmpty()) {
                 chHeaders.set("Cookie", sessionCookie);
             }
+            chHeaders.set("New-Api-User", userId);
             org.springframework.http.HttpEntity<Void> chEntity = new org.springframework.http.HttpEntity<>(chHeaders);
             org.springframework.http.ResponseEntity<String> response = restTemplate.exchange(
-                baseUrl + "/api/channel/?p=0", org.springframework.http.HttpMethod.GET, chEntity, String.class
+                baseUrl + "/api/channel/?p=0&page_size=100", org.springframework.http.HttpMethod.GET, chEntity, String.class
             );
 
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
             com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(
                 response.getBody() != null ? response.getBody() : "{}"
             );
             if (root.has("success") && root.get("success").asBoolean()) {
-                com.fasterxml.jackson.databind.JsonNode dataNode = root.get("data");
                 List<Map<String, Object>> channels = new ArrayList<>();
-                if (dataNode != null && dataNode.isArray()) {
-                    for (com.fasterxml.jackson.databind.JsonNode ch : dataNode) {
+                // New API returns data.items (paginated) instead of flat data array
+                com.fasterxml.jackson.databind.JsonNode dataNode = root.get("data");
+                com.fasterxml.jackson.databind.JsonNode itemsNode = null;
+                if (dataNode != null && dataNode.has("items")) {
+                    itemsNode = dataNode.get("items");
+                } else if (dataNode != null && dataNode.isArray()) {
+                    // Fallback for One API compat
+                    itemsNode = dataNode;
+                }
+                if (itemsNode != null && itemsNode.isArray()) {
+                    for (com.fasterxml.jackson.databind.JsonNode ch : itemsNode) {
                         Map<String, Object> item = new HashMap<>();
                         item.put("id", ch.has("id") ? ch.get("id").asInt() : 0);
                         item.put("name", ch.has("name") ? ch.get("name").asText() : "");

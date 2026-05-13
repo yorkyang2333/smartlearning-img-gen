@@ -9,11 +9,16 @@
 在启动后端前设置：
 
 ```bash
-export GATEWAY_BASE_URL=http://localhost:4000
-export GATEWAY_API_KEY=your-gateway-key
+export NEWAPI_BASE_URL=http://localhost:4000
+export NEWAPI_API_KEY=your-gateway-api-key
 ```
 
-如果你的 AI Gateway 没有开启鉴权，`GATEWAY_API_KEY` 可以留空。
+推荐使用 `newapi` skill 安全管理 API Key：
+- `newapi create-token <name>` — 创建新令牌
+- `newapi apply-token <id> <file>` — 安全注入到配置文件
+- `newapi copy-token <id>` — 复制到剪贴板
+
+如果你的 AI Gateway 没有开启鉴权，`NEWAPI_API_KEY` 可以留空。
 
 说明：
 - 这两个环境变量现在是平台后台的默认兜底值
@@ -37,7 +42,9 @@ export GATEWAY_API_KEY=your-gateway-key
    - AI 学伴使用哪一个文本/多模态模型
 
 ## 正式部署（本机）
-仓库已经自带 AI Gateway (One API) 自动化部署与启动脚本。
+仓库已自带 AI Gateway (New API) Docker 自动化部署。
+
+**前置条件**：需要 Docker 运行时（推荐 Colima 或 Docker Desktop）。
 
 常用命令：
 
@@ -53,22 +60,26 @@ export GATEWAY_API_KEY=your-gateway-key
 ```
 
 它会按顺序启动：
-- AI Gateway 网关：`http://localhost:4000`
+- AI Gateway 网关：`http://localhost:4000`（New API 单容器，内嵌 SQLite）
 - Spring Boot 后端：`http://localhost:8080`
 - Vue 前端：`http://localhost:5173`
 
 脚本执行后，会在根目录自动生成 `.gateway/` 工作区，包含这些文件：
-- `one-api`：网关主程序二进制文件
-- `one-api.db`：网关自带的独立 SQLite 数据库文件（用于保存所有渠道、令牌和设置）
-- `gateway.log`：运行日志
+- `data/`：New API 数据目录（SQLite 数据库、配置文件等）
+
+**网关管理面板**：`http://localhost:4000`
+- 账号：`root`
+- 密码：`12345678`
 
 ## AI Gateway 部署建议
-- 在 AI Gateway 中集中维护 OpenAI、Anthropic、Google、DeepSeek 等 provider 的 key
+- 在 New API 中添加上游渠道（支持 OpenAI、Anthropic、Google、DeepSeek 等各类 API Key）
 - 给应用暴露一个统一的网关地址
-- 建议在网关侧配置模型别名，例如：
+- New API 支持渠道权重、自动重试、模型自动同步等高级特性
+- 建议配置的模型别名：
   - `gpt-4o`
   - `gpt-image-1`
   - `claude-3-5-sonnet-latest`
   - `gemini/gemini-2.5-flash`
 
 这样应用层只需要保存稳定的模型 ID，不需要再理解各 provider 的原生差异。
+
