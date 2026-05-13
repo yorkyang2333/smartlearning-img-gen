@@ -1,22 +1,48 @@
-# ChatAnywhere API 帮助文档
+# LiteLLM 接入说明
 
-## Docs
-- 帮助中心 [常用软件使用教程](https://chatanywhere.apifox.cn/doc-5547696.md): 
-- 帮助中心 [费用标准及模型列表](https://chatanywhere.apifox.cn/doc-2694962.md): 
-- 帮助中心 [常见问题及解决办法](https://chatanywhere.apifox.cn/doc-2664690.md): 
-- 帮助中心 [模型更新日志: 2026-04-28](https://chatanywhere.apifox.cn/doc-6479345.md): 
-- 模型接口 [发出请求](https://chatanywhere.apifox.cn/doc-2664688.md): 
+## 目标
+- 用 LiteLLM 统一管理上游 provider、API Key、路由策略
+- SmartCanvas 应用只维护模型目录，不再在教师端手工配置渠道和密钥
+- 后端统一通过 OpenAI-compatible 接口调用网关
 
-## API Docs
-- 模型接口 > 模型（Models） [列出模型](https://chatanywhere.apifox.cn/api-92222074.md): 列出并描述 API 中可用的各种模型。您可以参考[模型](https://platform.openai.com/docs/models)文档以了解可用的模型以及它们之间的区别。
-- 模型接口 > 聊天接口（Chat） [聊天接口](https://chatanywhere.apifox.cn/api-92222076.md): 给定一个提示，该模型将返回一个或多个预测的完成，并且还可以返回每个位置的替代标记的概率。
-- 模型接口 > 聊天接口（Chat） [响应responses接口](https://chatanywhere.apifox.cn/api-385209336.md): 创建模型响应。提供文本或图像输入以生成文本或JSON输出。让模型调用您自己的自定义代码，或使用内置工具（如网络搜索或文件输入）将您自己的数据用作模型响应的输入。
-- 模型接口 > 自动补全接口（Completions） [内容补全接口](https://chatanywhere.apifox.cn/api-92222077.md): 给定一个提示，该模型将返回一个或多个预测的完成，并且还可以返回每个位置的替代标记的概率。
-- 模型接口 > 图像接口（Images） [图像变化](https://chatanywhere.apifox.cn/api-230939726.md): 创建给定图像的变体。
-- 模型接口 > 图像接口（Images） [图像编辑](https://chatanywhere.apifox.cn/api-230941694.md): 在给定原始图像和提示的情况下创建编辑图像。
-- 模型接口 > 图像接口（Images） [创建图像](https://chatanywhere.apifox.cn/api-92222078.md): [图片](https://platform.openai.com/docs/api-reference/images)
-- 模型接口 > 向量生成接口（Embeddings） [创建嵌入](https://chatanywhere.apifox.cn/api-92222081.md): 获取给定输入的矢量表示，机器学习模型和算法可以轻松使用该表示。
-- 模型接口 > 音频接口（Audio） [tts文本转语音](https://chatanywhere.apifox.cn/api-123375854.md): 了解如何将文本转换为音频。
-- 模型接口 > 音频接口（Audio） [创建转录](https://chatanywhere.apifox.cn/api-92222082.md): 了解如何将音频转换为文本。
-- 模型接口 > 音频接口（Audio） [创建翻译](https://chatanywhere.apifox.cn/api-92222083.md): 将音频翻译成英文。
-- 模型接口 > 查询接口 [查询用量详情（小时粒度）](https://chatanywhere.apifox.cn/api-165664739.md): 
+## 环境变量
+在启动后端前设置：
+
+```bash
+export LITELLM_BASE_URL=http://localhost:4000
+export LITELLM_API_KEY=your-litellm-key
+```
+
+如果你的 LiteLLM 没有开启鉴权，`LITELLM_API_KEY` 可以留空。
+
+说明：
+- 这两个环境变量现在是平台后台的默认兜底值
+- 你也可以在教师端“模型目录”页面的 `LiteLLM 网关管理` 区直接修改网关地址和 API Key
+- 后台保存的配置优先级高于环境变量
+
+## 后端调用约定
+- 聊天与多模态分析：`POST {LITELLM_BASE_URL}/v1/chat/completions`
+- 文生图：`POST {LITELLM_BASE_URL}/v1/images/generations`
+- 模型同步优先读取：`GET {LITELLM_BASE_URL}/model/info`
+- 如果网关未开启 `model/info`，回退到：`GET {LITELLM_BASE_URL}/v1/models`
+
+## 教师端使用方式
+1. 打开“模型目录”页面
+2. 点击“同步 LiteLLM 模型”
+3. 系统会把网关里的模型同步到应用目录
+4. 老师只需要管理：
+   - 模型是否开放
+   - 模型排序
+   - 展示名称与教学说明
+   - AI 学伴使用哪一个文本/多模态模型
+
+## LiteLLM 部署建议
+- 在 LiteLLM 中集中维护 OpenAI、Anthropic、Google、DeepSeek 等 provider 的 key
+- 给应用暴露一个统一的网关地址
+- 建议在网关侧配置模型别名，例如：
+  - `gpt-4o`
+  - `gpt-image-1`
+  - `claude-3-5-sonnet-latest`
+  - `gemini/gemini-2.5-flash`
+
+这样应用层只需要保存稳定的模型 ID，不需要再理解各 provider 的原生差异。

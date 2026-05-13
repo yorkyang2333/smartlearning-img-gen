@@ -1,256 +1,177 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
 
-const models = ref<any[]>([])
-const endpoints = ref<any[]>([])
+type ModelRecord = {
+  id: string
+  name: string
+  modelId: string
+  type: 'TEXT_TO_IMAGE' | 'IMAGE_TO_IMAGE' | 'BOTH' | 'TEXT_GENERATION'
+  provider: string
+  description?: string
+  config?: string
+  isActive?: boolean
+  sortOrder?: number
+}
+
+const models = ref<ModelRecord[]>([])
 const modelsLoading = ref(true)
-const endpointsLoading = ref(true)
-
-// Expanded states for Endpoint Cards
-const expandedEndpoints = ref<Set<string>>(new Set())
-
-const toggleEndpoint = (id: string) => {
-  if (expandedEndpoints.value.has(id)) {
-    expandedEndpoints.value.delete(id)
-  } else {
-    expandedEndpoints.value.add(id)
-  }
-}
-
-const getModelsForEndpoint = (endpointId: string) => {
-  return models.value.filter(m => m.apiEndpoint?.id === endpointId)
-}
-
-const fetchModels = async () => {
-  try {
-    const res = await fetch('http://localhost:8080/api/teacher/models', {
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
-    })
-    if (res.ok) {
-      const data = await res.json()
-      models.value = data
-    }
-  } finally {
-    modelsLoading.value = false
-  }
-}
-
-const fetchEndpoints = async () => {
-  try {
-    const res = await fetch('http://localhost:8080/api/teacher/endpoints', {
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
-    })
-    if (res.ok) {
-      const data = await res.json()
-      endpoints.value = data
-    }
-  } finally {
-    endpointsLoading.value = false
-  }
-}
-
-// Tutor Form State
-const tutorFormData = ref({
+const isSyncing = ref(false)
+const syncMessage = ref('')
+const liteLlmFormData = ref({
   enabled: true,
-  modelName: 'gemini-3.1-flash-lite-preview',
-  apiEndpointId: '',
-  systemPrompt: ''
+  baseUrl: 'http://localhost:4000',
+  apiKey: ''
 })
-const isSavingTutor = ref(false)
-const tutorMessage = ref('')
-const isTutorExpanded = ref(false)
+const liteLlmResolvedBaseUrl = ref('http://localhost:4000')
+const liteLlmUpdatedAt = ref('')
+const isSavingLiteLlm = ref(false)
+const liteLlmMessage = ref('')
 
-const fetchTutorConfig = async () => {
-  try {
-    const res = await fetch('http://localhost:8080/api/teacher/config', {
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
-    })
-    if (res.ok) {
-      const data = await res.json()
-      tutorFormData.value = {
-        enabled: data.enabled,
-        modelName: data.modelName || 'gemini-3.1-flash-lite-preview',
-        apiEndpointId: data.apiEndpointId || '',
-        systemPrompt: data.systemPrompt || ''
-      }
-    }
-  } catch (e) {}
-}
-
-const handleTutorSubmit = async (e: Event) => {
-  e.preventDefault()
-  isSavingTutor.value = true
-  tutorMessage.value = ''
-  try {
-    const res = await fetch('http://localhost:8080/api/teacher/config', {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
-      },
-      body: JSON.stringify(tutorFormData.value)
-    })
-    if (res.ok) tutorMessage.value = '设置保存成功'
-    else tutorMessage.value = '设置保存失败'
-  } catch (err) {
-    tutorMessage.value = '发生错误'
-  } finally {
-    isSavingTutor.value = false
-    setTimeout(() => tutorMessage.value = '', 3000)
-  }
-}
-
-// Modal States
 const isModelModalOpen = ref(false)
-const editingModel = ref<any>(null)
+const editingModel = ref<ModelRecord | null>(null)
 const modelFormData = ref({
   name: '',
   modelId: '',
   type: 'TEXT_TO_IMAGE',
   provider: 'openai',
   description: '',
-  apiEndpointId: '',
   config: '{"sizes":["1024x1024"]}'
 })
 
-const isEndpointModalOpen = ref(false)
-const editingEndpoint = ref<any>(null)
-const endpointFormData = ref({
-  name: '',
-  baseUrl: '',
-  apiKey: '',
-  apiFormat: 'openai'
+const tutorFormData = ref({
+  enabled: true,
+  modelName: '',
+  systemPrompt: ''
 })
+const isSavingTutor = ref(false)
+const tutorMessage = ref('')
+const isTutorExpanded = ref(false)
 
-// Discover Modal States
-const isDiscoverModalOpen = ref(false)
-const isDiscovering = ref(false)
-const discoveringError = ref('')
-const discoveredModels = ref<{ imageModels: any[], textModels: any[] }>({ imageModels: [], textModels: [] })
-const discoverEndpointId = ref('')
-const selectedModels = ref<Set<string>>(new Set())
-
-const handleDiscover = async (endpointId: string) => {
-  discoverEndpointId.value = endpointId
-  isDiscovering.value = true
-  discoveringError.value = ''
-  isDiscoverModalOpen.value = true
-  discoveredModels.value = { imageModels: [], textModels: [] }
-  selectedModels.value.clear()
-
+const fetchModels = async () => {
+  modelsLoading.value = true
   try {
-    const res = await fetch(`http://localhost:8080/api/teacher/endpoints/${endpointId}/discover`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
-    })
-    const data = await res.json()
-    if (data.success) {
-      discoveredModels.value = {
-        imageModels: data.imageModels || [],
-        textModels: data.textModels || []
-      }
-      // Auto-select image models
-      if (data.imageModels) {
-        data.imageModels.forEach((m: any) => selectedModels.value.add(m.id))
-      }
-    } else {
-      discoveringError.value = data.error || '探测失败'
-    }
-  } catch (err: any) {
-    discoveringError.value = `请求出错: ${err.message}`
-  } finally {
-    isDiscovering.value = false
-  }
-}
-
-const toggleModelSelection = (modelId: string) => {
-  if (selectedModels.value.has(modelId)) {
-    selectedModels.value.delete(modelId)
-  } else {
-    selectedModels.value.add(modelId)
-  }
-}
-
-const handleBatchImport = async () => {
-  if (selectedModels.value.size === 0) return
-  
-  const modelsToImport = Array.from(selectedModels.value).map(id => {
-    const model = discoveredModels.value.imageModels.find(m => m.id === id)
-    return {
-      name: model.name || id,
-      modelId: id,
-      type: 'TEXT_TO_IMAGE',
-      provider: model.provider || 'openai',
-      description: '探测自动导入的生图模型',
-      apiEndpointId: discoverEndpointId.value,
-      apiFormat: endpoints.value.find(e => e.id === discoverEndpointId.value)?.apiFormat || 'openai',
-      config: '{"sizes":["1024x1024"]}',
-      isActive: true,
-      sortOrder: 0
-    }
-  })
-
-  try {
-    const res = await fetch('http://localhost:8080/api/teacher/models/batch', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
-      },
-      body: JSON.stringify(modelsToImport)
+    const res = await fetch('http://localhost:8080/api/teacher/models', {
+      headers: { Authorization: `Bearer ${authStore.token}` }
     })
     if (res.ok) {
-      isDiscoverModalOpen.value = false
-      fetchModels()
-      if (!expandedEndpoints.value.has(discoverEndpointId.value)) {
-        expandedEndpoints.value.add(discoverEndpointId.value)
-      }
-    } else {
-      alert('批量导入失败')
+      models.value = await res.json()
     }
-  } catch (err: any) {
-    alert(`导入出错: ${err.message}`)
+  } finally {
+    modelsLoading.value = false
   }
 }
 
-const handleModelToggle = async (modelId: string, currentEnabled: boolean) => {
-  const model = models.value.find(m => m.id === modelId)
-  if (!model) return
-  
-  model.isActive = !currentEnabled
-  if ('teacherEnabled' in model) {
-    model.teacherEnabled = !currentEnabled
-  }
-  
+const fetchLiteLlmConfig = async () => {
   try {
-    const res = await fetch(`http://localhost:8080/api/teacher/models/${modelId}`, {
+    const res = await fetch('http://localhost:8080/api/teacher/litellm-config', {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    liteLlmFormData.value = {
+      enabled: data.enabled ?? true,
+      baseUrl: data.baseUrl || 'http://localhost:4000',
+      apiKey: data.apiKey || ''
+    }
+    liteLlmResolvedBaseUrl.value = data.resolvedBaseUrl || liteLlmFormData.value.baseUrl
+    liteLlmUpdatedAt.value = data.updatedAt || ''
+  } catch (e) {}
+}
+
+const fetchTutorConfig = async () => {
+  try {
+    const res = await fetch('http://localhost:8080/api/teacher/config', {
+      headers: { Authorization: `Bearer ${authStore.token}` }
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    tutorFormData.value = {
+      enabled: data.enabled,
+      modelName: data.modelName || '',
+      systemPrompt: data.systemPrompt || ''
+    }
+  } catch (e) {}
+}
+
+const tutorModels = computed(() => {
+  return models.value.filter(model => model.type === 'TEXT_GENERATION' || model.type === 'BOTH')
+})
+
+const tutorModelOptions = computed(() => {
+  const options = [...tutorModels.value]
+  if (tutorFormData.value.modelName && !options.find(model => model.modelId === tutorFormData.value.modelName)) {
+    options.unshift({
+      id: 'custom-current',
+      name: `${tutorFormData.value.modelName} (当前配置)`,
+      modelId: tutorFormData.value.modelName,
+      type: 'TEXT_GENERATION',
+      provider: 'custom'
+    })
+  }
+  return options
+})
+
+const parseSizes = (config?: string) => {
+  if (!config) return []
+  try {
+    const parsed = JSON.parse(config)
+    return Array.isArray(parsed?.sizes) ? parsed.sizes : []
+  } catch {
+    return []
+  }
+}
+
+const sizeSummary = (model: ModelRecord) => {
+  const sizes = parseSizes(model.config)
+  if (sizes.length === 0) return '由网关自动处理'
+  if (sizes.length <= 3) return sizes.join(' / ')
+  return `${sizes.slice(0, 3).join(' / ')} 等 ${sizes.length} 种`
+}
+
+const typeLabel = (type: ModelRecord['type']) => {
+  if (type === 'TEXT_TO_IMAGE') return '文生图'
+  if (type === 'IMAGE_TO_IMAGE') return '图生图'
+  if (type === 'BOTH') return '生图+编辑'
+  return '文本分析'
+}
+
+const providerLabel = (provider?: string) => {
+  if (!provider) return '其它'
+  const labels: Record<string, string> = {
+    openai: 'OpenAI',
+    anthropic: 'Anthropic',
+    google: 'Google',
+    deepseek: 'DeepSeek',
+    alibaba: 'Alibaba',
+    meta: 'Meta',
+    other: '其它'
+  }
+  return labels[provider] || provider
+}
+
+const handleModelToggle = async (model: ModelRecord, currentEnabled: boolean) => {
+  const previous = model.isActive
+  model.isActive = !currentEnabled
+
+  try {
+    const res = await fetch(`http://localhost:8080/api/teacher/models/${model.id}`, {
       method: 'PUT',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}` 
+        Authorization: `Bearer ${authStore.token}`
       },
       body: JSON.stringify({
-        name: model.name,
-        modelId: model.modelId,
-        type: model.type,
-        provider: model.provider,
-        description: model.description,
-        config: model.config,
-        isActive: model.isActive,
-        sortOrder: model.sortOrder,
-        apiEndpointId: model.apiEndpointId || (model.apiEndpoint ? model.apiEndpoint.id : null)
+        ...model,
+        isActive: model.isActive
       })
     })
-    
+
     if (!res.ok) throw new Error('Update failed')
   } catch (err) {
-    model.isActive = currentEnabled
-    if ('teacherEnabled' in model) {
-      model.teacherEnabled = currentEnabled
-    }
+    model.isActive = previous
     alert('状态更新失败，请重试')
   }
 }
@@ -260,13 +181,13 @@ const handleModelDelete = async (id: string) => {
   try {
     await fetch(`http://localhost:8080/api/teacher/models/${id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
+      headers: { Authorization: `Bearer ${authStore.token}` }
     })
     fetchModels()
   } catch (e) {}
 }
 
-const openModelModal = (model?: any) => {
+const openModelModal = (model?: ModelRecord) => {
   if (model) {
     editingModel.value = model
     modelFormData.value = {
@@ -275,7 +196,6 @@ const openModelModal = (model?: any) => {
       type: model.type || 'TEXT_TO_IMAGE',
       provider: model.provider || 'openai',
       description: model.description || '',
-      apiEndpointId: model.apiEndpoint?.id || '',
       config: model.config || '{"sizes":["1024x1024"]}'
     }
   } else {
@@ -286,7 +206,6 @@ const openModelModal = (model?: any) => {
       type: 'TEXT_TO_IMAGE',
       provider: 'openai',
       description: '',
-      apiEndpointId: endpoints.value.length > 0 ? endpoints.value[0].id : '',
       config: '{"sizes":["1024x1024"]}'
     }
   }
@@ -296,17 +215,21 @@ const openModelModal = (model?: any) => {
 const handleModelSubmit = async (e: Event) => {
   e.preventDefault()
   const isEditing = !!editingModel.value
-  const url = isEditing ? `http://localhost:8080/api/teacher/models/${editingModel.value.id}` : 'http://localhost:8080/api/teacher/models'
+  const url = isEditing ? `http://localhost:8080/api/teacher/models/${editingModel.value!.id}` : 'http://localhost:8080/api/teacher/models'
   const method = isEditing ? 'PUT' : 'POST'
-  
+
   try {
     const res = await fetch(url, {
       method,
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
+        Authorization: `Bearer ${authStore.token}`
       },
-      body: JSON.stringify(modelFormData.value)
+      body: JSON.stringify({
+        ...modelFormData.value,
+        isActive: editingModel.value?.isActive ?? true,
+        sortOrder: editingModel.value?.sortOrder ?? models.value.length
+      })
     })
     if (res.ok) {
       isModelModalOpen.value = false
@@ -319,339 +242,302 @@ const handleModelSubmit = async (e: Event) => {
   }
 }
 
-const handleEndpointDelete = async (id: string) => {
-  if (!confirm('确定要删除这个渠道吗？')) return
+const handleSyncModels = async () => {
+  isSyncing.value = true
+  syncMessage.value = ''
   try {
-    await fetch(`http://localhost:8080/api/teacher/endpoints/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
+    const res = await fetch('http://localhost:8080/api/teacher/models/sync', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${authStore.token}` }
     })
-    fetchEndpoints()
-  } catch (e) {}
-}
-
-const openEndpointModal = (endpoint?: any) => {
-  if (endpoint) {
-    editingEndpoint.value = endpoint
-    endpointFormData.value = {
-      name: endpoint.name || '',
-      baseUrl: endpoint.baseUrl || '',
-      apiKey: endpoint.apiKey || '',
-      apiFormat: endpoint.apiFormat || 'openai'
+    const data = await res.json()
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || '同步失败')
     }
-  } else {
-    editingEndpoint.value = null
-    endpointFormData.value = { name: '', baseUrl: '', apiKey: '', apiFormat: 'openai' }
-  }
-  isEndpointModalOpen.value = true
-}
-
-const handleEndpointSubmit = async (e: Event) => {
-  e.preventDefault()
-  const isEditing = !!editingEndpoint.value
-  const url = isEditing ? `http://localhost:8080/api/teacher/endpoints/${editingEndpoint.value.id}` : 'http://localhost:8080/api/teacher/endpoints'
-  const method = isEditing ? 'PUT' : 'POST'
-
-  try {
-    const res = await fetch(url, {
-      method,
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
-      },
-      body: JSON.stringify(endpointFormData.value)
-    })
-    if (res.ok) {
-      isEndpointModalOpen.value = false
-      fetchEndpoints()
-    } else {
-      alert('保存失败')
-    }
+    syncMessage.value = `同步完成：新增 ${data.created || 0} 个，更新 ${data.updated || 0} 个，共扫描 ${data.totalSynced || 0} 个模型`
+    await fetchModels()
   } catch (err: any) {
-    alert(`保存失败: ${err.message}`)
+    syncMessage.value = `同步失败：${err.message}`
+  } finally {
+    isSyncing.value = false
+  }
+}
+
+const handleLiteLlmSubmit = async (e: Event) => {
+  e.preventDefault()
+  isSavingLiteLlm.value = true
+  liteLlmMessage.value = ''
+  try {
+    const res = await fetch('http://localhost:8080/api/teacher/litellm-config', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify(liteLlmFormData.value)
+    })
+    const data = await res.json()
+    if (!res.ok || data.success === false) {
+      throw new Error(data.error || '保存失败')
+    }
+    liteLlmResolvedBaseUrl.value = data.resolvedBaseUrl || liteLlmFormData.value.baseUrl
+    liteLlmUpdatedAt.value = data.updatedAt || ''
+    liteLlmMessage.value = 'LiteLLM 配置保存成功'
+  } catch (err: any) {
+    liteLlmMessage.value = `LiteLLM 配置保存失败：${err.message}`
+  } finally {
+    isSavingLiteLlm.value = false
+    setTimeout(() => (liteLlmMessage.value = ''), 3000)
+  }
+}
+
+const handleTutorSubmit = async (e: Event) => {
+  e.preventDefault()
+  isSavingTutor.value = true
+  tutorMessage.value = ''
+  try {
+    const res = await fetch('http://localhost:8080/api/teacher/config', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authStore.token}`
+      },
+      body: JSON.stringify(tutorFormData.value)
+    })
+    tutorMessage.value = res.ok ? '设置保存成功' : '设置保存失败'
+  } catch (err) {
+    tutorMessage.value = '发生错误'
+  } finally {
+    isSavingTutor.value = false
+    setTimeout(() => (tutorMessage.value = ''), 3000)
   }
 }
 
 onMounted(async () => {
-  await fetchEndpoints()
+  await fetchLiteLlmConfig()
   await fetchModels()
   await fetchTutorConfig()
-  
-  // Auto-expand the first endpoint if exists
-  if (endpoints.value.length > 0) {
-    expandedEndpoints.value.add(endpoints.value[0].id)
-  }
 })
 </script>
 
 <template>
-  <div v-if="modelsLoading || endpointsLoading" style="display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--muted); font-family: var(--font-inter);">
-    加载配置中...
-  </div>
-  
+  <div v-if="modelsLoading" class="loading-state">加载模型目录中...</div>
+
   <div v-else class="editorial-container">
     <div class="page-header">
       <div>
-        <h1 class="editorial-title">系统配置</h1>
-        <p class="editorial-subtitle">配置 API 渠道与生图模型，管理平台的底层 AI 能力。</p>
+        <h1 class="editorial-title">模型目录</h1>
+        <p class="editorial-subtitle">应用现在通过 LiteLLM 网关统一接入模型，这里只保留模型目录与教学配置。</p>
+      </div>
+      <div class="header-actions">
+        <button class="ghost-button" @click="handleSyncModels" :disabled="isSyncing">
+          {{ isSyncing ? '同步中...' : '同步 LiteLLM 模型' }}
+        </button>
+        <button class="primary-button" @click="openModelModal()">
+          手动添加模型
+        </button>
       </div>
     </div>
 
-    <div class="content-canvas">
-      
-      <!-- Section 1: API Channels -->
-      <section class="config-section">
-        <div class="section-header">
-          <div class="section-title-wrap">
-            <div class="section-number">1</div>
-            <h2 class="section-title">API 渠道</h2>
-          </div>
-          <button class="primary-button" @click="openEndpointModal()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            添加新渠道
-          </button>
-        </div>
-        
-        <p class="section-desc">配置提供底层 AI 服务的渠道（如硅基流动、ChatAnywhere 或直连官方）。渠道是添加模型的基础。</p>
-        
-        <div v-if="endpoints.length === 0" class="empty-state">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
-          <h3>暂无可用渠道</h3>
-          <p>您需要先配置一个 API 渠道，才能探测或添加模型。</p>
-          <button class="primary-button" style="margin: 0 auto;" @click="openEndpointModal()">配置第一个渠道</button>
-        </div>
-
-        <div v-else class="endpoints-list">
-          <div v-for="ep in endpoints" :key="ep.id" class="endpoint-card">
-            <div class="endpoint-header" @click="toggleEndpoint(ep.id)">
-              <div class="endpoint-info">
-                <div class="endpoint-name-row">
-                  <h3 class="endpoint-name">{{ ep.name }}</h3>
-                  <span class="badge badge-format">{{ ep.apiFormat === 'gemini' ? 'Google 原生' : 'OpenAI 兼容' }}</span>
-                </div>
-                <div class="endpoint-url">{{ ep.baseUrl }}</div>
-              </div>
-              <div class="endpoint-actions" @click.stop>
-                <button class="ghost-button btn-sm" @click="handleDiscover(ep.id)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                  探测模型
-                </button>
-                <button class="icon-btn" @click="openEndpointModal(ep)" title="编辑"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg></button>
-                <button class="icon-btn danger" @click="handleEndpointDelete(ep.id)" title="删除"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></button>
-                <div class="expand-icon" :class="{ 'expanded': expandedEndpoints.has(ep.id) }">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </div>
-              </div>
-            </div>
-
-            <!-- Expandable Models Area -->
-            <div class="endpoint-models" v-show="expandedEndpoints.has(ep.id)">
-              <div class="endpoint-models-inner">
-                <div class="endpoint-models-header">
-                  <h4>关联的模型 ({{ getModelsForEndpoint(ep.id).length }})</h4>
-                </div>
-                
-                <div v-if="getModelsForEndpoint(ep.id).length === 0" class="empty-models">
-                  <p>该渠道下暂无模型。请点击右上方「探测模型」自动导入，或手动添加。</p>
-                </div>
-                
-                <div v-else class="compact-model-list">
-                  <div v-for="m in getModelsForEndpoint(ep.id)" :key="m.id" class="compact-model-item">
-                    <div class="status-indicator" @click="handleModelToggle(m.id, m.isActive || m.teacherEnabled)">
-                      <span class="dot" :class="(m.isActive || m.teacherEnabled) ? 'dot-active' : 'dot-inactive'"></span>
-                    </div>
-                    <div class="m-name" :title="m.name">{{ m.name }}</div>
-                    <div class="m-id mono-text" :title="m.modelId">{{ m.modelId }}</div>
-                    <div class="m-type badge badge-type" :class="{ both: m.type === 'BOTH' }">
-                      {{ m.type === 'TEXT_TO_IMAGE' ? '仅生图' : m.type === 'IMAGE_TO_IMAGE' ? '图生图' : '多模态' }}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Section 2: All Models -->
-      <section class="config-section">
-        <div class="section-header">
-          <div class="section-title-wrap">
-            <div class="section-number">2</div>
-            <h2 class="section-title">全局生图模型</h2>
-          </div>
-          <button class="primary-button" @click="openModelModal()" :disabled="endpoints.length === 0">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            手动添加模型
-          </button>
-        </div>
-        
-        <p class="section-desc">管理平台上所有的可用生图模型，您可以在这里统一管理学生可用的模型、排序并进行精细配置。</p>
-
-        <div v-if="models.length === 0" class="empty-state">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-          <h3>暂无生图模型</h3>
-          <p>请在上方渠道中探测模型，或手动添加。</p>
-        </div>
-
-        <div v-else class="config-table-container">
-          <table class="config-table">
-            <thead>
-              <tr>
-                <th width="100">状态</th>
-                <th>展示名称</th>
-                <th>API Model ID</th>
-                <th>所属渠道</th>
-                <th width="100" style="text-align: right;">操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="model in models" :key="model.id" :class="{ 'disabled-row': !(model.isActive || model.teacherEnabled) }">
-                <td>
-                  <button 
-                    class="status-toggle-btn" 
-                    :class="(model.isActive || model.teacherEnabled) ? 'active' : 'inactive'"
-                    @click="handleModelToggle(model.id, model.isActive || model.teacherEnabled)"
-                  >
-                    <span class="dot" :class="(model.isActive || model.teacherEnabled) ? 'dot-active' : 'dot-inactive'"></span>
-                    {{ (model.isActive || model.teacherEnabled) ? '已开放' : '已停用' }}
-                  </button>
-                </td>
-                <td>
-                  <div class="name-content">
-                    <strong>{{ model.name }}</strong>
-                    <span class="badge badge-provider" v-if="model.provider">{{ model.provider }}</span>
-                  </div>
-                </td>
-                <td class="td-id"><span class="mono-text">{{ model.modelId }}</span></td>
-                <td class="td-channel">
-                  <span v-if="model.apiEndpoint">{{ model.apiEndpoint.name }}</span>
-                  <span v-else class="error-text">未绑定</span>
-                </td>
-                <td>
-                  <div class="table-actions">
-                    <button class="icon-btn" @click="openModelModal(model)" title="编辑模型">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    </button>
-                    <button class="icon-btn danger" @click="handleModelDelete(model.id)" title="删除模型">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- Section 3: AI Tutor -->
-      <section class="config-section">
-        <div class="section-header cursor-pointer" @click="isTutorExpanded = !isTutorExpanded">
-          <div class="section-title-wrap">
-            <div class="section-number">3</div>
-            <h2 class="section-title">AI 学伴分析配置</h2>
-          </div>
-          <div style="display: flex; align-items: center; gap: 16px;">
-            <div class="tutor-status" :class="tutorFormData.enabled ? 'active' : 'inactive'">
-              {{ tutorFormData.enabled ? '运行中' : '已关闭' }}
-            </div>
-            <div class="expand-icon" :class="{ 'expanded': isTutorExpanded }">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </div>
-          </div>
-        </div>
-        
-        <p class="section-desc">为学生配置生成作品后的自动点评功能。系统将在幕后调用此配置的文本大模型提供多维度建议。</p>
-
-        <div v-show="isTutorExpanded" class="tutor-config-area">
-          <form @submit="handleTutorSubmit">
-            <div class="editorial-card tutor-card">
-              <div class="card-header switch-header">
-                <h3 class="card-title">启用 AI 导师点评</h3>
-                <label class="switch-container">
-                  <input type="checkbox" v-model="tutorFormData.enabled" style="display: none;" />
-                  <span class="switch-slider"></span>
-                </label>
-              </div>
-              
-              <div class="card-body" :class="{ 'disabled-area': !tutorFormData.enabled }">
-                <div class="input-row">
-                  <div class="input-group">
-                    <label>使用的 API 渠道</label>
-                    <select class="editorial-input" v-model="tutorFormData.apiEndpointId">
-                      <option value="">-- 选择分析使用的渠道 --</option>
-                      <option v-for="ep in endpoints" :key="ep.id" :value="ep.id">{{ ep.name }}</option>
-                    </select>
-                  </div>
-                  
-                  <div class="input-group">
-                    <label>调用的对话大模型 ID</label>
-                    <input type="text" class="editorial-input" v-model="tutorFormData.modelName" placeholder="如: gpt-4o, claude-3-opus" />
-                    <span class="help-text">请填写具有强推理能力的文本对话模型名称。</span>
-                  </div>
-                </div>
-
-                <div class="input-group" style="margin-top: 1.5rem;">
-                  <div style="display: flex; justify-content: space-between; align-items: flex-end;">
-                    <label>导师人设设定 (System Prompt)</label>
-                    <button type="button" class="ghost-button btn-sm" @click="tutorFormData.systemPrompt = ''">
-                      恢复默认
-                    </button>
-                  </div>
-                  <textarea 
-                    class="editorial-input"
-                    rows="6" 
-                    v-model="tutorFormData.systemPrompt" 
-                    placeholder="留空则使用默认提示词。注意：必须要求模型返回固定格式的 JSON（包含 optimized 和 tips）。" 
-                  ></textarea>
-                </div>
-              </div>
-            </div>
-
-            <div class="form-actions">
-              <span v-if="tutorMessage" :class="tutorMessage.includes('失败') ? 'error-text' : 'success-text'">
-                {{ tutorMessage }}
-              </span>
-              <button type="submit" class="primary-button" :disabled="isSavingTutor">
-                {{ isSavingTutor ? '保存中...' : '保存学伴配置' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </section>
-
+    <div class="gateway-banner">
+      <div>
+        <strong>LiteLLM 网关模式已启用</strong>
+        <p>上游渠道、密钥和路由策略由 LiteLLM 管理。应用侧仅维护可见模型目录、启停、排序和教学用途。</p>
+      </div>
+      <span v-if="syncMessage" :class="syncMessage.includes('失败') ? 'error-text' : 'success-text'">
+        {{ syncMessage }}
+      </span>
     </div>
 
-    <!-- Modals remain unchanged in logic, just reused the existing overlay structure -->
-    <!-- Model Modal -->
+    <section class="config-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">LiteLLM 网关管理</h2>
+          <p class="section-desc">在平台内维护 LiteLLM 的开关、网关地址和访问凭证。未填写时会使用后端环境变量作为默认值。</p>
+        </div>
+      </div>
+
+      <form class="editorial-card gateway-config-card" @submit="handleLiteLlmSubmit">
+        <div class="card-header switch-header">
+          <h3 class="card-title">启用 LiteLLM 网关</h3>
+          <label class="switch-container">
+            <input v-model="liteLlmFormData.enabled" type="checkbox" style="display: none;" />
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+        <div class="card-body">
+          <div class="input-row">
+            <div class="input-group">
+              <label>Base URL</label>
+              <input type="url" class="editorial-input" v-model="liteLlmFormData.baseUrl" placeholder="http://localhost:4000" />
+            </div>
+            <div class="input-group">
+              <label>API Key</label>
+              <input type="password" class="editorial-input" v-model="liteLlmFormData.apiKey" placeholder="留空表示网关无需鉴权" />
+            </div>
+          </div>
+          <div class="gateway-meta">
+            <span>当前生效地址：{{ liteLlmResolvedBaseUrl }}</span>
+            <span v-if="liteLlmUpdatedAt">最近更新：{{ new Date(liteLlmUpdatedAt).toLocaleString() }}</span>
+          </div>
+          <div class="form-actions">
+            <span v-if="liteLlmMessage" :class="liteLlmMessage.includes('失败') ? 'error-text' : 'success-text'">
+              {{ liteLlmMessage }}
+            </span>
+            <button type="submit" class="primary-button" :disabled="isSavingLiteLlm">
+              {{ isSavingLiteLlm ? '保存中...' : '保存 LiteLLM 配置' }}
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+
+    <section class="config-section">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">全局模型目录</h2>
+          <p class="section-desc">学生端只会看到非纯文本模型；AI 学伴会从支持文本分析的模型中选用。</p>
+        </div>
+      </div>
+
+      <div v-if="models.length === 0" class="empty-state">
+        <h3>暂无模型</h3>
+        <p>先从 LiteLLM 同步模型，或手动录入一批模型目录。</p>
+      </div>
+
+      <div v-else class="config-table-container">
+        <table class="config-table">
+          <thead>
+            <tr>
+              <th width="100">状态</th>
+              <th>展示名称</th>
+              <th>模型 ID</th>
+              <th>类型</th>
+              <th>提供方</th>
+              <th>尺寸/能力</th>
+              <th width="100" style="text-align: right;">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="model in models" :key="model.id" :class="{ 'disabled-row': !model.isActive }">
+              <td>
+                <button
+                  class="status-toggle-btn"
+                  :class="model.isActive ? 'active' : 'inactive'"
+                  @click="handleModelToggle(model, !!model.isActive)"
+                >
+                  <span class="dot" :class="model.isActive ? 'dot-active' : 'dot-inactive'"></span>
+                  {{ model.isActive ? '已开放' : '已停用' }}
+                </button>
+              </td>
+              <td>
+                <div class="name-content">
+                  <strong>{{ model.name }}</strong>
+                  <span v-if="model.description" class="description-text">{{ model.description }}</span>
+                </div>
+              </td>
+              <td class="td-id"><span class="mono-text">{{ model.modelId }}</span></td>
+              <td>{{ typeLabel(model.type) }}</td>
+              <td>{{ providerLabel(model.provider) }}</td>
+              <td>{{ sizeSummary(model) }}</td>
+              <td>
+                <div class="table-actions">
+                  <button class="icon-btn" @click="openModelModal(model)" title="编辑模型">编</button>
+                  <button class="icon-btn danger" @click="handleModelDelete(model.id)" title="删除模型">删</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="config-section">
+      <div class="section-header cursor-pointer" @click="isTutorExpanded = !isTutorExpanded">
+        <div>
+          <h2 class="section-title">AI 学伴分析配置</h2>
+          <p class="section-desc">分析模型也走 LiteLLM 网关，但选项来源于模型目录中的文本/多模态模型。</p>
+        </div>
+        <div class="tutor-status" :class="tutorFormData.enabled ? 'active' : 'inactive'">
+          {{ tutorFormData.enabled ? '运行中' : '已关闭' }}
+        </div>
+      </div>
+
+      <div v-show="isTutorExpanded" class="tutor-config-area">
+        <form @submit="handleTutorSubmit">
+          <div class="editorial-card tutor-card">
+            <div class="card-header switch-header">
+              <h3 class="card-title">启用 AI 导师点评</h3>
+              <label class="switch-container">
+                <input v-model="tutorFormData.enabled" type="checkbox" style="display: none;" />
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="card-body" :class="{ 'disabled-area': !tutorFormData.enabled }">
+              <div class="input-row">
+                <div class="input-group">
+                  <label>分析模型</label>
+                  <select class="editorial-input" v-model="tutorFormData.modelName">
+                    <option value="">-- 选择模型目录中的文本/多模态模型 --</option>
+                    <option v-for="model in tutorModelOptions" :key="model.modelId" :value="model.modelId">
+                      {{ model.name }} ({{ model.modelId }})
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="input-group" style="margin-top: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                  <label>导师人设设定 (System Prompt)</label>
+                  <button type="button" class="ghost-button btn-sm" @click="tutorFormData.systemPrompt = ''">
+                    恢复默认
+                  </button>
+                </div>
+                <textarea
+                  class="editorial-input"
+                  rows="6"
+                  v-model="tutorFormData.systemPrompt"
+                  placeholder="留空则使用默认提示词。"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <span v-if="tutorMessage" :class="tutorMessage.includes('失败') ? 'error-text' : 'success-text'">
+              {{ tutorMessage }}
+            </span>
+            <button type="submit" class="primary-button" :disabled="isSavingTutor">
+              {{ isSavingTutor ? '保存中...' : '保存学伴配置' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
     <div v-if="isModelModalOpen" class="overlay-backdrop">
       <div class="overlay-panel">
         <h2 class="overlay-title">{{ editingModel ? '编辑模型' : '手动添加模型' }}</h2>
         <form @submit="handleModelSubmit" class="overlay-form">
-          <div class="input-group">
-            <label>归属渠道</label>
-            <select required class="editorial-input" v-model="modelFormData.apiEndpointId">
-              <option value="" disabled>-- 请选择底层调用的 API 渠道 --</option>
-              <option v-for="ep in endpoints" :key="ep.id" :value="ep.id">{{ ep.name }} ({{ ep.baseUrl }})</option>
-            </select>
-          </div>
           <div class="input-row">
             <div class="input-group">
               <label>展示名称</label>
-              <input type="text" class="editorial-input" required v-model="modelFormData.name" placeholder="如: Midjourney V6" />
+              <input type="text" class="editorial-input" required v-model="modelFormData.name" placeholder="如: GPT Image 2" />
             </div>
             <div class="input-group">
-              <label>API Model ID</label>
-              <input type="text" class="editorial-input" required v-model="modelFormData.modelId" placeholder="如: midjourney" />
+              <label>LiteLLM 模型 ID</label>
+              <input type="text" class="editorial-input" required v-model="modelFormData.modelId" placeholder="如: gpt-image-1 或 openai/gpt-4o-mini" />
             </div>
           </div>
           <div class="input-row">
             <div class="input-group">
               <label>支持类型</label>
               <select class="editorial-input" v-model="modelFormData.type">
-                <option value="TEXT_TO_IMAGE">文生图 (仅生图)</option>
-                <option value="BOTH">双模支持 (生图+对话)</option>
-                <option value="IMAGE_TO_IMAGE">图生图 (Image to Image)</option>
+                <option value="TEXT_TO_IMAGE">文生图</option>
+                <option value="BOTH">生图+编辑</option>
+                <option value="IMAGE_TO_IMAGE">图生图</option>
+                <option value="TEXT_GENERATION">文本分析</option>
               </select>
             </div>
             <div class="input-group">
@@ -662,7 +548,8 @@ onMounted(async () => {
                 <option value="google">Google</option>
                 <option value="deepseek">DeepSeek</option>
                 <option value="alibaba">Alibaba (Qwen)</option>
-                <option value="other">其它 (Other)</option>
+                <option value="meta">Meta</option>
+                <option value="other">其它</option>
               </select>
             </div>
           </div>
@@ -670,121 +557,46 @@ onMounted(async () => {
             <label>功能描述</label>
             <input type="text" class="editorial-input" v-model="modelFormData.description" placeholder="一句话介绍这个模型的特点..." />
           </div>
+          <div class="input-group">
+            <label>模型配置 JSON</label>
+            <textarea class="editorial-input mono-text" rows="4" v-model="modelFormData.config"></textarea>
+          </div>
           <div class="overlay-actions">
             <button type="button" class="ghost-button" @click="isModelModalOpen = false">取消</button>
-            <button type="submit" class="primary-button" :disabled="!modelFormData.apiEndpointId">{{ editingModel ? '保存更改' : '确认添加' }}</button>
+            <button type="submit" class="primary-button">{{ editingModel ? '保存更改' : '确认添加' }}</button>
           </div>
         </form>
       </div>
     </div>
-
-    <!-- Endpoint Modal -->
-    <div v-if="isEndpointModalOpen" class="overlay-backdrop">
-      <div class="overlay-panel">
-        <h2 class="overlay-title">{{ editingEndpoint ? '编辑渠道配置' : '新增 API 渠道' }}</h2>
-        <form @submit="handleEndpointSubmit" class="overlay-form">
-          <div class="input-group">
-            <label>渠道名称</label>
-            <input type="text" class="editorial-input" required v-model="endpointFormData.name" placeholder="如: 硅基流动, OpenAI 官方" />
-          </div>
-          <div class="input-group">
-            <label>Base URL</label>
-            <input type="url" class="editorial-input" required v-model="endpointFormData.baseUrl" placeholder="https://api.siliconflow.cn" />
-            <span class="help-text">请填写完整的接口根路径，不包含 /v1/...</span>
-          </div>
-          <div class="input-group">
-            <label>API Key</label>
-            <input type="password" class="editorial-input" required v-model="endpointFormData.apiKey" placeholder="sk-..." />
-          </div>
-          <div class="input-group">
-            <label>API 格式</label>
-            <select class="editorial-input" v-model="endpointFormData.apiFormat">
-              <option value="openai">OpenAI 兼容格式 (绝大多数中转适用)</option>
-              <option value="gemini">Google Gemini 原生格式</option>
-            </select>
-            <span class="help-text">如果使用硅基流动、ChatAnywhere等平台，请选择 OpenAI 兼容格式。仅直连 Google Gemini 时选择原生。</span>
-          </div>
-          <div class="overlay-actions">
-            <button type="button" class="ghost-button" @click="isEndpointModalOpen = false">取消</button>
-            <button type="submit" class="primary-button">{{ editingEndpoint ? '保存配置' : '确认添加' }}</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Discover Modal -->
-    <div v-if="isDiscoverModalOpen" class="overlay-backdrop">
-      <div class="overlay-panel" style="max-width: 600px;">
-        <h2 class="overlay-title">探测可用模型</h2>
-        <div class="overlay-form" style="max-height: 70vh; overflow-y: auto;">
-          <div v-if="isDiscovering" class="discovering-state">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-            <p>正在连接 API 渠道探测模型列表...</p>
-          </div>
-          <div v-else-if="discoveringError" class="info-banner warning">
-            {{ discoveringError }}
-          </div>
-          <div v-else>
-            <div style="margin-bottom: 24px;">
-              <h3 class="discover-group-title">
-                <span>📸 图像生成模型</span>
-                <span class="badge badge-provider">推荐导入</span>
-              </h3>
-              <p v-if="discoveredModels.imageModels.length === 0" class="help-text">未探测到明显的图像生成模型。</p>
-              <div v-else class="model-list-grid">
-                <label v-for="model in discoveredModels.imageModels" :key="model.id" class="model-checkbox-item">
-                  <input type="checkbox" :checked="selectedModels.has(model.id)" @change="toggleModelSelection(model.id)" />
-                  <div class="model-info">
-                    <strong>{{ model.name }}</strong>
-                    <span>{{ model.provider }}</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <div>
-              <h3 class="discover-group-title">
-                <span>💬 文本对话模型</span>
-                <span class="badge badge-provider">仅供参考</span>
-              </h3>
-              <p class="help-text" style="margin-bottom: 12px;">您可以直接复制模型 ID，填写在「AI 学伴配置」中，不需要导入。</p>
-              <p v-if="discoveredModels.textModels.length === 0" class="help-text">未探测到文本模型。</p>
-              <div v-else class="model-list-grid text-only">
-                <div v-for="model in discoveredModels.textModels" :key="model.id" class="model-text-item" :title="model.id">
-                  <strong>{{ model.id }}</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="overlay-actions">
-            <button type="button" class="ghost-button" @click="isDiscoverModalOpen = false">关闭</button>
-            <button 
-              type="button" 
-              class="primary-button" 
-              @click="handleBatchImport"
-              :disabled="selectedModels.size === 0 || isDiscovering"
-            >
-              导入选中的生图模型 ({{ selectedModels.size }})
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
   </div>
 </template>
 
 <style scoped>
-/* Typography & Layout */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: var(--muted);
+}
+
 .editorial-container {
-  max-width: 1000px;
+  max-width: 1080px;
   margin: 0 auto;
   padding-bottom: 64px;
 }
 
 .page-header {
-  margin-bottom: 40px;
+  margin-bottom: 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
 }
 
 .editorial-title {
@@ -794,539 +606,327 @@ onMounted(async () => {
   margin: 0 0 8px 0;
 }
 
-.editorial-subtitle {
-  font-size: 14px;
+.editorial-subtitle,
+.section-desc,
+.description-text {
   color: var(--muted);
-  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-/* Sections */
+.gateway-banner {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--surface-card);
+  margin-bottom: 32px;
+}
+
+.gateway-config-card {
+  overflow: hidden;
+}
+
+.gateway-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gateway-banner p {
+  margin: 6px 0 0;
+}
+
 .config-section {
-  margin-bottom: 48px;
+  margin-bottom: 40px;
 }
 
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .section-header.cursor-pointer {
   cursor: pointer;
-  user-select: none;
-}
-
-.section-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.section-number {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--primary);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
-  font-family: var(--font-mono);
 }
 
 .section-title {
-  font-family: var(--font-inter);
-  font-size: 18px;
-  font-weight: 600;
+  margin: 0 0 6px;
+  font-size: 20px;
   color: var(--ink);
-  margin: 0;
 }
 
-.section-desc {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 0 0 20px 36px;
-  max-width: 600px;
-  line-height: 1.5;
-}
-
-/* Buttons */
-.primary-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--primary);
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.primary-button:hover:not(:disabled) { background: var(--primary-active); }
-.primary-button:disabled { background: var(--primary-disabled); cursor: not-allowed; opacity: 0.7; }
-
-.ghost-button {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  color: var(--ink);
-  border: 1px solid var(--hairline);
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.ghost-button:hover { background: var(--surface-card); }
-
-.btn-sm { padding: 6px 12px; font-size: 12px; }
-
-.icon-btn {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--muted);
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.icon-btn:hover { background: var(--surface-card); border-color: var(--hairline); color: var(--ink); }
-.icon-btn.danger:hover { color: var(--error); background: #fdf5f5; border-color: #fbd6d6; }
-
-/* Empty States */
 .empty-state {
-  text-align: center;
-  padding: 48px;
-  background: var(--surface-card);
+  padding: 36px;
   border: 1px dashed var(--hairline);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
+  text-align: center;
   color: var(--muted);
 }
-.empty-state svg { margin-bottom: 16px; opacity: 0.5; }
-.empty-state h3 { font-size: 16px; margin: 0 0 8px 0; color: var(--ink); }
-.empty-state p { font-size: 13px; margin: 0 0 20px 0; }
 
-/* Endpoints Layout */
-.endpoints-list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.endpoint-card {
-  background: var(--surface-card);
+.config-table-container,
+.editorial-card {
   border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  transition: box-shadow 0.2s;
-}
-.endpoint-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-
-.endpoint-header {
-  padding: 16px 24px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  user-select: none;
-}
-.endpoint-header:hover { background: var(--surface-cream-strong); }
-
-.endpoint-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.endpoint-name-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.endpoint-name {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.endpoint-url {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--muted-soft);
-}
-
-.endpoint-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.expand-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  color: var(--muted);
-  transition: transform 0.3s;
-}
-.expand-icon.expanded { transform: rotate(180deg); }
-
-.endpoint-models {
-  border-top: 1px solid var(--hairline);
-  background: var(--canvas);
-}
-
-.endpoint-models-inner {
-  padding: 16px 24px 24px 24px;
-}
-
-.endpoint-models-header {
-  margin-bottom: 12px;
-}
-.endpoint-models-header h4 {
-  margin: 0;
-  font-size: 13px;
-  color: var(--muted);
-  font-weight: 500;
-}
-
-.compact-model-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 12px;
-}
-
-.compact-model-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   background: var(--surface-card);
-}
-
-.status-indicator {
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-}
-
-.dot { width: 8px; height: 8px; border-radius: 50%; }
-.dot-active { background: var(--success); box-shadow: 0 0 0 2px rgba(93,184,114,0.2); }
-.dot-inactive { background: var(--muted-soft); }
-
-.m-name { flex: 1; font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.m-id { font-size: 11px; color: var(--muted-soft); }
-
-.empty-models {
-  font-size: 13px;
-  color: var(--muted-soft);
-  font-style: italic;
-}
-
-/* Config Table */
-.config-table-container {
-  background: var(--surface-card);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
-  overflow: hidden;
 }
 
 .config-table {
   width: 100%;
   border-collapse: collapse;
-  text-align: left;
 }
 
-.config-table th {
-  padding: 12px 16px;
-  background: var(--surface-cream-strong);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--muted);
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--hairline);
-}
-
+.config-table th,
 .config-table td {
   padding: 14px 16px;
   border-bottom: 1px solid var(--hairline);
-  font-size: 13px;
-  color: var(--ink);
-  vertical-align: middle;
+  vertical-align: top;
+  text-align: left;
 }
 
-.config-table tr:last-child td { border-bottom: none; }
-.config-table tr:hover td { background: var(--canvas); }
+.config-table tbody tr:last-child td {
+  border-bottom: none;
+}
 
-.disabled-row td {
+.disabled-row {
   opacity: 0.6;
 }
 
-.status-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: none;
-  font-size: 12px;
-  color: var(--muted);
+.status-toggle-btn,
+.primary-button,
+.ghost-button,
+.icon-btn {
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  background: white;
   cursor: pointer;
-  padding: 4px 8px;
-  margin-left: -8px;
-  border-radius: var(--radius-sm);
 }
-.status-toggle-btn:hover { background: var(--surface-cream-strong); }
-.status-toggle-btn.active { color: var(--success); font-weight: 500; }
 
-.name-content { display: flex; align-items: center; gap: 8px; }
-.name-content strong { font-weight: 500; }
-.td-channel { color: var(--muted); }
+.primary-button,
+.ghost-button {
+  padding: 10px 16px;
+}
+
+.status-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.status-toggle-btn.active {
+  color: var(--ink);
+}
+
+.status-toggle-btn.inactive {
+  color: var(--muted);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-active {
+  background: #16a34a;
+}
+
+.dot-inactive {
+  background: #d97706;
+}
+
+.name-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mono-text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
 
 .table-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 8px;
 }
 
-/* Tutor Section */
-.tutor-status {
-  font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-weight: 500;
+.icon-btn {
+  width: 32px;
+  height: 32px;
 }
-.tutor-status.active { background: rgba(93,184,114,0.1); color: var(--success); }
-.tutor-status.inactive { background: var(--surface-cream-strong); color: var(--muted); }
+
+.icon-btn.danger {
+  color: var(--error);
+}
+
+.tutor-status {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.tutor-status.active {
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+}
+
+.tutor-status.inactive {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
 
 .tutor-config-area {
   margin-top: 16px;
-  animation: slideDown 0.3s ease;
 }
 
-.editorial-card {
-  background: var(--surface-card);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-md);
-  margin-bottom: 16px;
+.card-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .switch-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--hairline);
+  justify-content: space-between;
 }
 
 .card-title {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 16px;
 }
 
 .card-body {
-  padding: 24px;
-  transition: opacity 0.3s;
+  padding: 20px;
 }
 
 .disabled-area {
-  opacity: 0.5;
-  pointer-events: none;
+  opacity: 0.55;
 }
 
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
+.switch-container {
+  position: relative;
+  display: inline-flex;
+}
+
+.switch-slider {
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--hairline);
+  position: relative;
+}
+
+.switch-slider::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s ease;
+}
+
+input:checked + .switch-slider {
+  background: var(--primary);
+}
+
+input:checked + .switch-slider::after {
+  transform: translateX(18px);
+}
+
+.input-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
 
-.success-text { color: var(--success); font-size: 13px; }
-
-/* Badges & Shared */
-.badge {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-}
-.badge-provider { background: var(--surface-cream-strong); color: var(--muted); }
-.badge-format { background: var(--canvas); border: 1px solid var(--hairline); color: var(--muted); }
-.badge-type { font-size: 10px; border: 1px solid var(--hairline); color: var(--muted); }
-.badge-type.both { color: var(--primary); border-color: rgba(204, 120, 92, 0.3); background: rgba(204, 120, 92, 0.05); }
-
-.mono-text { font-family: var(--font-mono); font-size: 12px; }
-.error-text { color: var(--error); font-weight: 500; }
-
-/* Overlays & Modals */
-.overlay-backdrop {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(20, 20, 19, 0.4);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: fadeIn 0.2s ease;
-}
-
-.overlay-panel {
-  background: var(--canvas);
-  border-radius: var(--radius-lg);
-  width: 100%;
-  max-width: 500px;
-  box-shadow: 0 24px 48px rgba(0,0,0,0.1);
-  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  overflow: hidden;
-}
-
-.overlay-title {
-  padding: 20px 24px;
-  margin: 0;
-  font-family: var(--font-inter);
-  font-size: 18px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--hairline);
-  background: var(--surface-card);
-}
-
-.overlay-form {
-  padding: 24px;
+.input-group {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
-
-.input-row { display: flex; gap: 16px; }
-.input-group { display: flex; flex-direction: column; gap: 8px; flex: 1; }
-.input-group label { font-size: 13px; font-weight: 500; color: var(--muted); }
-
-.editorial-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-sm);
-  background: var(--canvas);
-  font-family: var(--font-inter);
-  font-size: 14px;
-  color: var(--ink);
-  transition: border-color 0.2s;
-  outline: none;
-}
-.editorial-input:focus { border-color: var(--primary); }
-
-.help-text { font-size: 12px; color: var(--muted-soft); }
-
-.overlay-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--hairline);
-}
-
-.info-banner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  margin-bottom: 16px;
-  background: #fffdf5;
-  border: 1px solid #fce8a6;
-  color: #8c6b00;
-}
-
-/* Discover Modal specifics */
-.discovering-state {
-  text-align: center;
-  padding: 40px;
-  color: var(--muted);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.discover-group-title {
-  font-size: 14px;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
   gap: 8px;
 }
 
-.model-list-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.model-list-grid.text-only { grid-template-columns: repeat(3, 1fr); }
+.editorial-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: white;
+}
 
-.model-checkbox-item {
+.form-actions,
+.overlay-actions {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: flex-end;
   gap: 12px;
-  padding: 10px;
+  margin-top: 16px;
+}
+
+.success-text {
+  color: var(--success);
+}
+
+.error-text {
+  color: var(--error);
+}
+
+.overlay-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 19, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.overlay-panel {
+  width: min(680px, 100%);
+  background: white;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--hairline);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  background: var(--canvas);
-}
-.model-checkbox-item:hover { background: var(--surface-card); }
-.model-checkbox-item input { margin-top: 4px; }
-
-.model-info { display: flex; flex-direction: column; }
-.model-info strong { font-size: 13px; font-weight: 500; }
-.model-info span { font-size: 11px; color: var(--muted); text-transform: uppercase; }
-
-.model-text-item {
-  padding: 8px 10px;
-  background: var(--surface-card);
-  border-radius: var(--radius-sm);
-  font-size: 11px;
-  font-family: var(--font-mono);
-  border: 1px solid var(--hairline);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding: 24px;
 }
 
-/* Switch styling */
-.switch-container { position: relative; display: inline-block; width: 40px; height: 24px; }
-.switch-slider {
-  position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-  background-color: var(--muted-soft); transition: .3s; border-radius: 24px;
+.overlay-title {
+  margin: 0 0 16px;
 }
-.switch-slider:before {
-  position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
-  background-color: white; transition: .3s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-input:checked + .switch-slider { background-color: var(--success); }
-input:checked + .switch-slider:before { transform: translateX(16px); }
 
-/* Animations */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes spin { 100% { transform: rotate(360deg); } }
-.spin { animation: spin 1s linear infinite; }
+.overlay-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .page-header,
+  .gateway-banner,
+  .section-header,
+  .form-actions,
+  .overlay-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-actions,
+  .input-row {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+}
 </style>

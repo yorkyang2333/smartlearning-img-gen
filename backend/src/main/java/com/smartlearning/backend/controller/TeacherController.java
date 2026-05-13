@@ -10,6 +10,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import com.smartlearning.backend.entity.TutorConfig;
 import com.smartlearning.backend.entity.User;
 import com.smartlearning.backend.entity.Template;
+import com.smartlearning.backend.entity.LiteLlmConfig;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.UserRepository;
 import com.smartlearning.backend.repository.TemplateRepository;
@@ -26,7 +27,8 @@ import com.smartlearning.backend.entity.Generation;
 import com.smartlearning.backend.entity.Model;
 import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.ModelRepository;
-import com.smartlearning.backend.service.ModelDiscoveryService;
+import com.smartlearning.backend.service.LiteLlmConfigService;
+import com.smartlearning.backend.service.LiteLlmModelSyncService;
 import com.smartlearning.backend.util.ModelConfigUtil;
 
 @RestController
@@ -56,10 +58,10 @@ public class TeacherController {
     private ModelRepository modelRepository;
 
     @Autowired
-    private com.smartlearning.backend.repository.ApiEndpointRepository apiEndpointRepository;
+    private LiteLlmModelSyncService liteLlmModelSyncService;
 
     @Autowired
-    private ModelDiscoveryService modelDiscoveryService;
+    private LiteLlmConfigService liteLlmConfigService;
 
     private String getTeacherId() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -199,9 +201,37 @@ public class TeacherController {
         if (configDetails.getEnabled() != null) config.setEnabled(configDetails.getEnabled());
         if (configDetails.getSystemPrompt() != null) config.setSystemPrompt(configDetails.getSystemPrompt());
         if (configDetails.getModelName() != null) config.setModelName(configDetails.getModelName());
-        if (configDetails.getApiEndpointId() != null) config.setApiEndpointId(configDetails.getApiEndpointId());
+        config.setApiEndpointId(null);
         
         return ResponseEntity.ok(tutorConfigRepository.save(config));
+    }
+
+    @GetMapping("/litellm-config")
+    public ResponseEntity<Map<String, Object>> getLiteLlmConfig() {
+        LiteLlmConfig config = liteLlmConfigService.getOrCreate();
+        LiteLlmConfigService.ResolvedLiteLlmConfig resolved = liteLlmConfigService.getResolvedConfig();
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("enabled", config.getEnabled());
+        payload.put("baseUrl", config.getBaseUrl());
+        payload.put("apiKey", config.getApiKey() == null ? "" : config.getApiKey());
+        payload.put("updatedAt", config.getUpdatedAt());
+        payload.put("resolvedBaseUrl", resolved.baseUrl());
+        payload.put("usingFallback", config.getBaseUrl() == null || config.getBaseUrl().isBlank());
+        return ResponseEntity.ok(payload);
+    }
+
+    @PutMapping("/litellm-config")
+    public ResponseEntity<Map<String, Object>> updateLiteLlmConfig(@RequestBody LiteLlmConfig configDetails) {
+        LiteLlmConfig saved = liteLlmConfigService.update(configDetails);
+        LiteLlmConfigService.ResolvedLiteLlmConfig resolved = liteLlmConfigService.getResolvedConfig();
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("success", true);
+        payload.put("enabled", saved.getEnabled());
+        payload.put("baseUrl", saved.getBaseUrl());
+        payload.put("apiKey", saved.getApiKey() == null ? "" : saved.getApiKey());
+        payload.put("updatedAt", saved.getUpdatedAt());
+        payload.put("resolvedBaseUrl", resolved.baseUrl());
+        return ResponseEntity.ok(payload);
     }
 
     // --- STUDENTS ---
@@ -269,64 +299,12 @@ public class TeacherController {
         templateRepository.delete(template);
         return ResponseEntity.ok().build();
     }
-    @GetMapping("/endpoints")
-    public ResponseEntity<List<java.util.Map<String, Object>>> getEndpoints() {
-        List<com.smartlearning.backend.entity.ApiEndpoint> endpoints = apiEndpointRepository.findAll();
-        List<java.util.Map<String, Object>> result = new java.util.ArrayList<>();
-        
-        for (com.smartlearning.backend.entity.ApiEndpoint ep : endpoints) {
-            java.util.Map<String, Object> map = new java.util.HashMap<>();
-            map.put("id", ep.getId());
-            map.put("name", ep.getName());
-            map.put("baseUrl", ep.getBaseUrl());
-            map.put("apiKey", ep.getApiKey());
-            map.put("apiFormat", ep.getApiFormat());
-            map.put("createdAt", ep.getCreatedAt());
-            
-            java.util.Map<String, Object> countMap = new java.util.HashMap<>();
-            countMap.put("models", modelRepository.countByApiEndpointId(ep.getId()));
-            map.put("_count", countMap);
-            
-            result.add(map);
-        }
-        
-        return ResponseEntity.ok(result);
-    }
-
-    @PostMapping("/endpoints")
-    public ResponseEntity<com.smartlearning.backend.entity.ApiEndpoint> createEndpoint(@RequestBody com.smartlearning.backend.entity.ApiEndpoint endpoint) {
-        if (endpoint.getApiFormat() == null) {
-            endpoint.setApiFormat("openai");
-        }
-        return ResponseEntity.ok(apiEndpointRepository.save(endpoint));
-    }
-
-    @PutMapping("/endpoints/{id}")
-    public ResponseEntity<com.smartlearning.backend.entity.ApiEndpoint> updateEndpoint(@PathVariable String id, @RequestBody com.smartlearning.backend.entity.ApiEndpoint endpointDetails) {
-        com.smartlearning.backend.entity.ApiEndpoint endpoint = apiEndpointRepository.findById(id).orElseThrow();
-        endpoint.setName(endpointDetails.getName());
-        endpoint.setBaseUrl(endpointDetails.getBaseUrl());
-        endpoint.setApiKey(endpointDetails.getApiKey());
-        if (endpointDetails.getApiFormat() != null) {
-            endpoint.setApiFormat(endpointDetails.getApiFormat());
-        }
-        return ResponseEntity.ok(apiEndpointRepository.save(endpoint));
-    }
-
-    @PostMapping("/endpoints/{id}/discover")
-    public ResponseEntity<Map<String, Object>> discoverModels(@PathVariable String id) {
-        com.smartlearning.backend.entity.ApiEndpoint endpoint = apiEndpointRepository.findById(id).orElseThrow();
-        Map<String, Object> result = modelDiscoveryService.discoverModels(endpoint);
-        return ResponseEntity.ok(result);
-    }
-
-    @DeleteMapping("/endpoints/{id}")
-    public ResponseEntity<?> deleteEndpoint(@PathVariable String id) {
-        apiEndpointRepository.deleteById(id);
-        return ResponseEntity.ok().build();
-    }
-
     // --- MODELS ---
+    @PostMapping("/models/sync")
+    public ResponseEntity<Map<String, Object>> syncModels() {
+        return ResponseEntity.ok(liteLlmModelSyncService.syncModels());
+    }
+
     @GetMapping("/models")
     public ResponseEntity<List<java.util.Map<String, Object>>> getModels() {
         List<com.smartlearning.backend.entity.Model> models = modelRepository.findAllByOrderBySortOrderAsc();
@@ -343,18 +321,7 @@ public class TeacherController {
             map.put("config", ModelConfigUtil.normalizeConfig(m.getModelId(), m.getType(), m.getApiFormat(), m.getConfig()));
             map.put("isActive", m.getIsActive());
             map.put("sortOrder", m.getSortOrder());
-            map.put("apiFormat", m.getApiFormat());
-            map.put("apiEndpointId", m.getApiEndpointId());
             map.put("createdAt", m.getCreatedAt());
-            
-            if (m.getApiEndpointId() != null) {
-                apiEndpointRepository.findById(m.getApiEndpointId()).ifPresent(ep -> {
-                    java.util.Map<String, Object> epMap = new java.util.HashMap<>();
-                    epMap.put("id", ep.getId());
-                    epMap.put("name", ep.getName());
-                    map.put("apiEndpoint", epMap);
-                });
-            }
             result.add(map);
         }
         
@@ -363,9 +330,8 @@ public class TeacherController {
 
     @PostMapping("/models")
     public ResponseEntity<com.smartlearning.backend.entity.Model> createModel(@RequestBody com.smartlearning.backend.entity.Model model) {
-        if (model.getApiFormat() == null) {
-            model.setApiFormat("openai");
-        }
+        model.setApiFormat("openai");
+        model.setApiEndpointId(null);
         model.setConfig(ModelConfigUtil.normalizeConfig(model.getModelId(), model.getType(), model.getApiFormat(), model.getConfig()));
         return ResponseEntity.ok(modelRepository.save(model));
     }
@@ -380,10 +346,8 @@ public class TeacherController {
         model.setDescription(modelDetails.getDescription());
         model.setIsActive(modelDetails.getIsActive());
         model.setSortOrder(modelDetails.getSortOrder());
-        if (modelDetails.getApiFormat() != null) {
-            model.setApiFormat(modelDetails.getApiFormat());
-        }
-        model.setApiEndpointId(modelDetails.getApiEndpointId());
+        model.setApiFormat("openai");
+        model.setApiEndpointId(null);
         model.setConfig(ModelConfigUtil.normalizeConfig(model.getModelId(), model.getType(), model.getApiFormat(), modelDetails.getConfig()));
         return ResponseEntity.ok(modelRepository.save(model));
     }
@@ -393,9 +357,8 @@ public class TeacherController {
         List<com.smartlearning.backend.entity.Model> savedModels = new ArrayList<>();
         for (com.smartlearning.backend.entity.Model model : models) {
             if (!modelRepository.existsByModelId(model.getModelId())) {
-                if (model.getApiFormat() == null) {
-                    model.setApiFormat("openai");
-                }
+                model.setApiFormat("openai");
+                model.setApiEndpointId(null);
                 model.setConfig(ModelConfigUtil.normalizeConfig(model.getModelId(), model.getType(), model.getApiFormat(), model.getConfig()));
                 savedModels.add(modelRepository.save(model));
             }

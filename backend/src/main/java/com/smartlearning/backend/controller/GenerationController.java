@@ -4,7 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartlearning.backend.entity.*;
 import com.smartlearning.backend.repository.*;
-import com.smartlearning.backend.service.AiService;
+import com.smartlearning.backend.service.GatewayAiClient;
+import com.smartlearning.backend.util.LiteLlmResponseUtil;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -29,13 +30,10 @@ public class GenerationController {
     private UserRepository userRepository;
 
     @Autowired
-    private AiService aiService;
+    private GatewayAiClient gatewayAiClient;
 
     @Autowired
     private ModelRepository modelRepository;
-
-    @Autowired
-    private ApiEndpointRepository apiEndpointRepository;
 
     @Autowired
     private ConversationRepository conversationRepository;
@@ -57,8 +55,7 @@ public class GenerationController {
             @RequestParam("size") String size,
             @RequestParam(value = "conversationId", required = false) String conversationId,
             @RequestParam("image") MultipartFile image) {
-        // Mock uploading image for now, and process generation
-        return processGeneration(prompt, modelId, size, conversationId, "mock_uploaded_image_url");
+        return processGenerationWithReference(prompt, modelId, size, conversationId, image);
     }
 
     private ResponseEntity<?> processGeneration(String prompt, String modelId, String size, String conversationId, String inputImageUrl) {
@@ -66,18 +63,11 @@ public class GenerationController {
             UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
 
-            // 1. Fetch Model and API Key from database
+            // 1. Fetch model configuration from the application model directory
             Model aiModel = modelRepository.findByModelId(modelId).orElse(null);
             if (aiModel == null) {
                 aiModel = modelRepository.findAll().stream().findFirst().orElseThrow(() -> new RuntimeException("No AI Model configured"));
             }
-
-            ApiEndpoint endpoint = apiEndpointRepository.findById(aiModel.getApiEndpointId())
-                    .orElseThrow(() -> new RuntimeException("API Endpoint not found for model"));
-
-            String apiKey = endpoint.getApiKey();
-            String baseUrl = endpoint.getBaseUrl();
-            String apiFormat = aiModel.getApiFormat();
 
             Map<String, Object> config = new HashMap<>();
             if (size != null && !size.isEmpty()) {
@@ -94,13 +84,13 @@ public class GenerationController {
 
             long startTime = System.currentTimeMillis();
             
-            // 2. Call AI Service
-            String apiResponse = aiService.generateImage(prompt, aiModel.getModelId(), apiKey, baseUrl, apiFormat, config);
+            // 2. Call LiteLLM gateway
+            String apiResponse = gatewayAiClient.generateImage(prompt, aiModel.getModelId(), config);
             
             long durationMs = System.currentTimeMillis() - startTime;
 
             // Extract image URL from response
-            String outputImageUrl = extractImageUrl(apiResponse, apiFormat);
+            String outputImageUrl = LiteLlmResponseUtil.extractImageUrl(apiResponse);
 
             // 3. Save to DB
             Generation generation = new Generation();
@@ -130,65 +120,65 @@ public class GenerationController {
         }
     }
 
-    private String extractImageUrl(String apiResponse, String apiFormat) {
+    private ResponseEntity<?> processGenerationWithReference(String prompt, String modelId, String size, String conversationId, MultipartFile image) {
         try {
-            JsonNode root = objectMapper.readTree(apiResponse);
-            if ("gemini".equalsIgnoreCase(apiFormat)) {
-                // New Gemini format (generateContent)
-                if (root.has("candidates") && root.get("candidates").isArray() && root.get("candidates").size() > 0) {
-                    JsonNode candidate = root.get("candidates").get(0);
-                    if (candidate.has("content") && candidate.get("content").has("parts")) {
-                        for (JsonNode part : candidate.get("content").get("parts")) {
-                            // Support both camelCase and snake_case
-                            JsonNode imageData = part.has("inlineData") ? part.get("inlineData") : part.get("inline_data");
-                            if (imageData != null) {
-                                String mimeType = imageData.has("mimeType") ? imageData.get("mimeType").asText() : imageData.get("mime_type").asText();
-                                String data = imageData.get("data").asText();
-                                return "data:" + mimeType + ";base64," + data;
-                            }
-                            
-                            // Support text parts that might contain markdown image links (some Gemini proxies do this)
-                            if (part.has("text")) {
-                                String textContent = part.get("text").asText();
-                                java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("!\\[.*?\\]\\((.*?)\\)").matcher(textContent);
-                                if (matcher.find()) {
-                                    return matcher.group(1);
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                // OpenAI format
-                if (root.has("data") && root.get("data").isArray() && root.get("data").size() > 0) {
-                    JsonNode firstData = root.get("data").get(0);
-                    if (firstData.has("url")) {
-                        return firstData.get("url").asText();
-                    } else if (firstData.has("b64_json")) {
-                        return "data:image/png;base64," + firstData.get("b64_json").asText();
-                    }
-                } else if (root.has("choices") && root.get("choices").isArray() && root.get("choices").size() > 0) {
-                    // Legacy proxy format: Some proxies return chat completions for image generation models
-                    JsonNode message = root.get("choices").get(0).get("message");
-                    if (message != null && message.has("content")) {
-                        String content = message.get("content").asText();
-                        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("!\\[.*?\\]\\((.*?)\\)").matcher(content);
-                        if (matcher.find()) {
-                            return matcher.group(1);
-                        } else {
-                            // If no markdown image is found, but there is content, return it as the rawUrl. 
-                            // It might be a raw URL string or base64 without markdown.
-                            return content;
-                        }
-                    }
-                }
+            UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            User user = userRepository.findByUsername(userDetails.getUsername()).orElseThrow();
+
+            Model aiModel = modelRepository.findByModelId(modelId).orElse(null);
+            if (aiModel == null) {
+                aiModel = modelRepository.findAll().stream().findFirst().orElseThrow(() -> new RuntimeException("No AI Model configured"));
             }
+
+            Map<String, Object> config = new HashMap<>();
+            if (size != null && !size.isEmpty()) {
+                config.put("size", size);
+            }
+
+            if (conversationId == null || conversationId.isEmpty()) {
+                Conversation conv = new Conversation();
+                conv.setUserId(user.getId());
+                conv.setTitle(prompt.length() > 20 ? prompt.substring(0, 20) + "..." : prompt);
+                conversationId = conversationRepository.save(conv).getId();
+            }
+
+            long startTime = System.currentTimeMillis();
+            String apiResponse = gatewayAiClient.editImage(
+                prompt,
+                aiModel.getModelId(),
+                image.getBytes(),
+                image.getOriginalFilename() != null ? image.getOriginalFilename() : "reference.png",
+                image.getContentType(),
+                config
+            );
+            long durationMs = System.currentTimeMillis() - startTime;
+
+            String outputImageUrl = LiteLlmResponseUtil.extractImageUrl(apiResponse);
+
+            Generation generation = new Generation();
+            generation.setUserId(user.getId());
+            generation.setModelId(aiModel.getModelId());
+            generation.setType(aiModel.getType());
+            generation.setPrompt(prompt);
+            generation.setInputImageUrl("uploaded:" + (image.getOriginalFilename() != null ? image.getOriginalFilename() : "reference.png"));
+            generation.setOutputImageUrl(outputImageUrl);
+            generation.setSize(size);
+            generation.setDurationMs((int) durationMs);
+            generation.setConversationId(conversationId);
+
+            generation = generationRepository.save(generation);
+
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "rawUrl", outputImageUrl,
+                "generationId", generation.getId(),
+                "conversationId", conversationId,
+                "data", Map.of("durationMs", durationMs)
+            ));
         } catch (Exception e) {
-            String sample = apiResponse.length() > 300 ? apiResponse.substring(0, 300) + "..." : apiResponse;
-            System.err.println("Failed to extract image URL. Response sample: " + sample);
             e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
-        return null;
     }
 
     @PostMapping("/optimize-prompt")
@@ -196,19 +186,16 @@ public class GenerationController {
         try {
             String prompt = request.get("prompt");
             TutorConfig tutorConfig = getTutorConfig();
-            if (tutorConfig == null) return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
-
-            ApiEndpoint endpoint = apiEndpointRepository.findById(tutorConfig.getApiEndpointId()).orElseThrow();
+            if (tutorConfig == null || tutorConfig.getModelName() == null || tutorConfig.getModelName().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
+            }
             
             String systemPrompt = "你是一个文生图专家。请将用户提供的原始提示词优化为更具艺术感、细节更丰富、更容易生成高质量图片的专业提示词。仅返回优化后的提示词，不要有其他解释。";
             String userMessage = "原始提示词：" + prompt;
 
-            String response = aiService.generateChatResponse(
-                systemPrompt, userMessage, tutorConfig.getModelName(), 
-                endpoint.getApiKey(), endpoint.getBaseUrl(), endpoint.getApiFormat()
-            );
+            String response = gatewayAiClient.generateChatResponse(systemPrompt, userMessage, tutorConfig.getModelName());
 
-            String content = extractChatContent(response, endpoint.getApiFormat());
+            String content = LiteLlmResponseUtil.extractChatContent(response);
             return ResponseEntity.ok(Map.of("success", true, "optimized", content.trim()));
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
@@ -220,19 +207,16 @@ public class GenerationController {
         try {
             String prompt = request.get("prompt");
             TutorConfig tutorConfig = getTutorConfig();
-            if (tutorConfig == null) return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
-
-            ApiEndpoint endpoint = apiEndpointRepository.findById(tutorConfig.getApiEndpointId()).orElseThrow();
+            if (tutorConfig == null || tutorConfig.getModelName() == null || tutorConfig.getModelName().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
+            }
             
             String systemPrompt = "你是一个文生图专家。请分析用户提供的原始提示词，并从构图、细节、光影、材质等维度给出改进建议。请返回 JSON 格式，包含 suggestions 数组，每个元素包含 dimension、currentStatus、suggestion 字段。";
             String userMessage = "原始提示词：" + prompt;
 
-            String response = aiService.generateChatResponse(
-                systemPrompt, userMessage, tutorConfig.getModelName(), 
-                endpoint.getApiKey(), endpoint.getBaseUrl(), endpoint.getApiFormat()
-            );
+            String response = gatewayAiClient.generateChatResponse(systemPrompt, userMessage, tutorConfig.getModelName());
 
-            String content = extractChatContent(response, endpoint.getApiFormat());
+            String content = LiteLlmResponseUtil.extractChatContent(response);
             content = content.replace("```json", "").replace("```", "").trim();
             
             return ResponseEntity.ok(Map.of("success", true, "data", objectMapper.readTree(content)));
@@ -249,9 +233,9 @@ public class GenerationController {
             
             Generation generation = generationRepository.findById(generationId).orElseThrow();
             TutorConfig tutorConfig = getTutorConfig();
-            if (tutorConfig == null) return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
-
-            ApiEndpoint endpoint = apiEndpointRepository.findById(tutorConfig.getApiEndpointId()).orElseThrow();
+            if (tutorConfig == null || tutorConfig.getModelName() == null || tutorConfig.getModelName().isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
+            }
             
             Map<String, Object> finalResults = new HashMap<>();
             
@@ -260,12 +244,11 @@ public class GenerationController {
                 String userMessage = "分析这个绘画作品。提示词是：" + generation.getPrompt();
                 String imageUrl = generation.getOutputImageUrl();
 
-                String response = aiService.generateChatResponseWithImage(
-                    systemPrompt, userMessage, imageUrl, tutorConfig.getModelName(), 
-                    endpoint.getApiKey(), endpoint.getBaseUrl(), endpoint.getApiFormat()
+                String response = gatewayAiClient.generateChatResponseWithImage(
+                    systemPrompt, userMessage, imageUrl, tutorConfig.getModelName()
                 );
 
-                String content = extractChatContent(response, endpoint.getApiFormat());
+                String content = LiteLlmResponseUtil.extractChatContent(response);
                 content = content.replace("```json", "").replace("```", "").trim();
                 finalResults.put(p, objectMapper.readTree(content));
             }
@@ -305,20 +288,6 @@ public class GenerationController {
             default:
                 return "你是一个美术导师。请评价这个作品。请返回 JSON 格式，包含 score, analysis, promptSuggestion。";
         }
-    }
-
-    private String extractChatContent(String response, String apiFormat) throws Exception {
-        JsonNode root = objectMapper.readTree(response);
-        if ("gemini".equalsIgnoreCase(apiFormat)) {
-            if (root.has("candidates") && root.get("candidates").isArray() && root.get("candidates").size() > 0) {
-                return root.get("candidates").get(0).get("content").get("parts").get(0).get("text").asText();
-            }
-        } else {
-            if (root.has("choices") && root.get("choices").isArray() && root.get("choices").size() > 0) {
-                return root.get("choices").get(0).get("message").get("content").asText();
-            }
-        }
-        return "";
     }
 
     @Data

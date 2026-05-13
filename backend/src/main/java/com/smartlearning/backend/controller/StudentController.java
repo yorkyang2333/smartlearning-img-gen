@@ -4,15 +4,14 @@ import com.smartlearning.backend.entity.Assignment;
 import com.smartlearning.backend.entity.Conversation;
 import com.smartlearning.backend.entity.User;
 import com.smartlearning.backend.entity.TutorConfig;
-import com.smartlearning.backend.entity.ApiEndpoint;
 import com.smartlearning.backend.repository.AssignmentRepository;
 import com.smartlearning.backend.repository.ConversationRepository;
 import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.UserRepository;
 import com.smartlearning.backend.repository.TutorConfigRepository;
-import com.smartlearning.backend.repository.ApiEndpointRepository;
 import com.smartlearning.backend.repository.ModelRepository;
-import com.smartlearning.backend.service.AiService;
+import com.smartlearning.backend.service.GatewayAiClient;
+import com.smartlearning.backend.util.LiteLlmResponseUtil;
 import com.smartlearning.backend.util.ModelConfigUtil;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,13 +48,10 @@ public class StudentController {
     private TutorConfigRepository tutorConfigRepository;
 
     @Autowired
-    private ApiEndpointRepository apiEndpointRepository;
-
-    @Autowired
     private ModelRepository modelRepository;
 
     @Autowired
-    private AiService aiService;
+    private GatewayAiClient gatewayAiClient;
 
     private User getCurrentStudent() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -184,49 +180,22 @@ public class StudentController {
         }
 
         TutorConfig tutorConfig = tutorConfigRepository.findByTeacherId(student.getTeacherId()).orElse(null);
-        if (tutorConfig == null || !tutorConfig.getEnabled() || tutorConfig.getApiEndpointId() == null) {
+        if (tutorConfig == null || !tutorConfig.getEnabled() || tutorConfig.getModelName() == null || tutorConfig.getModelName().isBlank()) {
             return ResponseEntity.ok(Map.of(
                 "role", "assistant",
                 "content", "您的老师暂时没有启用AI学伴功能。"
             ));
         }
 
-        ApiEndpoint endpoint = apiEndpointRepository.findById(tutorConfig.getApiEndpointId()).orElse(null);
-        if (endpoint == null) {
-            return ResponseEntity.ok(Map.of(
-                "role", "assistant",
-                "content", "AI学伴渠道配置异常，请联系老师检查系统配置。"
-            ));
-        }
-
         try {
-            String rawResponse = aiService.generateChatResponse(
+            String rawResponse = gatewayAiClient.generateChatResponse(
                 tutorConfig.getSystemPrompt(),
                 userMessage,
-                tutorConfig.getModelName(),
-                endpoint.getApiKey(),
-                endpoint.getBaseUrl(),
-                endpoint.getApiFormat()
+                tutorConfig.getModelName()
             );
-
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode root = mapper.readTree(rawResponse);
-            
-            String replyContent = "抱歉，无法解析AI返回的响应。";
-            if ("gemini".equalsIgnoreCase(endpoint.getApiFormat())) {
-                if (root.has("candidates") && root.get("candidates").isArray() && root.get("candidates").size() > 0) {
-                    JsonNode candidate = root.get("candidates").get(0);
-                    if (candidate.has("content") && candidate.get("content").has("parts") && candidate.get("content").get("parts").isArray()) {
-                        replyContent = candidate.get("content").get("parts").get(0).get("text").asText();
-                    }
-                }
-            } else {
-                if (root.has("choices") && root.get("choices").isArray() && root.get("choices").size() > 0) {
-                    JsonNode messageNode = root.get("choices").get(0).get("message");
-                    if (messageNode != null && messageNode.has("content")) {
-                        replyContent = messageNode.get("content").asText();
-                    }
-                }
+            String replyContent = LiteLlmResponseUtil.extractChatContent(rawResponse);
+            if (replyContent == null || replyContent.isBlank()) {
+                replyContent = "抱歉，无法解析AI返回的响应。";
             }
 
             return ResponseEntity.ok(Map.of(

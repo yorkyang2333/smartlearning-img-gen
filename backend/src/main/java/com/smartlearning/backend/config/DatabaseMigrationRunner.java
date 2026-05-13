@@ -1,7 +1,11 @@
 package com.smartlearning.backend.config;
 
 import com.smartlearning.backend.entity.Model;
+import com.smartlearning.backend.entity.TutorConfig;
+import com.smartlearning.backend.entity.LiteLlmConfig;
+import com.smartlearning.backend.repository.LiteLlmConfigRepository;
 import com.smartlearning.backend.repository.ModelRepository;
+import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.util.ModelConfigUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -18,6 +22,12 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
 
     @Autowired
     private ModelRepository modelRepository;
+
+    @Autowired
+    private TutorConfigRepository tutorConfigRepository;
+
+    @Autowired
+    private LiteLlmConfigRepository liteLlmConfigRepository;
 
     @Override
     public void run(String... args) throws Exception {
@@ -47,6 +57,11 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
                     model.setConfig(normalizedConfig);
                     hasChanges = true;
                 }
+
+                if (model.getApiEndpointId() != null) {
+                    model.setApiEndpointId(null);
+                    hasChanges = true;
+                }
             }
 
             if (hasChanges) {
@@ -55,6 +70,34 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
             }
         } catch (Exception e) {
             System.err.println("Model config normalization warning: " + e.getMessage());
+        }
+
+        try {
+            List<TutorConfig> configs = tutorConfigRepository.findAll();
+            boolean hasChanges = false;
+            for (TutorConfig config : configs) {
+                if (config.getApiEndpointId() != null) {
+                    config.setApiEndpointId(null);
+                    hasChanges = true;
+                }
+            }
+            if (hasChanges) {
+                tutorConfigRepository.saveAll(configs);
+                System.out.println("Successfully detached tutor configs from legacy endpoints.");
+            }
+        } catch (Exception e) {
+            System.err.println("Tutor config migration warning: " + e.getMessage());
+        }
+
+        try {
+            if (!liteLlmConfigRepository.existsById("default")) {
+                LiteLlmConfig config = new LiteLlmConfig();
+                config.setId("default");
+                liteLlmConfigRepository.save(config);
+                System.out.println("Successfully created default LiteLLM config row.");
+            }
+        } catch (Exception e) {
+            System.err.println("LiteLLM config bootstrap warning: " + e.getMessage());
         }
     }
 }

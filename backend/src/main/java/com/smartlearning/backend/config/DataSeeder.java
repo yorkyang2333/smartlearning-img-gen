@@ -1,10 +1,8 @@
 package com.smartlearning.backend.config;
 
-import com.smartlearning.backend.entity.ApiEndpoint;
 import com.smartlearning.backend.entity.Model;
 import com.smartlearning.backend.entity.TutorConfig;
 import com.smartlearning.backend.entity.User;
-import com.smartlearning.backend.repository.ApiEndpointRepository;
 import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.UserRepository;
@@ -19,9 +17,6 @@ public class DataSeeder implements CommandLineRunner {
 
     @Autowired
     private UserRepository userRepository;
-
-    @Autowired
-    private ApiEndpointRepository apiEndpointRepository;
 
     @Autowired
     private ModelRepository modelRepository;
@@ -58,33 +53,28 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("教师账号 - 用户名: teacher, 密码: 123456");
             System.out.println("学生账号 - 用户名: student, 密码: 123456");
 
-            // Create Default ChatAnywhere Endpoint
-            ApiEndpoint chatAnywhere = new ApiEndpoint();
-            chatAnywhere.setName("ChatAnywhere");
-            chatAnywhere.setBaseUrl("https://api.chatanywhere.tech/v1");
-            chatAnywhere.setApiKey("sk-your-chatanywhere-key-here");
-            apiEndpointRepository.save(chatAnywhere);
-
             // Create Default Models
-            modelRepository.save(createModel("DALL-E 3 (生图)", "dall-e-3", "TEXT_TO_IMAGE", "openai", "高质量AI图像生成模型", chatAnywhere.getId()));
-            modelRepository.save(createModel("GPT Image 2", "gpt-image-2", "TEXT_TO_IMAGE", "openai", "优质AI图像生成", chatAnywhere.getId()));
-            modelRepository.save(createModel("Gemini 3.1 Flash Image", "gemini-3.1-flash-image-preview", "TEXT_TO_IMAGE", "google", "Google Gemini的高速生图模型", chatAnywhere.getId()));
+            modelRepository.save(createModel("DALL-E 3 (生图)", "dall-e-3", "TEXT_TO_IMAGE", "openai", "高质量AI图像生成模型"));
+            modelRepository.save(createModel("GPT Image 2", "gpt-image-2", "BOTH", "openai", "优质AI图像生成与编辑"));
+            modelRepository.save(createModel("Gemini 3.1 Flash Image", "gemini/gemini-3.1-flash-image-preview", "TEXT_TO_IMAGE", "google", "Google Gemini 的高速生图模型"));
+            modelRepository.save(createModel("GPT-4o", "gpt-4o", "TEXT_GENERATION", "openai", "多模态分析与导师对话"));
+            modelRepository.save(createModel("Claude 3.5 Sonnet", "claude-3-5-sonnet-latest", "TEXT_GENERATION", "anthropic", "长文本分析与教学反馈"));
 
             // Set up Default Tutor Config
             TutorConfig tutorConfig = new TutorConfig();
             tutorConfig.setTeacherId(teacher.getId());
             tutorConfig.setEnabled(true);
             tutorConfig.setModelName("gpt-4o");
-            tutorConfig.setApiEndpointId(chatAnywhere.getId());
+            tutorConfig.setApiEndpointId(null);
             tutorConfig.setSystemPrompt("你是一个专业、耐心、富有启发性的AI美术导师。请用温和、鼓励的语气指导学生进行艺术创作。");
             tutorConfigRepository.save(tutorConfig);
 
-            System.out.println("✅ 已自动配置默认 ChatAnywhere 渠道、模型和 AI 学伴。");
-            System.out.println("⚠️ 请登录教师端，在【系统配置】中更新真实的 API Key。");
+            System.out.println("✅ 已自动配置默认模型目录和 AI 学伴。");
+            System.out.println("⚠️ 请通过环境变量 LITELLM_BASE_URL / LITELLM_API_KEY 连接 LiteLLM 网关。");
         }
     }
 
-    private Model createModel(String name, String modelId, String type, String provider, String desc, String endpointId) {
+    private Model createModel(String name, String modelId, String type, String provider, String desc) {
         Model m = new Model();
         m.setName(name);
         m.setModelId(modelId);
@@ -92,10 +82,10 @@ public class DataSeeder implements CommandLineRunner {
         m.setProvider(provider);
         m.setDescription(desc);
         m.setApiFormat("openai");
-        m.setConfig(type.equals("TEXT_TO_IMAGE")
+        m.setConfig(("TEXT_TO_IMAGE".equals(type) || "BOTH".equals(type))
             ? ModelConfigUtil.buildImageConfigJson(modelId, m.getApiFormat())
             : "{}");
-        m.setApiEndpointId(endpointId);
+        m.setApiEndpointId(null);
         return m;
     }
 }
