@@ -338,67 +338,65 @@ public class GenerationController {
     public SseEmitter tutorChatStream(@RequestBody Map<String, String> request) {
         SseEmitter emitter = new SseEmitter(180000L); // 3 minutes timeout
 
-        new Thread(() -> {
-            try {
-                String generationId = request.get("generationId");
-                String message = request.get("message");
+        try {
+            String generationId = request.get("generationId");
+            String message = request.get("message");
 
-                TutorConfig tutorConfig = getTutorConfig();
-                if (tutorConfig == null || tutorConfig.getModelName() == null || tutorConfig.getModelName().isBlank()) {
-                    emitter.send(SseEmitter.event().name("error").data(Map.of("error", "AI 导师未配置")));
-                    emitter.complete();
-                    return;
-                }
+            TutorConfig tutorConfig = getTutorConfig();
+            if (tutorConfig == null || tutorConfig.getModelName() == null || tutorConfig.getModelName().isBlank()) {
+                emitter.send(SseEmitter.event().name("error").data(Map.of("error", "AI 导师未配置")));
+                emitter.complete();
+                return emitter;
+            }
 
-                String systemPrompt = "你是一个友善的美术导师，正在辅导学生进行 AI 图片创作学习。请用简洁易懂的语言回答学生的问题，涉及构图、色彩、风格、光影等方面。回答应该有教育意义，帮助学生理解艺术原理。";
-                String userMessage = message;
+            String systemPrompt = "你是一个友善的美术导师，正在辅导学生进行 AI 图片创作学习。请用简洁易懂的语言回答学生的问题，涉及构图、色彩、风格、光影等方面。回答应该有教育意义，帮助学生理解艺术原理。";
+            String userMessage = message;
 
-                if (generationId != null && !generationId.isEmpty()) {
-                    Optional<Generation> genOpt = generationRepository.findById(generationId);
-                    if (genOpt.isPresent()) {
-                        Generation gen = genOpt.get();
-                        userMessage = "（上下文：学生正在查看一张由提示词「" + gen.getPrompt() + "」生成的图片）\n学生提问：" + message;
-                    }
-                }
-
-                gatewayAiClient.generateChatStream(
-                    systemPrompt, 
-                    userMessage, 
-                    tutorConfig.getModelName(),
-                    line -> {
-                        try {
-                            emitter.send(line);
-                        } catch (Exception e) {
-                            emitter.completeWithError(e);
-                        }
-                    },
-                    () -> {
-                        try {
-                            emitter.send(SseEmitter.event().name("done").data("[DONE]"));
-                            emitter.complete();
-                        } catch (Exception e) {
-                            emitter.completeWithError(e);
-                        }
-                    },
-                    err -> {
-                        try {
-                            emitter.send(SseEmitter.event().name("error").data(Map.of("error", err.getMessage())));
-                            emitter.completeWithError(err);
-                        } catch (Exception e) {
-                            emitter.completeWithError(e);
-                        }
-                    }
-                );
-
-            } catch (Exception e) {
-                try {
-                    emitter.send(SseEmitter.event().name("error").data(Map.of("error", e.getMessage())));
-                    emitter.completeWithError(e);
-                } catch (Exception ex) {
-                    emitter.completeWithError(ex);
+            if (generationId != null && !generationId.isEmpty()) {
+                Optional<Generation> genOpt = generationRepository.findById(generationId);
+                if (genOpt.isPresent()) {
+                    Generation gen = genOpt.get();
+                    userMessage = "（上下文：学生正在查看一张由提示词「" + gen.getPrompt() + "」生成的图片）\n学生提问：" + message;
                 }
             }
-        }).start();
+
+            gatewayAiClient.generateChatStream(
+                systemPrompt, 
+                userMessage, 
+                tutorConfig.getModelName(),
+                line -> {
+                    try {
+                        emitter.send(line);
+                    } catch (Exception e) {
+                        emitter.completeWithError(e);
+                    }
+                },
+                () -> {
+                    try {
+                        emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                        emitter.complete();
+                    } catch (Exception e) {
+                        emitter.completeWithError(e);
+                    }
+                },
+                err -> {
+                    try {
+                        emitter.send(SseEmitter.event().name("error").data(Map.of("error", err.getMessage())));
+                        emitter.completeWithError(err);
+                    } catch (Exception e) {
+                        emitter.completeWithError(e);
+                    }
+                }
+            );
+
+        } catch (Exception e) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data(Map.of("error", e.getMessage())));
+                emitter.completeWithError(e);
+            } catch (Exception ex) {
+                emitter.completeWithError(ex);
+            }
+        }
 
         return emitter;
     }
