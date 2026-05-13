@@ -147,8 +147,14 @@ const sendChat = async () => {
         const lines = buffer.split('\n')
         buffer = lines.pop() || '' 
         for (const line of lines) {
+          let dataStr = ''
           if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6)
+            dataStr = line.slice(6)
+          } else if (line.startsWith('data:')) {
+            dataStr = line.slice(5)
+          }
+
+          if (dataStr) {
             if (dataStr === '[DONE]') continue
             try {
               const data = JSON.parse(dataStr)
