@@ -396,7 +396,7 @@ const activeMsg = computed(() => {
 
 <template>
   <div class="workspace-layout">
-    <!-- 左侧画板与历史记录 -->
+    <!-- 中间画布区（最宽） -->
     <div class="canvas-area">
       <div class="canvas-main">
         <template v-if="activeMsg">
@@ -469,7 +469,7 @@ const activeMsg = computed(() => {
 
 
 
-    <!-- 右侧工作区 -->
+    <!-- 左侧参数控制台 -->
     <div class="workspace-sidebar">
       <div class="sidebar-inner">
         <div class="panel prompt-panel">
@@ -652,13 +652,26 @@ const activeMsg = computed(() => {
   overflow: hidden;
 }
 
-/* Left Canvas */
+/* Left Params Panel */
+.workspace-sidebar {
+  order: 1;
+  width: 380px;
+  min-width: 0;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0 24px 24px;
+  overflow-y: auto;
+}
+
+/* Center Canvas (widest) */
 .canvas-area {
+  order: 2;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  padding: 24px 16px 24px 24px;
+  padding: 24px 16px;
   max-width: 100%;
   transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -859,16 +872,7 @@ const activeMsg = computed(() => {
   object-fit: cover;
 }
 
-/* Right Sidebar */
-.workspace-sidebar {
-  width: 340px;
-  min-width: 0;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 24px 8px 24px 0;
-  overflow-y: auto;
-}
+
 
 .sidebar-inner {
   background: var(--canvas);
@@ -1193,6 +1197,7 @@ const activeMsg = computed(() => {
 .learning-steps {
   display: flex; align-items: center; gap: 0;
   padding: 16px 24px; border-top: 1px solid var(--hairline);
+  margin-top: auto;
 }
 .step {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
@@ -1223,6 +1228,7 @@ const activeMsg = computed(() => {
 
 /* Tutor Column (Third Column) */
 .tutor-column {
+  order: 3;
   width: 380px;
   min-width: 0;
   flex-shrink: 0;

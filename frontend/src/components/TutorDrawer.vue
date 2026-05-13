@@ -416,8 +416,14 @@ const handleChatKey = (e: KeyboardEvent) => {
 }
 
 /* Body */
-.drawer-body { flex: 1; overflow-y: auto; }
-.tab-content { padding: 20px 24px; }
+.drawer-body { 
+  flex: 1; overflow-y: auto; 
+  display: flex; flex-direction: column;
+}
+.tab-content { 
+  padding: 20px 24px; 
+  flex: 1; display: flex; flex-direction: column;
+}
 
 /* ===== REVIEW TAB ===== */
 .perspective-selector {
