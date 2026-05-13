@@ -97,7 +97,7 @@ const isChatting = ref(false)
 const chatScrollRef = ref<HTMLDivElement | null>(null)
 
 const sendChat = async () => {
-  if (!chatInput.value.trim() || !props.generationId) return
+  if (!chatInput.value.trim()) return
   const msg = chatInput.value.trim()
   chatMessages.value.push({ role: 'student', text: msg })
   chatInput.value = ''
@@ -615,6 +615,19 @@ const handleChatKey = (e: KeyboardEvent) => {
   background: rgba(204,120,92,0.04);
 }
 .opt-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(204, 120, 92, 0.2);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spinnerSpin 0.8s linear infinite;
+  display: inline-block;
+}
+@keyframes spinnerSpin {
+  to { transform: rotate(360deg); }
+}
 
 .opt-result, .opt-suggestions {
   background: white; border: 1px solid var(--primary);

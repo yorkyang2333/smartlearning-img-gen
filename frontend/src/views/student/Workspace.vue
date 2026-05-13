@@ -40,6 +40,7 @@ const modelMenuOpen = ref(false)
 const sizeMenuOpen = ref(false)
 const isBuilderOpen = ref(false)
 const isHelperOpen = ref(false)
+const isParamsCollapsed = ref(false)
 
 // Learning step: 1=构思 2=优化 3=生成 4=点评
 const learningStep = computed(() => {
@@ -282,6 +283,7 @@ const handleSend = async () => {
   imageFile.value = null
   imagePreview.value = null
   isGenerating.value = true
+  isParamsCollapsed.value = true
   
   // Add Agent Loading Message
   const agentMsgId = (Date.now() + 1).toString()
@@ -398,6 +400,9 @@ const activeMsg = computed(() => {
   <div class="workspace-layout">
     <!-- 中间画布区（最宽） -->
     <div class="canvas-area">
+      <button v-if="isParamsCollapsed" class="expand-params-btn" @click="isParamsCollapsed = false" title="展开参数面板">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+      </button>
       <div class="canvas-main">
         <template v-if="activeMsg">
           <div class="canvas-content">
@@ -470,7 +475,7 @@ const activeMsg = computed(() => {
 
 
     <!-- 左侧参数控制台 -->
-    <div class="workspace-sidebar">
+    <div class="workspace-sidebar" :class="{ 'collapsed': isParamsCollapsed }">
       <div class="sidebar-inner">
         <div class="panel prompt-panel">
           <div class="prompt-header">
@@ -483,6 +488,9 @@ const activeMsg = computed(() => {
               <button v-if="!isBuilderOpen" class="open-builder-btn" @click="isBuilderOpen = true" style="display: flex; align-items: center; gap: 6px;">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
                 知识图谱构建
+              </button>
+              <button class="collapse-trigger-btn" @click="isParamsCollapsed = true" title="收起参数面板" style="background: none; border: none; cursor: pointer; color: var(--muted); padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
               </button>
             </div>
           </div>
@@ -661,7 +669,14 @@ const activeMsg = computed(() => {
   display: flex;
   flex-direction: column;
   padding: 24px 0 24px 24px;
-  overflow-y: auto;
+  overflow-y: hidden;
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.workspace-sidebar.collapsed {
+  width: 0;
+  padding: 0;
+  margin: 0;
+  opacity: 0;
 }
 
 /* Center Canvas (widest) */
@@ -673,7 +688,32 @@ const activeMsg = computed(() => {
   flex-direction: column;
   padding: 24px 16px;
   max-width: 100%;
-  transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  position: relative;
+}
+
+.expand-params-btn {
+  position: absolute;
+  top: 32px;
+  left: 24px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid var(--hairline);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  transition: all 0.2s;
+}
+.expand-params-btn:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: 0 4px 16px rgba(204,120,92,0.15);
 }
 
 
