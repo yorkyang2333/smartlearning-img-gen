@@ -25,7 +25,7 @@ onMounted(async () => {
 })
 
 const handleSelectTemplate = (t: any) => {
-  const matches = t.template.match(/\{([^}]+)\}/g)
+  const matches = t.templateContent ? t.templateContent.match(/\{([^}]+)\}/g) : null
   if (matches && matches.length > 0) {
     const initialVars: Record<string, string> = {}
     matches.forEach((m: string) => {
@@ -34,13 +34,13 @@ const handleSelectTemplate = (t: any) => {
     variables.value = initialVars
     activeTemplate.value = t
   } else {
-    props.onSelectTemplate(t.template)
+    props.onSelectTemplate(t.templateContent || '')
     props.onClose()
   }
 }
 
 const handleConfirm = () => {
-  let finalPrompt = activeTemplate.value.template
+  let finalPrompt = activeTemplate.value.templateContent || ''
   for (const key in variables.value) {
     const val = variables.value[key].trim() || key
     finalPrompt = finalPrompt.replaceAll(key, val)
@@ -70,7 +70,7 @@ const handleConfirm = () => {
             <h3 class="ph-card-title">{{ activeTemplate.title }}</h3>
             <p class="ph-desc">{{ activeTemplate.description }}</p>
             <div class="ph-template">
-              <template v-for="(part, i) in activeTemplate.template.split(/(\{.*?\})/)" :key="i">
+              <template v-for="(part, i) in (activeTemplate.templateContent || '').split(/(\{.*?\})/)" :key="i">
                 <span v-if="part.startsWith('{') && part.endsWith('}')" class="ph-var highlight">
                   {{ variables[part] || part }}
                 </span>
@@ -109,7 +109,7 @@ const handleConfirm = () => {
             <p class="ph-desc">{{ t.description }}</p>
             
             <div class="ph-template">
-              <template v-for="(part, i) in t.template.split(/(\{.*?\})/)" :key="i">
+              <template v-for="(part, i) in (t.templateContent || '').split(/(\{.*?\})/)" :key="i">
                 <span v-if="part.startsWith('{') && part.endsWith('}')" class="ph-var">{{ part }}</span>
                 <template v-else>{{ part }}</template>
               </template>
