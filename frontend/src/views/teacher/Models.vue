@@ -242,6 +242,12 @@ const handleModelSubmit = async (e: Event) => {
   }
 }
 
+const safeJson = async (res: Response) => {
+  const text = await res.text()
+  if (!text || text.trim().length === 0) return null
+  try { return JSON.parse(text) } catch { return null }
+}
+
 const handleSyncModels = async () => {
   isSyncing.value = true
   syncMessage.value = ''
@@ -250,9 +256,9 @@ const handleSyncModels = async () => {
       method: 'POST',
       headers: { Authorization: `Bearer ${authStore.token}` }
     })
-    const data = await res.json()
-    if (!res.ok || !data.success) {
-      throw new Error(data.error || '同步失败')
+    const data = await safeJson(res)
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.error || `同步失败 (HTTP ${res.status})`)
     }
     syncMessage.value = `同步完成：新增 ${data.created || 0} 个，更新 ${data.updated || 0} 个，共扫描 ${data.totalSynced || 0} 个模型`
     await fetchModels()
@@ -276,12 +282,14 @@ const handleGatewaySubmit = async (e: Event) => {
       },
       body: JSON.stringify(gatewayFormData.value)
     })
-    const data = await res.json()
-    if (!res.ok || data.success === false) {
-      throw new Error(data.error || '保存失败')
+    const data = await safeJson(res)
+    if (!res.ok || data?.success === false) {
+      throw new Error(data?.error || `保存失败 (HTTP ${res.status})`)
     }
-    gatewayResolvedBaseUrl.value = data.resolvedBaseUrl || gatewayFormData.value.baseUrl
-    gatewayUpdatedAt.value = data.updatedAt || ''
+    if (data) {
+      gatewayResolvedBaseUrl.value = data.resolvedBaseUrl || gatewayFormData.value.baseUrl
+      gatewayUpdatedAt.value = data.updatedAt || ''
+    }
     gatewayMessage.value = 'AI Gateway 配置保存成功'
   } catch (err: any) {
     gatewayMessage.value = `AI Gateway 配置保存失败：${err.message}`

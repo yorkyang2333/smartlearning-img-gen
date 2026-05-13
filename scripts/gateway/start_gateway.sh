@@ -41,6 +41,7 @@ cd "$GATEWAY_DIR"
 # Run in screen
 screen -S "$SCREEN_NAME" -X quit >/dev/null 2>&1 || true
 export PORT="$GATEWAY_PORT"
+export SSL_CERT_FILE="/etc/ssl/cert.pem"
 screen -dmS "$SCREEN_NAME" bash -lc "exec '$GATEWAY_BIN' >> gateway.log 2>&1"
 
 for _ in {1..20}; do

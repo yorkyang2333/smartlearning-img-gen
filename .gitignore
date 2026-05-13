@@ -38,6 +38,8 @@ frontend/pnpm-debug.log*
 *.log
 backend/dev.db
 backend/dev.db-journal
+backend/smartcanvas.db
+backend/smartcanvas.db-journal
 backend/data/
 
 # AI Gateway

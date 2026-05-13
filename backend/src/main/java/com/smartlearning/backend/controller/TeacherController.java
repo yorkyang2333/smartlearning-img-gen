@@ -305,7 +305,8 @@ public class TeacherController {
         try {
             return ResponseEntity.ok(gatewayModelSyncService.syncModels());
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
+            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", msg));
         }
     }
 
