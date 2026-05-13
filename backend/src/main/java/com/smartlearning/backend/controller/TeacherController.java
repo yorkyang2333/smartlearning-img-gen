@@ -234,6 +234,76 @@ public class TeacherController {
         return ResponseEntity.ok(payload);
     }
 
+    @GetMapping("/channels")
+    public ResponseEntity<Map<String, Object>> getChannels() {
+        try {
+            GatewayConfigService.ResolvedGatewayConfig config = gatewayConfigService.getResolvedConfig();
+            if (!config.enabled()) {
+                return ResponseEntity.ok(Map.of("success", true, "data", List.of()));
+            }
+            String baseUrl = config.baseUrl();
+            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+
+            // Step 1: Login to One API to get session cookie
+            org.springframework.http.HttpHeaders loginHeaders = new org.springframework.http.HttpHeaders();
+            loginHeaders.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+            Map<String, String> loginBody = Map.of("username", "root", "password", "123456");
+            org.springframework.http.HttpEntity<Map<String, String>> loginEntity = new org.springframework.http.HttpEntity<>(loginBody, loginHeaders);
+            org.springframework.http.ResponseEntity<String> loginResponse = restTemplate.exchange(
+                baseUrl + "/api/user/login", org.springframework.http.HttpMethod.POST, loginEntity, String.class
+            );
+            // Extract session cookie from Set-Cookie header
+            String sessionCookie = "";
+            java.util.List<String> cookies = loginResponse.getHeaders().get("Set-Cookie");
+            if (cookies != null) {
+                for (String c : cookies) {
+                    if (c.startsWith("session=")) {
+                        sessionCookie = c.split(";")[0]; // "session=xxx"
+                        break;
+                    }
+                }
+            }
+
+            // Step 2: Get channel list with session cookie
+            org.springframework.http.HttpHeaders chHeaders = new org.springframework.http.HttpHeaders();
+            if (!sessionCookie.isEmpty()) {
+                chHeaders.set("Cookie", sessionCookie);
+            }
+            org.springframework.http.HttpEntity<Void> chEntity = new org.springframework.http.HttpEntity<>(chHeaders);
+            org.springframework.http.ResponseEntity<String> response = restTemplate.exchange(
+                baseUrl + "/api/channel/?p=0", org.springframework.http.HttpMethod.GET, chEntity, String.class
+            );
+
+            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(
+                response.getBody() != null ? response.getBody() : "{}"
+            );
+            if (root.has("success") && root.get("success").asBoolean()) {
+                com.fasterxml.jackson.databind.JsonNode dataNode = root.get("data");
+                List<Map<String, Object>> channels = new ArrayList<>();
+                if (dataNode != null && dataNode.isArray()) {
+                    for (com.fasterxml.jackson.databind.JsonNode ch : dataNode) {
+                        Map<String, Object> item = new HashMap<>();
+                        item.put("id", ch.has("id") ? ch.get("id").asInt() : 0);
+                        item.put("name", ch.has("name") ? ch.get("name").asText() : "");
+                        item.put("type", ch.has("type") ? ch.get("type").asInt() : 0);
+                        item.put("status", ch.has("status") ? ch.get("status").asInt() : 0);
+                        item.put("models", ch.has("models") ? ch.get("models").asText() : "");
+                        item.put("responseTime", ch.has("response_time") ? ch.get("response_time").asInt() : 0);
+                        item.put("testTime", ch.has("test_time") ? ch.get("test_time").asLong() : 0);
+                        item.put("balance", ch.has("balance") ? ch.get("balance").asDouble() : 0);
+                        channels.add(item);
+                    }
+                }
+                return ResponseEntity.ok(Map.of("success", true, "data", channels));
+            }
+            return ResponseEntity.ok(Map.of("success", true, "data", List.of()));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("success", false, "error", e.getMessage() != null ? e.getMessage() : "获取渠道列表失败", "data", List.of()));
+        }
+    }
+
+
     // --- STUDENTS ---
     @GetMapping("/students")
     public ResponseEntity<List<User>> getStudents() {
