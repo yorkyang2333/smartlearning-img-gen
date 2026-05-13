@@ -84,6 +84,7 @@ const handleReview = async () => {
 // Auto-review when generationId changes
 watch(() => props.generationId, (newId) => {
   reviews.value = props.initialReviews || {}
+  loadChat(newId)
   if (newId && props.hasImage) {
     activeTab.value = 'review'
     nextTick(() => handleReview())
@@ -93,6 +94,21 @@ watch(() => props.generationId, (newId) => {
 // Chat state
 type ChatMsg = { role: 'student' | 'tutor'; text: string }
 const chatMessages = ref<ChatMsg[]>([])
+
+const getStorageKey = (id: string | null | undefined) => `tutor_chat_${id || 'default'}`
+const loadChat = (id: string | null | undefined) => {
+  try {
+    const saved = localStorage.getItem(getStorageKey(id))
+    if (saved) chatMessages.value = JSON.parse(saved)
+    else chatMessages.value = []
+  } catch { chatMessages.value = [] }
+}
+loadChat(props.generationId)
+
+watch(chatMessages, (newVal) => {
+  localStorage.setItem(getStorageKey(props.generationId), JSON.stringify(newVal))
+}, { deep: true })
+
 const chatInput = ref('')
 const isChatting = ref(false)
 const chatScrollRef = ref<HTMLDivElement | null>(null)
@@ -186,7 +202,10 @@ const sendChat = async () => {
       }
     }
   } catch (err) {
-    chatMessages.value[tutorMsgIndex].text += '\n(网络错误，请稍后再试)'
+    console.warn('Chat stream error:', err)
+    if (chatMessages.value[tutorMsgIndex].text.length === 0) {
+      chatMessages.value[tutorMsgIndex].text += '\n(网络错误，请稍后再试)'
+    }
   } finally {
     isChatting.value = false
     nextTick(() => {
