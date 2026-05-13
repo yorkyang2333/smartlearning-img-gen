@@ -477,22 +477,23 @@ const activeMsg = computed(() => {
     <!-- 左侧参数控制台 -->
     <div class="workspace-sidebar" :class="{ 'collapsed': isParamsCollapsed }">
       <div class="sidebar-inner">
-        <div class="panel prompt-panel">
-          <div class="prompt-header">
+        <div class="panel prompt-panel" style="flex: 1; display: flex; flex-direction: column;">
+          <div class="prompt-header" style="justify-content: space-between; margin-bottom: 12px; display: flex;">
             <h3 class="panel-title serif-display">创作参数</h3>
-            <div style="display: flex; gap: 8px;">
-              <button class="open-helper-btn" @click="isHelperOpen = true" style="display: flex; align-items: center; gap: 6px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                使用模板
-              </button>
-              <button v-if="!isBuilderOpen" class="open-builder-btn" @click="isBuilderOpen = true" style="display: flex; align-items: center; gap: 6px;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                知识图谱构建
-              </button>
-              <button class="collapse-trigger-btn" @click="isParamsCollapsed = true" title="收起参数面板" style="background: none; border: none; cursor: pointer; color: var(--muted); padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
-              </button>
-            </div>
+            <button class="collapse-trigger-btn" @click="isParamsCollapsed = true" title="收起参数面板" style="background: none; border: none; cursor: pointer; color: var(--muted); padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+            </button>
+          </div>
+          
+          <div class="prompt-tools" style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <button class="open-helper-btn" @click="isHelperOpen = true" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              使用模板
+            </button>
+            <button v-if="!isBuilderOpen" class="open-builder-btn" @click="isBuilderOpen = true" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+              知识图谱构建
+            </button>
           </div>
           
           <PromptHelper 
@@ -518,9 +519,9 @@ const activeMsg = computed(() => {
           <textarea
             v-if="!isBuilderOpen"
             class="prompt-textarea"
-            placeholder="描述您想要的画面细节..."
+            style="flex: 1; min-height: 120px;"
             v-model="promptText"
-            @keydown="handleKeyDown"
+            placeholder="描述您想要的画面细节，或者点击上方按钮使用辅助工具..."
             rows="4"
           ></textarea>
 
@@ -922,7 +923,7 @@ const activeMsg = computed(() => {
   display: flex;
   flex-direction: column;
   width: 100%;
-  min-height: 100%;
+  height: 100%;
   transition: all 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
