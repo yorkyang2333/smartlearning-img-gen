@@ -4,6 +4,7 @@ import com.smartlearning.backend.entity.Assignment;
 import com.smartlearning.backend.entity.Conversation;
 import com.smartlearning.backend.entity.User;
 import com.smartlearning.backend.entity.TutorConfig;
+import com.smartlearning.backend.entity.Submission;
 import com.smartlearning.backend.repository.AssignmentRepository;
 import com.smartlearning.backend.repository.ConversationRepository;
 import com.smartlearning.backend.repository.GenerationRepository;
@@ -11,6 +12,7 @@ import com.smartlearning.backend.repository.UserRepository;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.repository.TemplateRepository;
+import com.smartlearning.backend.repository.SubmissionRepository;
 import com.smartlearning.backend.service.GatewayAiClient;
 import com.smartlearning.backend.util.GatewayResponseUtil;
 import com.smartlearning.backend.util.ModelConfigUtil;
@@ -53,6 +55,9 @@ public class StudentController {
 
     @Autowired
     private TemplateRepository templateRepository;
+
+    @Autowired
+    private SubmissionRepository submissionRepository;
 
     @Autowired
     private GatewayAiClient gatewayAiClient;
@@ -150,7 +155,45 @@ public class StudentController {
             return ResponseEntity.ok(Map.of("success", true, "data", List.of()));
         }
         List<Assignment> list = assignmentRepository.findByTeacherIdOrderByCreatedAtDesc(student.getTeacherId());
+        if (!list.isEmpty()) {
+            List<String> assignmentIds = list.stream().map(Assignment::getId).collect(java.util.stream.Collectors.toList());
+            List<Submission> allSubmissions = submissionRepository.findByAssignmentIdInAndStudentId(assignmentIds, student.getId());
+            Map<String, List<Submission>> subMap = allSubmissions.stream().collect(java.util.stream.Collectors.groupingBy(Submission::getAssignmentId));
+            list.forEach(a -> {
+                a.setSubmissions(subMap.getOrDefault(a.getId(), List.of()));
+            });
+        }
         return ResponseEntity.ok(Map.of("success", true, "data", list));
+    }
+
+    @GetMapping("/assignments/{id}")
+    public ResponseEntity<Map<String, Object>> getAssignmentById(@PathVariable String id) {
+        User student = getCurrentStudent();
+        Assignment assignment = assignmentRepository.findById(id).orElseThrow();
+        List<Submission> submissions = submissionRepository.findByAssignmentIdAndStudentId(id, student.getId());
+        assignment.setSubmissions(submissions);
+        return ResponseEntity.ok(Map.of("success", true, "data", assignment));
+    }
+
+    @PostMapping("/assignments/{id}/submit")
+    public ResponseEntity<Map<String, Object>> submitAssignment(@PathVariable String id, @RequestBody Map<String, String> body) {
+        User student = getCurrentStudent();
+        Assignment assignment = assignmentRepository.findById(id).orElseThrow();
+        
+        List<Submission> existing = submissionRepository.findByAssignmentIdAndStudentId(id, student.getId());
+        if (existing.size() >= assignment.getMaxSubmissions()) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "已达到最大提交次数"));
+        }
+
+        Submission submission = new Submission();
+        submission.setAssignmentId(id);
+        submission.setStudentId(student.getId());
+        submission.setGenerationId(body.get("generationId"));
+        submission.setImageUrl(body.get("imageUrl"));
+        submission.setStatus("PENDING");
+        
+        submissionRepository.save(submission);
+        return ResponseEntity.ok(Map.of("success", true, "data", submission));
     }
 
     // --- TEMPLATES ---

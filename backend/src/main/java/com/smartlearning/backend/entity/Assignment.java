@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Entity
@@ -55,4 +56,7 @@ public class Assignment {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @Transient
+    private List<Submission> submissions;
 }

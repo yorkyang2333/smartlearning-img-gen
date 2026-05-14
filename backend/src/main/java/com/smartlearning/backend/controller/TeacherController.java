@@ -11,9 +11,11 @@ import com.smartlearning.backend.entity.TutorConfig;
 import com.smartlearning.backend.entity.User;
 import com.smartlearning.backend.entity.Template;
 import com.smartlearning.backend.entity.GatewayConfig;
+import com.smartlearning.backend.entity.Submission;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.UserRepository;
 import com.smartlearning.backend.repository.TemplateRepository;
+import com.smartlearning.backend.repository.SubmissionRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
@@ -62,6 +64,9 @@ public class TeacherController {
 
     @Autowired
     private GatewayConfigService gatewayConfigService;
+
+    @Autowired
+    private SubmissionRepository submissionRepository;
 
     private String getTeacherId() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -179,6 +184,32 @@ public class TeacherController {
     public ResponseEntity<Assignment> createAssignment(@RequestBody Assignment assignment) {
         assignment.setTeacherId(getTeacherId());
         return ResponseEntity.ok(assignmentRepository.save(assignment));
+    }
+
+    @GetMapping("/assignments/{id}/submissions")
+    public ResponseEntity<List<Submission>> getSubmissions(@PathVariable String id) {
+        Assignment assignment = assignmentRepository.findById(id).orElseThrow();
+        if (!assignment.getTeacherId().equals(getTeacherId())) {
+            return ResponseEntity.status(403).build();
+        }
+        return ResponseEntity.ok(submissionRepository.findByAssignmentId(id));
+    }
+
+    @PostMapping("/submissions/{id}/review")
+    public ResponseEntity<Submission> reviewSubmission(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        Submission submission = submissionRepository.findById(id).orElseThrow();
+        Assignment assignment = assignmentRepository.findById(submission.getAssignmentId()).orElseThrow();
+        if (!assignment.getTeacherId().equals(getTeacherId())) {
+            return ResponseEntity.status(403).build();
+        }
+        submission.setStatus("REVIEWED");
+        if (body.containsKey("score")) {
+            submission.setScore(Integer.valueOf(body.get("score").toString()));
+        }
+        if (body.containsKey("feedback")) {
+            submission.setFeedback(body.get("feedback").toString());
+        }
+        return ResponseEntity.ok(submissionRepository.save(submission));
     }
 
     // --- TUTOR CONFIG (MODELS) ---

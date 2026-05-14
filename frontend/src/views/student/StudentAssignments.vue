@@ -65,7 +65,7 @@ onMounted(() => {
            </div>
            
            <div style="display: flex; flex-direction: column; gap: 8px; width: 120px;" :style="{ marginTop: (assignment.submissions && assignment.submissions.length > 0) ? '8px' : '0' }">
-              <template v-if="assignment.type === 'CHALLENGE'">
+               <template v-if="assignment.type === 'CHALLENGE'">
                  <router-link :to="`/student/assignments/${assignment.id}/play`" 
                     class="btn"
                     :class="[ (assignment.submissions && assignment.submissions.length > 0) ? 'btn-secondary' : 'btn-primary' ]"
@@ -80,7 +80,7 @@ onMounted(() => {
                     {{ (assignment.submissions && assignment.submissions.length > 0) ? '查看作品' : assignment.status === 'ENDED' ? '挑战已结束' : '进入挑战' }}
                  </router-link>
               </template>
-              <template v-else>
+               <template v-else>
                  <router-link :to="`/student/assignments/${assignment.id}`" 
                     class="btn"
                     :class="[ (assignment.submissions && assignment.submissions.length > 0) ? 'btn-secondary' : 'btn-primary' ]"

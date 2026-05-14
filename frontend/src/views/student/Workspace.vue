@@ -384,12 +384,7 @@ const handleSend = async () => {
   }
 }
 
-const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-    e.preventDefault()
-    if (!isGenerating.value) handleSend()
-  }
-}
+
 
 const agentMessages = computed(() => {
   return messages.value.filter(m => m.role === 'agent' && (m.image || m.progress !== undefined || m.content))

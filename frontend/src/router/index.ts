@@ -11,6 +11,8 @@ import StudentLayout from '../views/student/StudentLayout.vue'
 import Workspace from '../views/student/Workspace.vue'
 import ClassGallery from '../views/student/ClassGallery.vue'
 import StudentAssignments from '../views/student/StudentAssignments.vue'
+import AssignmentDetail from '../views/student/AssignmentDetail.vue'
+import AssignmentPlay from '../views/student/AssignmentPlay.vue'
 
 import Gallery from '../views/Gallery.vue'
 
@@ -91,6 +93,16 @@ const router = createRouter({
           path: 'assignments',
           name: 'student-assignments',
           component: StudentAssignments
+        },
+        {
+          path: 'assignments/:id',
+          name: 'student-assignment-detail',
+          component: AssignmentDetail
+        },
+        {
+          path: 'assignments/:id/play',
+          name: 'student-assignment-play',
+          component: AssignmentPlay
         }
       ]
     },

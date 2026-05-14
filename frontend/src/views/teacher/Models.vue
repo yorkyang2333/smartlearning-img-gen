@@ -120,12 +120,6 @@ const channelTypeLabel = (t: number) => {
   const m: Record<number, string> = { 1: 'OpenAI', 3: 'Azure', 14: 'Anthropic', 15: 'Baidu', 17: 'Ali', 18: 'Xunfei', 24: 'Google Gemini', 28: 'Mistral', 31: 'Ollama', 33: 'AWS', 34: 'Cohere', 40: 'Cloudflare', 999: '自定义' }
   return m[t] || `类型${t}`
 }
-const channelStatusLabel = (s: number) => {
-  if (s === 1) return '运行中'
-  if (s === 2) return '已禁用'
-  if (s === 3) return '自动禁用'
-  return '未知'
-}
 const channelStatusClass = (s: number) => {
   if (s === 1) return 'status-ok'
   if (s === 2) return 'status-off'
