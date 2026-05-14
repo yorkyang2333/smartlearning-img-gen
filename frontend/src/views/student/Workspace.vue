@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import PromptBuilder from '../../components/PromptBuilder.vue'
@@ -41,6 +41,8 @@ const sizeMenuOpen = ref(false)
 const isBuilderOpen = ref(false)
 const isHelperOpen = ref(false)
 const isParamsCollapsed = ref(false)
+
+const collapseSidebar = inject<(() => void) | null>('collapseSidebar', null)
 
 // Learning step: 1=构思 2=优化 3=生成 4=点评
 const learningStep = computed(() => {
@@ -283,7 +285,10 @@ const handleSend = async () => {
   imageFile.value = null
   imagePreview.value = null
   isGenerating.value = true
-  isParamsCollapsed.value = true
+
+  if (collapseSidebar) {
+    collapseSidebar()
+  }
   
   // Add Agent Loading Message
   const agentMsgId = (Date.now() + 1).toString()

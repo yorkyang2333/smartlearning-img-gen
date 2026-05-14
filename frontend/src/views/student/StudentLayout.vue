@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 
@@ -8,6 +8,10 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const isCollapsed = ref(false)
+
+provide('collapseSidebar', () => {
+  isCollapsed.value = true
+})
 const conversations = ref<any[]>([])
 const stats = ref<any>(null)
 
