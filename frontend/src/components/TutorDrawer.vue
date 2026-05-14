@@ -362,10 +362,12 @@ const handleChatKey = (e: KeyboardEvent) => {
                 </button>
               </div>
             </div>
-            <div v-for="(msg, i) in chatMessages" :key="i" class="chat-bubble" :class="msg.role">
-              <div v-if="msg.role === 'tutor'" class="bubble-content markdown-body" v-html="renderMarkdown(msg.text)"></div>
-              <div v-else class="bubble-content">{{ msg.text }}</div>
-            </div>
+            <template v-for="(msg, i) in chatMessages" :key="i">
+              <div v-if="msg.role !== 'tutor' || msg.text" class="chat-bubble" :class="msg.role">
+                <div v-if="msg.role === 'tutor'" class="bubble-content markdown-body" v-html="renderMarkdown(msg.text)"></div>
+                <div v-else class="bubble-content">{{ msg.text }}</div>
+              </div>
+            </template>
             <div v-if="isChatting" class="chat-bubble tutor">
               <div class="bubble-content typing">
                 <span class="dot"></span><span class="dot"></span><span class="dot"></span>

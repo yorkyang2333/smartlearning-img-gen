@@ -2,10 +2,12 @@
 import { ref, onMounted, watch, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { useAssignmentStore } from '../../stores/assignments'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const assignmentStore = useAssignmentStore()
 
 const isCollapsed = ref(false)
 
@@ -42,6 +44,7 @@ const fetchAnalytics = async () => {
 onMounted(() => {
   fetchConversations()
   fetchAnalytics()
+  assignmentStore.fetchPendingCount()
 })
 
 watch(() => route.fullPath, () => {
@@ -139,6 +142,7 @@ const handleLogout = () => {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
           </span>
           <span class="navText">教学任务</span>
+          <span v-if="assignmentStore.pendingCount > 0" class="nav-badge">{{ assignmentStore.pendingCount }}</span>
         </router-link>
       </nav>
 
@@ -354,6 +358,22 @@ const handleLogout = () => {
   max-width: 0;
   margin-left: 0;
 }
+
+.nav-badge {
+  background: var(--primary);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  margin-left: auto;
+}
+.sidebar.collapsed .nav-badge { display: none; }
 
 .sidebarSection {
   transition: all 0.3s ease;

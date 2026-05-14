@@ -14,6 +14,7 @@ import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.repository.TemplateRepository;
 import com.smartlearning.backend.repository.SubmissionRepository;
 import com.smartlearning.backend.service.GatewayAiClient;
+import com.smartlearning.backend.service.AssignmentService;
 import com.smartlearning.backend.util.GatewayResponseUtil;
 import com.smartlearning.backend.util.ModelConfigUtil;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -58,6 +59,9 @@ public class StudentController {
 
     @Autowired
     private SubmissionRepository submissionRepository;
+
+    @Autowired
+    private AssignmentService assignmentService;
 
     @Autowired
     private GatewayAiClient gatewayAiClient;
@@ -147,6 +151,33 @@ public class StudentController {
         return ResponseEntity.ok(Map.of("success", true, "data", convMap));
     }
 
+    // --- GENERATIONS (history) ---
+    @GetMapping("/generations")
+    public ResponseEntity<Map<String, Object>> getGenerations(@RequestParam(required = false) String keyword) {
+        User student = getCurrentStudent();
+        List<com.smartlearning.backend.entity.Generation> gens;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            gens = generationRepository.findByUserIdAndPromptContainingOrderByCreatedAtDesc(student.getId(), keyword.trim());
+        } else {
+            gens = generationRepository.findByUserIdOrderByCreatedAtDesc(student.getId());
+        }
+        return ResponseEntity.ok(Map.of("success", true, "data", gens));
+    }
+
+    @GetMapping("/pending-count")
+    public ResponseEntity<Map<String, Object>> getPendingCount() {
+        User student = getCurrentStudent();
+        if (student.getTeacherId() == null) {
+            return ResponseEntity.ok(Map.of("success", true, "count", 0));
+        }
+        List<Assignment> assignments = assignmentService.getStudentAssignments(student.getTeacherId(), student.getId());
+        long pending = assignments.stream()
+                .filter(a -> Boolean.TRUE.equals(a.getIsActive()))
+                .filter(a -> a.getSubmissions() == null || a.getSubmissions().isEmpty())
+                .count();
+        return ResponseEntity.ok(Map.of("success", true, "count", pending));
+    }
+
     // --- ASSIGNMENTS ---
     @GetMapping("/assignments")
     public ResponseEntity<Map<String, Object>> getAssignments() {
@@ -154,46 +185,26 @@ public class StudentController {
         if (student.getTeacherId() == null) {
             return ResponseEntity.ok(Map.of("success", true, "data", List.of()));
         }
-        List<Assignment> list = assignmentRepository.findByTeacherIdOrderByCreatedAtDesc(student.getTeacherId());
-        if (!list.isEmpty()) {
-            List<String> assignmentIds = list.stream().map(Assignment::getId).collect(java.util.stream.Collectors.toList());
-            List<Submission> allSubmissions = submissionRepository.findByAssignmentIdInAndStudentId(assignmentIds, student.getId());
-            Map<String, List<Submission>> subMap = allSubmissions.stream().collect(java.util.stream.Collectors.groupingBy(Submission::getAssignmentId));
-            list.forEach(a -> {
-                a.setSubmissions(subMap.getOrDefault(a.getId(), List.of()));
-            });
-        }
+        List<Assignment> list = assignmentService.getStudentAssignments(student.getTeacherId(), student.getId());
         return ResponseEntity.ok(Map.of("success", true, "data", list));
     }
 
     @GetMapping("/assignments/{id}")
     public ResponseEntity<Map<String, Object>> getAssignmentById(@PathVariable String id) {
         User student = getCurrentStudent();
-        Assignment assignment = assignmentRepository.findById(id).orElseThrow();
-        List<Submission> submissions = submissionRepository.findByAssignmentIdAndStudentId(id, student.getId());
-        assignment.setSubmissions(submissions);
+        Assignment assignment = assignmentService.getAssignmentById(id, student.getId());
         return ResponseEntity.ok(Map.of("success", true, "data", assignment));
     }
 
     @PostMapping("/assignments/{id}/submit")
     public ResponseEntity<Map<String, Object>> submitAssignment(@PathVariable String id, @RequestBody Map<String, String> body) {
         User student = getCurrentStudent();
-        Assignment assignment = assignmentRepository.findById(id).orElseThrow();
-        
-        List<Submission> existing = submissionRepository.findByAssignmentIdAndStudentId(id, student.getId());
-        if (existing.size() >= assignment.getMaxSubmissions()) {
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", "已达到最大提交次数"));
+        try {
+            Submission submission = assignmentService.submitWork(id, student.getId(), body.get("generationId"), body.get("imageUrl"));
+            return ResponseEntity.ok(Map.of("success", true, "data", submission));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "error", e.getMessage()));
         }
-
-        Submission submission = new Submission();
-        submission.setAssignmentId(id);
-        submission.setStudentId(student.getId());
-        submission.setGenerationId(body.get("generationId"));
-        submission.setImageUrl(body.get("imageUrl"));
-        submission.setStatus("PENDING");
-        
-        submissionRepository.save(submission);
-        return ResponseEntity.ok(Map.of("success", true, "data", submission));
     }
 
     // --- TEMPLATES ---

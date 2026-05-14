@@ -1,44 +1,26 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../../stores/auth'
+import { useAssignmentStore } from '../../stores/assignments'
 
 const router = useRouter()
-const authStore = useAuthStore()
+const store = useAssignmentStore()
 
-const assignments = ref<any[]>([])
 const loading = ref(true)
 
 const fetchAssignments = async () => {
   loading.value = true
-  try {
-    const res = await fetch('http://localhost:8080/api/teacher/assignments', {
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
-    })
-    if (res.ok) {
-      assignments.value = await res.json()
-    }
-  } finally {
-    loading.value = false
-  }
+  await store.fetchTeacherAssignments()
+  loading.value = false
 }
 
 const handleToggleActive = async (id: string, currentStatus: boolean) => {
-  try {
-    const res = await fetch(`http://localhost:8080/api/teacher/assignments/${id}`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
-      },
-      body: JSON.stringify({ isActive: !currentStatus })
-    })
-    if (res.ok) {
-      fetchAssignments()
-    }
-  } catch (e) {
-    console.error(e)
-  }
+  await store.updateAssignment(id, { isActive: !currentStatus })
+}
+
+const formatDeadline = (deadline: string | null) => {
+  if (!deadline) return null
+  return new Date(deadline).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 onMounted(() => {
@@ -61,7 +43,7 @@ onMounted(() => {
     <div v-if="loading" style="padding: 48px; color: var(--muted);">加载中...</div>
 
     <div v-else style="display: flex; flex-direction: column; gap: 16px;">
-      <div v-for="assignment in assignments" :key="assignment.id" class="glass-panel" style="padding: 24px;">
+      <div v-for="assignment in store.assignments" :key="assignment.id" class="glass-panel" style="padding: 24px;">
         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
           <div style="flex: 1; padding-right: 24px;">
             <h3 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 8px;">
@@ -77,6 +59,7 @@ onMounted(() => {
                <span style="font-weight: 500; color: var(--primary);">已提交: {{ assignment._count?.submissions || 0 }} 份</span>
                <span>状态: {{ assignment.isActive ? '🟢 进行中' : '⚪ 已结束' }}</span>
                <span>发布于: {{ new Date(assignment.createdAt).toLocaleDateString() }}</span>
+               <span v-if="assignment.deadline">截止: {{ formatDeadline(assignment.deadline) }}</span>
                <span v-if="assignment.type === 'CHALLENGE' && assignment.durationMin">时长: {{ assignment.durationMin }} 分钟</span>
             </div>
           </div>
@@ -99,7 +82,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="assignments.length === 0" class="glass-panel" style="text-align: center; padding: 64px; color: var(--muted);">
+      <div v-if="store.assignments.length === 0" class="glass-panel" style="text-align: center; padding: 64px; color: var(--muted);">
          暂无任务，请点击右上角按钮发布新任务。
       </div>
     </div>

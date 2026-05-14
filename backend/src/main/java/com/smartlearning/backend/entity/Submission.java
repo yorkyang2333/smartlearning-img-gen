@@ -41,4 +41,7 @@ public class Submission {
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    @Transient
+    private String prompt;
 }

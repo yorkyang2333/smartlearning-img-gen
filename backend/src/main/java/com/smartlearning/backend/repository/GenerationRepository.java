@@ -9,6 +9,7 @@ import java.util.List;
 @Repository
 public interface GenerationRepository extends JpaRepository<Generation, String> {
     List<Generation> findByUserIdOrderByCreatedAtDesc(String userId);
+    List<Generation> findByUserIdAndPromptContainingOrderByCreatedAtDesc(String userId, String keyword);
     List<Generation> findTop50ByUserIdInOrderByCreatedAtDesc(List<String> userIds);
     List<Generation> findByCreatedAtAfter(java.time.LocalDateTime date);
     List<Generation> findAllByOrderByCreatedAtDesc();

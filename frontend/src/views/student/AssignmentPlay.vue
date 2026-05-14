@@ -1,34 +1,66 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '../../stores/auth'
+import { useAssignmentStore } from '../../stores/assignments'
 
 const route = useRoute()
 const router = useRouter()
-const authStore = useAuthStore()
+const store = useAssignmentStore()
 const assignmentId = route.params.id as string
 
-const assignment = ref<any>(null)
 const isLoading = ref(true)
 
-const prompt = ref('')
-const isGenerating = ref(false)
 const isSubmitting = ref(false)
-const generatedImage = ref<string | null>(null)
-const generationId = ref<string | null>(null)
 const errorMsg = ref('')
+const selectedGeneration = ref<any>(null)
+const searchKeyword = ref('')
 
-// Load assignment
+// --- Countdown timer ---
+const remainingSeconds = ref(0)
+let timerInterval: ReturnType<typeof setInterval> | null = null
+
+const isExpired = computed(() => remainingSeconds.value <= 0 && assignment.value?.startedAt != null)
+
+const formattedTime = computed(() => {
+  const total = Math.max(0, remainingSeconds.value)
+  const min = Math.floor(total / 60)
+  const sec = total % 60
+  return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+})
+
+const progressPercent = computed(() => {
+  if (!assignment.value?.durationMin) return 0
+  const totalSec = assignment.value.durationMin * 60
+  return Math.max(0, Math.min(100, (remainingSeconds.value / totalSec) * 100))
+})
+
+function startTimer() {
+  if (!assignment.value?.startedAt || !assignment.value?.durationMin) return
+  const startedAt = new Date(assignment.value.startedAt).getTime()
+  const durationMs = assignment.value.durationMin * 60 * 1000
+  const expiryTime = startedAt + durationMs
+
+  const updateRemaining = () => {
+    const diff = Math.floor((expiryTime - Date.now()) / 1000)
+    remainingSeconds.value = Math.max(0, diff)
+    if (diff <= 0 && timerInterval) {
+      clearInterval(timerInterval)
+      timerInterval = null
+    }
+  }
+
+  updateRemaining()
+  timerInterval = setInterval(updateRemaining, 1000)
+}
+// --- End countdown ---
+
 const fetchAssignment = async () => {
   try {
-    const res = await fetch(`http://localhost:8080/api/student/assignments/${assignmentId}`, {
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
-    })
-    const data = await res.json()
-    if (data.success) {
-      assignment.value = data.data
-    } else {
+    await store.fetchAssignmentById(assignmentId)
+    if (!store.currentAssignment) {
       errorMsg.value = "任务获取失败"
+    } else {
+      startTimer()
     }
   } catch (e) {
     errorMsg.value = "网络错误"
@@ -37,19 +69,17 @@ const fetchAssignment = async () => {
   }
 }
 
-// Get models for generation
-const models = ref<any[]>([])
-const fetchModels = async () => {
-  try {
-    const res = await fetch('http://localhost:8080/api/student/models', {
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
-    })
-    const data = await res.json()
-    if (data.success) {
-      models.value = data.data
-    }
-  } catch (e) {}
+const fetchGenerations = async () => {
+  await store.fetchGenerations(searchKeyword.value || undefined)
 }
+
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+watch(searchKeyword, () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(fetchGenerations, 300)
+})
+
+const assignment = computed(() => store.currentAssignment)
 
 const activeSubmission = computed(() => {
   if (assignment.value?.submissions && assignment.value.submissions.length > 0) {
@@ -58,64 +88,22 @@ const activeSubmission = computed(() => {
   return null
 })
 
-const handleGenerate = async () => {
-  if (!prompt.value.trim()) return
-  isGenerating.value = true
-  errorMsg.value = ''
-  generatedImage.value = null
-  generationId.value = null
-
-  try {
-    const defaultModel = models.value.find(m => m.type !== 'IMAGE_TO_IMAGE') || models.value[0]
-    
-    const res = await fetch('http://localhost:8080/api/generate/text-to-image', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        prompt: prompt.value,
-        modelId: defaultModel?.modelId || '',
-        size: '1024x1024',
-        n: 1
-      })
-    })
-
-    const data = await res.json()
-    if (!res.ok || data.error) throw new Error(data.error || '生成失败')
-    
-    generatedImage.value = data.rawUrl
-    generationId.value = data.generationId
-  } catch (e: any) {
-    errorMsg.value = e.message
-  } finally {
-    isGenerating.value = false
+const selectGeneration = (gen: any) => {
+  if (!isExpired.value) {
+    selectedGeneration.value = gen
   }
 }
 
 const handleSubmit = async () => {
-  if (!generatedImage.value) return
+  if (!selectedGeneration.value || isExpired.value) return
   isSubmitting.value = true
   errorMsg.value = ''
 
   try {
-    const res = await fetch(`http://localhost:8080/api/student/assignments/${assignmentId}/submit`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        generationId: generationId.value,
-        imageUrl: generatedImage.value
-      })
-    })
-    const data = await res.json()
-    if (!res.ok || !data.success) throw new Error(data.error || '提交失败')
-    
-    // Refresh assignment
+    const result = await store.submitWork(assignmentId, selectedGeneration.value.id, selectedGeneration.value.outputImageUrl)
+    if (!result.success) throw new Error(result.error || '提交失败')
     await fetchAssignment()
+    selectedGeneration.value = null
   } catch (e: any) {
     errorMsg.value = e.message
   } finally {
@@ -125,19 +113,36 @@ const handleSubmit = async () => {
 
 onMounted(() => {
   fetchAssignment()
-  fetchModels()
+  fetchGenerations()
+})
+
+onUnmounted(() => {
+  if (timerInterval) clearInterval(timerInterval)
 })
 </script>
 
+<!-- PLACEHOLDER_TEMPLATE -->
+
 <template>
   <div class="page-root">
+    <!-- Countdown Banner -->
+    <div class="countdown-banner" :class="{ expired: isExpired }">
+      <div class="countdown-inner">
+        <div class="countdown-label">{{ isExpired ? '挑战时间已结束' : '剩余时间' }}</div>
+        <div class="countdown-time">{{ formattedTime }}</div>
+      </div>
+      <div class="countdown-bar">
+        <div class="countdown-bar-fill" :style="{ width: progressPercent + '%' }"></div>
+      </div>
+    </div>
+
     <div class="hero-band">
       <button class="btn-back" @click="router.push('/student/assignments')">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
         返回任务列表
       </button>
-      <h1 class="hero-title">{{ assignment?.title || '任务详情' }}</h1>
-      <p class="hero-sub" v-if="assignment?.type === 'CHALLENGE'">⚡ 限时挑战模式</p>
+      <h1 class="hero-title">{{ assignment?.title || '限时挑战' }}</h1>
+      <p class="hero-sub">⚡ 限时挑战模式</p>
     </div>
 
     <div v-if="isLoading" class="loading-state">
@@ -152,14 +157,22 @@ onMounted(() => {
           <label>任务说明</label>
           <div class="desc-content">{{ assignment.description }}</div>
         </div>
-        <div class="info-section" v-if="assignment.deadline">
-          <label>截止时间</label>
-          <div class="meta-val">{{ new Date(assignment.deadline).toLocaleString() }}</div>
+        <div class="info-section" v-if="assignment.referenceImageUrl">
+          <label>参考图</label>
+          <img :src="assignment.referenceImageUrl" alt="参考图" style="max-width: 100%; border-radius: 8px;" />
+        </div>
+        <div class="info-section" v-if="assignment.promptHint">
+          <label>提示词引导</label>
+          <div class="desc-content" style="background: rgba(245,158,11,0.06); padding: 8px 10px; border-radius: 6px; font-size: 13px;">{{ assignment.promptHint }}</div>
+        </div>
+        <div class="info-section">
+          <label>挑战时长</label>
+          <div class="meta-val">{{ assignment.durationMin }} 分钟</div>
         </div>
         <div class="info-section">
           <label>提交状态</label>
           <div class="status-badge" :class="activeSubmission ? 'status-submitted' : 'status-pending'">
-            {{ activeSubmission ? (activeSubmission.status === 'REVIEWED' ? '已评阅' : '已提交') : '待提交' }}
+            {{ activeSubmission ? (activeSubmission.status === 'REVIEWED' ? '已评阅' : '已提交') : (isExpired ? '未提交' : '待提交') }}
           </div>
         </div>
       </div>
@@ -167,7 +180,6 @@ onMounted(() => {
       <!-- 右侧：创作与提交区 -->
       <div class="action-panel card-light">
         <template v-if="activeSubmission">
-          <!-- 已提交状态 -->
           <div class="submitted-view">
             <h3 class="panel-title">我的作品</h3>
             <div class="result-image-box">
@@ -186,43 +198,62 @@ onMounted(() => {
             </div>
           </div>
         </template>
-        
+
+        <template v-else-if="isExpired">
+          <div class="expired-view">
+            <h3 class="panel-title">挑战已结束</h3>
+            <p class="expired-msg">很遗憾，挑战时间已到，无法继续提交作品。</p>
+          </div>
+        </template>
+
         <template v-else>
-          <!-- 未提交状态：创作区 -->
           <div class="create-view">
-            <h3 class="panel-title">完成挑战</h3>
-            <p class="panel-sub">在此输入您的提示词，AI 将协助您生成作品并提交。</p>
-            
+            <h3 class="panel-title">选择作品提交</h3>
+            <p class="panel-sub">在倒计时结束前，从你的创作历史中选择一幅作品提交。</p>
+
             <div v-if="errorMsg" class="error-banner">{{ errorMsg }}</div>
 
-            <textarea 
-              class="prompt-textarea" 
-              v-model="prompt" 
-              rows="4" 
-              placeholder="描述您的画面构思..."
-              :disabled="isGenerating || isSubmitting"
-            ></textarea>
-            
-            <div class="gen-actions">
-              <button class="btn btn-secondary" @click="handleGenerate" :disabled="isGenerating || !prompt.trim() || isSubmitting">
-                {{ isGenerating ? '正在生成...' : '🎨 生成画面' }}
-              </button>
+            <!-- 选中预览 -->
+            <div v-if="selectedGeneration" class="selected-preview">
+              <div class="selected-image-box">
+                <img :src="selectedGeneration.outputImageUrl" alt="Selected" class="preview-image" />
+              </div>
+              <div class="selected-info">
+                <p class="selected-prompt">{{ selectedGeneration.prompt }}</p>
+                <span class="selected-time">{{ new Date(selectedGeneration.createdAt).toLocaleString() }}</span>
+              </div>
+              <div class="submit-action-box">
+                <button class="btn btn-challenge" @click="handleSubmit" :disabled="isSubmitting">
+                  {{ isSubmitting ? '正在提交...' : '确认提交此作品' }}
+                </button>
+                <button class="btn btn-secondary" @click="selectedGeneration = null" :disabled="isSubmitting">
+                  重新选择
+                </button>
+              </div>
             </div>
 
-            <!-- 生成结果预览 -->
-            <div class="preview-area" v-if="isGenerating || generatedImage">
-              <div v-if="isGenerating" class="generating-overlay">
-                 <div class="pulse-dot"></div>
-                 <p>AI 画师正在挥洒创意...</p>
+            <!-- 历史作品网格 -->
+            <div v-else>
+              <div class="search-bar">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input v-model="searchKeyword" type="text" placeholder="搜索提示词..." class="search-input" />
               </div>
-              <div v-else-if="generatedImage" class="generated-result">
-                 <img :src="generatedImage" alt="Generated" class="preview-image" />
-                 <div class="submit-action-box">
-                   <p>对这幅作品满意吗？</p>
-                   <button class="btn btn-primary" @click="handleSubmit" :disabled="isSubmitting">
-                     {{ isSubmitting ? '正在提交...' : '✨ 确认提交作品' }}
-                   </button>
-                 </div>
+              <div class="gallery-grid">
+                <div v-if="store.generations.length === 0" class="empty-gallery">
+                  <p>{{ searchKeyword ? '没有匹配的作品' : '还没有创作记录' }}</p>
+                  <router-link v-if="!searchKeyword" to="/student/generate" class="btn btn-secondary">前往工作区</router-link>
+                </div>
+                <div
+                  v-for="gen in store.generations"
+                  :key="gen.id"
+                  class="gallery-item"
+                  @click="selectGeneration(gen)"
+                >
+                  <img :src="gen.outputImageUrl" alt="Generation" />
+                  <div class="gallery-item-overlay">
+                    <span>{{ gen.prompt?.slice(0, 40) }}{{ gen.prompt?.length > 40 ? '...' : '' }}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -232,8 +263,20 @@ onMounted(() => {
   </div>
 </template>
 
+<!-- PLACEHOLDER_STYLE -->
+
 <style scoped>
 .page-root { max-width: 1100px; margin: 0 auto; padding-bottom: 48px; display: flex; flex-direction: column; height: 100%; }
+
+/* Countdown Banner */
+.countdown-banner { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: var(--radius-lg); padding: 20px 28px; margin-bottom: 24px; color: white; }
+.countdown-banner.expired { background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); }
+.countdown-inner { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.countdown-label { font-size: 14px; font-weight: 500; opacity: 0.9; }
+.countdown-time { font-family: var(--font-serif); font-size: 42px; font-weight: 400; letter-spacing: 2px; }
+.countdown-bar { height: 6px; background: rgba(255,255,255,0.3); border-radius: 3px; overflow: hidden; }
+.countdown-bar-fill { height: 100%; background: white; border-radius: 3px; transition: width 1s linear; }
+
 .hero-band { padding: 0 0 32px 0; flex-shrink: 0; }
 .btn-back { background: none; border: none; color: var(--muted); display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; font-family: var(--font-inter); cursor: pointer; padding: 0; margin-bottom: 16px; transition: color 0.2s; }
 .btn-back:hover { color: var(--ink); }
@@ -243,7 +286,6 @@ onMounted(() => {
 .layout-grid { display: grid; grid-template-columns: 320px 1fr; gap: 32px; align-items: start; }
 .card-light { background: var(--surface-card); border-radius: var(--radius-lg); padding: 32px; border: 1px solid var(--hairline); }
 
-/* Left Info */
 .info-panel { display: flex; flex-direction: column; gap: 24px; }
 .info-section { display: flex; flex-direction: column; gap: 8px; }
 .info-section label { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
@@ -253,28 +295,30 @@ onMounted(() => {
 .status-pending { background: rgba(204,120,92,0.1); color: var(--primary); }
 .status-submitted { background: rgba(93,184,114,0.1); color: var(--success); }
 
-/* Right Action */
 .action-panel { min-height: 400px; display: flex; flex-direction: column; }
 .panel-title { font-family: var(--font-serif); font-size: 28px; margin: 0 0 8px 0; color: var(--ink); }
 .panel-sub { font-size: 14px; color: var(--muted); margin: 0 0 24px 0; }
 
-.prompt-textarea { width: 100%; padding: 16px; border: 1px solid var(--hairline); border-radius: var(--radius-md); font-family: var(--font-inter); font-size: 15px; line-height: 1.5; color: var(--ink); background: white; resize: vertical; transition: all 0.2s; outline: none; }
-.prompt-textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(204,120,92,0.15); }
-.prompt-textarea:disabled { background: var(--surface-soft); color: var(--muted); cursor: not-allowed; }
+/* Gallery Grid */
+.search-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid var(--hairline); border-radius: var(--radius-md); margin-bottom: 12px; background: white; }
+.search-input { border: none; outline: none; flex: 1; font-size: 14px; color: var(--ink); background: transparent; }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; max-height: 350px; overflow-y: auto; }
+.gallery-item { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; }
+.gallery-item:hover { border-color: var(--accent-amber); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.gallery-item img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-item-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 8px; background: linear-gradient(transparent, rgba(0,0,0,0.7)); color: white; font-size: 11px; line-height: 1.3; opacity: 0; transition: opacity 0.2s; }
+.gallery-item:hover .gallery-item-overlay { opacity: 1; }
+.empty-gallery { grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--muted); display: flex; flex-direction: column; align-items: center; gap: 16px; }
 
-.gen-actions { display: flex; justify-content: flex-end; margin-top: 16px; }
+/* Selected Preview */
+.selected-preview { display: flex; flex-direction: column; gap: 16px; }
+.selected-image-box { border-radius: 12px; overflow: hidden; border: 1px solid var(--hairline); display: flex; justify-content: center; background: white; padding: 8px; }
+.preview-image { max-width: 100%; max-height: 400px; border-radius: 8px; }
+.selected-info { display: flex; flex-direction: column; gap: 4px; }
+.selected-prompt { font-size: 14px; color: var(--ink); margin: 0; line-height: 1.5; }
+.selected-time { font-size: 12px; color: var(--muted); }
+.submit-action-box { display: flex; align-items: center; gap: 12px; padding: 20px; background: var(--surface-cream-strong); border-radius: 12px; }
 
-.preview-area { margin-top: 32px; border-top: 1px solid var(--hairline); padding-top: 32px; display: flex; flex-direction: column; align-items: center; }
-.generating-overlay { display: flex; flex-direction: column; align-items: center; gap: 16px; color: var(--muted); padding: 48px 0; }
-.pulse-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--primary); animation: pulse 1.5s infinite ease-in-out; }
-@keyframes pulse { 0% { transform: scale(0.8); opacity: 0.5; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(0.8); opacity: 0.5; } }
-
-.generated-result { display: flex; flex-direction: column; align-items: center; gap: 24px; width: 100%; }
-.preview-image { max-width: 100%; max-height: 400px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-.submit-action-box { display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--surface-cream-strong); padding: 24px; border-radius: 12px; width: 100%; }
-.submit-action-box p { margin: 0; font-size: 15px; font-weight: 500; color: var(--ink); }
-
-/* Submitted View */
 .submitted-view { display: flex; flex-direction: column; gap: 24px; }
 .result-image-box { border-radius: 12px; overflow: hidden; background: white; padding: 12px; border: 1px solid var(--hairline); display: flex; justify-content: center; }
 .result-image { max-width: 100%; max-height: 500px; border-radius: 8px; }
@@ -287,12 +331,15 @@ onMounted(() => {
 .score-val { font-family: var(--font-serif); font-size: 32px; color: var(--success); }
 .feedback-text { font-size: 15px; line-height: 1.6; color: var(--ink); white-space: pre-wrap; padding: 16px; background: var(--surface-soft); border-radius: 8px; }
 
+.expired-view { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px; text-align: center; }
+.expired-msg { font-size: 15px; color: var(--muted); margin-top: 12px; }
+
 .error-banner { background: rgba(198,69,69,0.1); color: var(--error); padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 16px; }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 24px; height: 44px; border-radius: var(--radius-md); font-weight: 500; font-size: 14px; cursor: pointer; border: none; transition: all 0.2s; font-family: var(--font-inter); }
 .btn-primary { background: var(--primary); color: var(--on-primary); }
 .btn-primary:hover:not(:disabled) { background: var(--primary-active); }
-.btn-secondary { background: white; color: var(--ink); border: 1px solid var(--hairline); }
-.btn-secondary:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.btn-challenge { background: #f59e0b; color: white; }
+.btn-challenge:hover:not(:disabled) { background: #d97706; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

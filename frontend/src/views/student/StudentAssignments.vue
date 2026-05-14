@@ -1,24 +1,29 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useAuthStore } from '../../stores/auth'
+import { useAssignmentStore } from '../../stores/assignments'
 
-const authStore = useAuthStore()
-const assignments = ref<any[]>([])
+const store = useAssignmentStore()
 const isLoading = ref(true)
 
 const fetchAssignments = async () => {
-  try {
-    const res = await fetch('http://localhost:8080/api/student/assignments', {
-      headers: { 'Authorization': `Bearer ${authStore.token}` }
-    })
-    const data = await res.json()
-    if (data.success) {
-      assignments.value = data.data
-    }
-  } catch (e) {
-  } finally {
-    isLoading.value = false
-  }
+  await store.fetchStudentAssignments()
+  isLoading.value = false
+}
+
+const formatDeadline = (deadline: string | null) => {
+  if (!deadline) return null
+  return new Date(deadline).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+const isOverdue = (deadline: string | null) => {
+  if (!deadline) return false
+  return new Date(deadline).getTime() < Date.now()
+}
+
+const isUrgent = (deadline: string | null) => {
+  if (!deadline) return false
+  const diff = new Date(deadline).getTime() - Date.now()
+  return diff > 0 && diff < 24 * 60 * 60 * 1000
 }
 
 onMounted(() => {
@@ -35,7 +40,7 @@ onMounted(() => {
     </div>
 
     <div style="display: flex; flex-direction: column; gap: 16px;">
-      <div v-for="assignment in assignments" :key="assignment.id" class="glass-panel" style="padding: 24px; position: relative; overflow: hidden;">
+      <div v-for="assignment in store.assignments" :key="assignment.id" class="glass-panel" style="padding: 24px; position: relative; overflow: hidden;">
          <div v-if="assignment.submissions && assignment.submissions.length > 0" 
               style="position: absolute; top: 0; right: 0; padding: 4px 16px; color: white; font-size: 12px; border-bottom-left-radius: 12px;"
               :style="{ background: assignment.submissions[0].status === 'REVIEWED' ? 'var(--success)' : 'var(--primary)' }">
@@ -51,6 +56,16 @@ onMounted(() => {
              <p style="color: var(--muted); margin-top: 8px; font-size: 14px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                {{ assignment.description }}
              </p>
+
+             <div v-if="assignment.deadline && (!assignment.submissions || assignment.submissions.length === 0)"
+                  style="margin-top: 8px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 6px;"
+                  :style="{
+                    background: isOverdue(assignment.deadline) ? 'rgba(239,68,68,0.1)' : isUrgent(assignment.deadline) ? 'rgba(245,158,11,0.1)' : 'rgba(107,114,128,0.08)',
+                    color: isOverdue(assignment.deadline) ? '#dc2626' : isUrgent(assignment.deadline) ? '#d97706' : 'var(--muted)'
+                  }">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                {{ isOverdue(assignment.deadline) ? '已逾期' : isUrgent(assignment.deadline) ? '即将截止' : '' }} 截止: {{ formatDeadline(assignment.deadline) }}
+             </div>
              
              <div v-if="assignment.type === 'CHALLENGE' && assignment.status === 'ACTIVE' && assignment.startedAt && (!assignment.submissions || assignment.submissions.length === 0)" 
                   style="margin-top: 12px; padding: 6px 12px; background: rgba(245, 158, 11, 0.1); color: #d97706; border-radius: 6px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px;">
@@ -92,7 +107,7 @@ onMounted(() => {
          </div>
        </div>
 
-      <div v-if="assignments.length === 0" class="glass-panel" style="text-align: center; padding: 64px; color: var(--muted);">
+      <div v-if="store.assignments.length === 0" class="glass-panel" style="text-align: center; padding: 64px; color: var(--muted);">
          当前没有活跃的教学任务。
       </div>
     </div>

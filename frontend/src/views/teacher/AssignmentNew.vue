@@ -1,50 +1,69 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '../../stores/auth'
+import { useAssignmentStore } from '../../stores/assignments'
 
 const router = useRouter()
-const authStore = useAuthStore()
+const store = useAssignmentStore()
 
 const formData = ref({
   title: '',
   description: '',
-  type: 'PRACTICE', // 'PRACTICE' or 'CHALLENGE'
-  durationMin: 15
+  type: 'STANDARD',
+  durationMin: 15,
+  deadline: '',
+  referenceImageUrl: '',
+  rubric: '',
+  promptHint: ''
 })
 
 const isSubmitting = ref(false)
 const errorMessage = ref('')
+const referencePreview = ref<string | null>(null)
+
+const handleImageUpload = (e: Event) => {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    const base64 = reader.result as string
+    formData.value.referenceImageUrl = base64
+    referencePreview.value = base64
+  }
+  reader.readAsDataURL(file)
+}
+
+const removeReferenceImage = () => {
+  formData.value.referenceImageUrl = ''
+  referencePreview.value = null
+}
 
 const handleSubmit = async () => {
   if (!formData.value.title.trim()) {
     errorMessage.value = '请输入任务标题'
     return
   }
-  
+
   isSubmitting.value = true
   errorMessage.value = ''
-  
+
   try {
-    const payload = {
-      ...formData.value,
-      durationMin: formData.value.type === 'CHALLENGE' ? Number(formData.value.durationMin) : null
+    const payload: Record<string, unknown> = {
+      title: formData.value.title,
+      description: formData.value.description,
+      type: formData.value.type,
+      durationMin: formData.value.type === 'CHALLENGE' ? Number(formData.value.durationMin) : null,
+      deadline: formData.value.type === 'STANDARD' && formData.value.deadline ? formData.value.deadline : null,
+      referenceImageUrl: formData.value.referenceImageUrl || null,
+      rubric: formData.value.rubric || null,
+      promptHint: formData.value.promptHint || null
     }
 
-    const res = await fetch('http://localhost:8080/api/teacher/assignments', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
-      },
-      body: JSON.stringify(payload)
-    })
-    
-    if (res.ok) {
+    const ok = await store.createAssignment(payload)
+    if (ok) {
       router.push('/teacher/assignments')
     } else {
-      const data = await res.json()
-      errorMessage.value = data.message || '发布任务失败'
+      errorMessage.value = '发布任务失败'
     }
   } catch (e: any) {
     errorMessage.value = e.message || '网络错误，发布失败'
@@ -82,8 +101,8 @@ const handleSubmit = async () => {
         <div class="field">
           <label class="field-label">考核模式</label>
           <div class="radio-tiles">
-            <label class="radio-tile" :class="{ active: formData.type === 'PRACTICE' }">
-              <input type="radio" v-model="formData.type" value="PRACTICE" class="sr-only" />
+            <label class="radio-tile" :class="{ active: formData.type === 'STANDARD' }">
+              <input type="radio" v-model="formData.type" value="STANDARD" class="sr-only" />
               <div class="tile-icon">🌱</div>
               <div class="tile-content">
                 <h4>普通练习</h4>
@@ -109,9 +128,37 @@ const handleSubmit = async () => {
           <input v-model="formData.durationMin" type="number" min="1" max="120" required class="field-input" style="max-width: 240px;" />
         </div>
 
+        <div class="field" v-if="formData.type === 'STANDARD'">
+          <label class="field-label">截止日期</label>
+          <input v-model="formData.deadline" type="datetime-local" class="field-input" style="max-width: 300px;" />
+        </div>
+
         <div class="field">
           <label class="field-label">详细要求与提示</label>
           <textarea v-model="formData.description" rows="3" placeholder="请详细描述学生需要完成的目标、考察的核心要点..." class="field-input"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="field-label">参考图片（可选）</label>
+          <div v-if="referencePreview" class="ref-image-preview">
+            <img :src="referencePreview" alt="参考图" />
+            <button type="button" class="ref-remove-btn" @click="removeReferenceImage">移除</button>
+          </div>
+          <label v-else class="upload-area">
+            <input type="file" accept="image/*" class="sr-only" @change="handleImageUpload" />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            <span>点击上传参考图，帮助学生理解创作方向</span>
+          </label>
+        </div>
+
+        <div class="field">
+          <label class="field-label">评分标准（可选）</label>
+          <textarea v-model="formData.rubric" rows="3" placeholder="例如：构图合理 30%、色彩搭配 30%、创意表达 40%" class="field-input"></textarea>
+        </div>
+
+        <div class="field">
+          <label class="field-label">提示词引导（可选）</label>
+          <textarea v-model="formData.promptHint" rows="2" placeholder="给学生的创作方向提示，例如：尝试使用赛博朋克、霓虹灯等关键词" class="field-input"></textarea>
         </div>
 
         <div class="card-actions">
@@ -169,4 +216,14 @@ const handleSubmit = async () => {
 .btn-secondary:hover:not(:disabled) { background: var(--surface-soft); }
 
 .msg-error-banner { background: #fee2e2; color: #b91c1c; padding: 12px 16px; border-radius: var(--radius-md); font-size: 14px; font-weight: 500; }
+
+/* ===== UPLOAD AREA ===== */
+.upload-area { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px; border: 2px dashed var(--hairline); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; color: var(--muted); text-align: center; }
+.upload-area:hover { border-color: var(--primary); color: var(--primary); background: rgba(204,120,92,0.03); }
+.upload-area span { font-size: 13px; }
+
+.ref-image-preview { position: relative; display: inline-block; }
+.ref-image-preview img { max-width: 200px; max-height: 150px; border-radius: var(--radius-md); border: 1px solid var(--hairline); }
+.ref-remove-btn { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+.ref-remove-btn:hover { background: var(--error); }
 </style>

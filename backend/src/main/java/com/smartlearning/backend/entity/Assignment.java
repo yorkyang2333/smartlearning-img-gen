@@ -50,6 +50,15 @@ public class Assignment {
     @Column(nullable = false)
     private Boolean isActive = true;
 
+    @Column(columnDefinition = "LONGTEXT")
+    private String referenceImageUrl;
+
+    @Column(columnDefinition = "TEXT")
+    private String rubric;
+
+    @Column(columnDefinition = "TEXT")
+    private String promptHint;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

@@ -14,21 +14,21 @@
 
 ## 🛠️ 技术栈
 
-- **前端**：Vue 3 + TypeScript + Vite
-- **后端**：Java 21 + Spring Boot 3
-- **数据库**：内置 SQLite（前端、后端、网关均由 SQLite 驱动，轻量级，极易本地部署）
+- **前端**：Vue 3 + TypeScript + Vite + Tailwind CSS + Pinia
+- **后端**：Java 17 + Spring Boot 3 + Spring Security + JPA
+- **数据库**：MySQL 8（后端业务数据）；AI Gateway 内嵌 SQLite
 - **AI 路由层**：AI Gateway (基于 New API Docker 服务)
 
 ## 🚀 快速开始
 
-本项目经过重构，移除了过去复杂的运行环境依赖。您只需安装基本的 Node 和 Java 环境即可一键启动。
+本项目经过重构，移除了过去复杂的运行环境依赖。您只需安装 Node、Java 和 MySQL 环境即可一键启动。
 
 ### 1. 环境依赖
 - **Node.js** (推荐 v20 或更高版本)
-- **Java JDK** (v21 或更高版本，例如 Eclipse Temurin 21)
+- **Java JDK** (v17 或更高版本，例如 Eclipse Temurin 17)
 - **Maven** (部分系统可能需要，项目自带 `mvnw` wrapper 可选)
+- **MySQL 8** (默认连接 localhost:3306，schema 名 `smartcanvas`，root 用户空密码)
 - **Docker** (需要 Docker 运行 New API 网关，推荐安装 Colima 或 Docker Desktop)
-- （可选）无需安装数据库或额外中间件，项目内嵌 SQLite 支持。
 
 ### 2. 一键启动
 在项目根目录下直接运行：
@@ -45,7 +45,9 @@ sh start.sh
 关闭时，只需按下 `Ctrl + C`，脚本会自动安全停止前后端进程和网关守护进程。
 
 ### 3. 访问入口
-- **应用前端**：[http://localhost:5173](http://localhost:5173) (初始默认账号请参见控制台输出，一般内置 `admin / 123456`)
+- **应用前端**：[http://localhost:5173](http://localhost:5173)
+  - 教师账号：`teacher` / 密码：`123456`
+  - 学生账号：`student` / 密码：`123456`
 - **后端接口**：[http://localhost:8080](http://localhost:8080)
 - **AI 网关面板**：[http://localhost:4000](http://localhost:4000) (默认账号：`root` / 密码：`12345678`)
 

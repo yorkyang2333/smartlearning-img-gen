@@ -29,6 +29,7 @@ import com.smartlearning.backend.entity.Generation;
 import com.smartlearning.backend.entity.Model;
 import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.ModelRepository;
+import com.smartlearning.backend.service.AssignmentService;
 import com.smartlearning.backend.service.GatewayConfigService;
 import com.smartlearning.backend.service.GatewayModelSyncService;
 import com.smartlearning.backend.util.ModelConfigUtil;
@@ -37,6 +38,9 @@ import com.smartlearning.backend.util.ModelConfigUtil;
 @RequestMapping("/api/teacher")
 @PreAuthorize("hasRole('TEACHER')")
 public class TeacherController {
+
+    @Autowired
+    private AssignmentService assignmentService;
 
     @Autowired
     private AssignmentRepository assignmentRepository;
@@ -177,39 +181,41 @@ public class TeacherController {
     // --- ASSIGNMENTS ---
     @GetMapping("/assignments")
     public ResponseEntity<List<Assignment>> getAssignments() {
-        return ResponseEntity.ok(assignmentRepository.findByTeacherIdOrderByCreatedAtDesc(getTeacherId()));
+        return ResponseEntity.ok(assignmentService.getTeacherAssignments(getTeacherId()));
     }
 
     @PostMapping("/assignments")
     public ResponseEntity<Assignment> createAssignment(@RequestBody Assignment assignment) {
-        assignment.setTeacherId(getTeacherId());
-        return ResponseEntity.ok(assignmentRepository.save(assignment));
+        return ResponseEntity.ok(assignmentService.createAssignment(assignment, getTeacherId()));
+    }
+
+    @PutMapping("/assignments/{id}")
+    public ResponseEntity<?> updateAssignment(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        try {
+            return ResponseEntity.ok(assignmentService.updateAssignment(id, getTeacherId(), body));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/assignments/{id}/submissions")
-    public ResponseEntity<List<Submission>> getSubmissions(@PathVariable String id) {
-        Assignment assignment = assignmentRepository.findById(id).orElseThrow();
-        if (!assignment.getTeacherId().equals(getTeacherId())) {
-            return ResponseEntity.status(403).build();
+    public ResponseEntity<?> getSubmissions(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(assignmentService.getSubmissions(id, getTeacherId()));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }
-        return ResponseEntity.ok(submissionRepository.findByAssignmentId(id));
     }
 
     @PostMapping("/submissions/{id}/review")
-    public ResponseEntity<Submission> reviewSubmission(@PathVariable String id, @RequestBody Map<String, Object> body) {
-        Submission submission = submissionRepository.findById(id).orElseThrow();
-        Assignment assignment = assignmentRepository.findById(submission.getAssignmentId()).orElseThrow();
-        if (!assignment.getTeacherId().equals(getTeacherId())) {
-            return ResponseEntity.status(403).build();
+    public ResponseEntity<?> reviewSubmission(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        try {
+            Integer score = body.containsKey("score") ? Integer.valueOf(body.get("score").toString()) : null;
+            String feedback = body.containsKey("feedback") ? body.get("feedback").toString() : null;
+            return ResponseEntity.ok(assignmentService.reviewSubmission(id, getTeacherId(), score, feedback));
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
         }
-        submission.setStatus("REVIEWED");
-        if (body.containsKey("score")) {
-            submission.setScore(Integer.valueOf(body.get("score").toString()));
-        }
-        if (body.containsKey("feedback")) {
-            submission.setFeedback(body.get("feedback").toString());
-        }
-        return ResponseEntity.ok(submissionRepository.save(submission));
     }
 
     // --- TUTOR CONFIG (MODELS) ---
