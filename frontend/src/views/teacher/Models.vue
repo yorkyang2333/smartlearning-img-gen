@@ -437,25 +437,27 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- ============ SECTION 4: AI TUTOR (CORAL) ============ -->
-    <section class="section-coral">
-      <div class="callout-card-coral">
-        <div class="coral-header">
-          <div>
-            <h2 class="coral-title">AI 学伴配置引擎</h2>
-            <p class="coral-desc">作为学生的“第二导师”，学伴会在创作空间实时提供点评建议。可为其指定专属的人设指令与支撑模型。</p>
-          </div>
+    <!-- ============ SECTION 4: AI TUTOR ============ -->
+    <section class="section-block tutor-section">
+      <div class="section-head">
+        <h2 class="section-title">AI 学伴配置引擎</h2>
+        <p class="section-desc">作为学生的“第二导师”，学伴会在创作空间实时提供点评建议。可为其指定专属的人设指令与支撑模型。</p>
+      </div>
+
+      <div class="card-light tutor-card">
+        <div class="card-top">
+          <h3 class="card-label">学伴引擎状态</h3>
           <label class="switch-wrap switch-lg">
-            <input v-model="tutorFormData.enabled" type="checkbox" class="switch-input switch-input-coral" />
-            <span class="switch-track switch-track-coral"></span>
+            <input v-model="tutorFormData.enabled" type="checkbox" class="switch-input" />
+            <span class="switch-track switch-track-lg"></span>
           </label>
         </div>
 
-        <form @submit="handleTutorSubmit" class="coral-form" :class="{ 'form-disabled': !tutorFormData.enabled }">
-          <div class="coral-form-grid">
+        <form @submit="handleTutorSubmit" class="tutor-form" :class="{ 'form-disabled': !tutorFormData.enabled }">
+          <div class="form-row">
             <div class="field">
-              <label class="field-label-coral">底层分析模型绑定</label>
-              <select class="field-input-coral" v-model="tutorFormData.modelName">
+              <label class="field-label">底层分析模型绑定</label>
+              <select class="field-input" v-model="tutorFormData.modelName">
                 <option value="">-- 选择文本/多模态模型 --</option>
                 <option v-for="m in tutorModelOptions" :key="m.modelId" :value="m.modelId">{{ m.name }} ({{ m.modelId }})</option>
               </select>
@@ -463,14 +465,14 @@ onMounted(async () => {
           </div>
           <div class="field" style="margin-top:24px">
             <div class="field-label-row">
-              <label class="field-label-coral">导师人设 (System Prompt)</label>
-              <button type="button" class="btn-ghost-coral" @click="tutorFormData.systemPrompt = ''">恢复系统默认</button>
+              <label class="field-label">导师人设 (System Prompt)</label>
+              <button type="button" class="btn-text-link" @click="tutorFormData.systemPrompt = ''">恢复系统默认</button>
             </div>
-            <textarea class="field-textarea-coral" rows="5" v-model="tutorFormData.systemPrompt" placeholder="留空则使用默认学伴提示词规则。你可以用 markdown 为学伴编排特定的回复格式要求。"></textarea>
+            <textarea class="field-input" style="height: auto; font-family: var(--font-mono); resize: vertical; line-height: 1.6;" rows="5" v-model="tutorFormData.systemPrompt" placeholder="留空则使用默认学伴提示词规则。你可以用 markdown 为学伴编排特定的回复格式要求。"></textarea>
           </div>
-          <div class="card-actions" style="margin-top:24px">
-            <span v-if="tutorMessage" :class="tutorMessage.includes('失败') || tutorMessage.includes('错误') ? 'msg-error-coral' : 'msg-success-coral'">{{ tutorMessage }}</span>
-            <button type="submit" class="btn-coral-invert" :disabled="isSavingTutor">{{ isSavingTutor ? '同步更新中...' : '发布学伴配置' }}</button>
+          <div class="card-actions" style="margin-top:32px">
+            <span v-if="tutorMessage" :class="tutorMessage.includes('失败') || tutorMessage.includes('错误') ? 'msg-error' : 'msg-success'">{{ tutorMessage }}</span>
+            <button type="submit" class="btn-primary" :disabled="isSavingTutor">{{ isSavingTutor ? '同步更新中...' : '发布学伴配置' }}</button>
           </div>
         </form>
       </div>
@@ -673,15 +675,14 @@ onMounted(async () => {
 .empty-card h3 { font-family:var(--font-serif); font-size:24px; margin:16px 0 8px; color:var(--ink); font-weight:400; }
 .empty-card svg { color:var(--muted-soft); }
 
-/* ===== SECTION 4: CORAL (AI TUTOR) ===== */
-.section-coral { margin-bottom:96px; }
-.callout-card-coral { background:var(--primary); border-radius:var(--radius-lg); padding:48px; color:var(--on-primary); box-shadow:0 8px 32px rgba(204,120,92,0.15); }
-.coral-header { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:40px; }
-.coral-title { font-family:var(--font-serif); font-size:36px; font-weight:400; letter-spacing:-0.5px; color:white; margin:0 0 12px 0; }
-.coral-desc { font-size:16px; color:rgba(255,255,255,0.9); margin:0; line-height:1.55; max-width:600px; }
-.coral-form { transition:opacity 0.2s; }
+/* ===== SECTION 4: AI TUTOR ===== */
+.tutor-section { margin-bottom:96px; }
+.tutor-card { position:relative; overflow:hidden; }
+.tutor-card::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:var(--primary); }
+.tutor-form { transition:opacity 0.2s; }
 .form-disabled { opacity:0.5; pointer-events:none; }
-.coral-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.btn-text-link { background:transparent; border:none; color:var(--primary); cursor:pointer; font-size:13px; font-weight:500; font-family:var(--font-inter); padding:0; }
+.btn-text-link:hover { text-decoration:underline; }
 .card-actions { display:flex; align-items:center; justify-content:flex-end; gap:16px; margin-top:24px; }
 
 /* ===== MODAL ===== */
