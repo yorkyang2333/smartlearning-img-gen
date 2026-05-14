@@ -568,4 +568,25 @@ public class TeacherController {
         modelRepository.deleteById(id);
         return ResponseEntity.ok().build();
     }
+
+    // --- PROFILE ---
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(@RequestBody Map<String, String> body) {
+        User teacher = userRepository.findById(getTeacherId()).orElseThrow();
+        if (body.containsKey("displayName")) {
+            teacher.setDisplayName(body.get("displayName"));
+        }
+        if (body.containsKey("password") && !body.get("password").trim().isEmpty()) {
+            teacher.setPasswordHash(passwordEncoder.encode(body.get("password")));
+        }
+        User saved = userRepository.save(teacher);
+        
+        Map<String, Object> userData = new HashMap<>();
+        userData.put("id", saved.getId());
+        userData.put("username", saved.getUsername());
+        userData.put("displayName", saved.getDisplayName());
+        userData.put("role", saved.getRole());
+        
+        return ResponseEntity.ok(Map.of("success", true, "user", userData));
+    }
 }

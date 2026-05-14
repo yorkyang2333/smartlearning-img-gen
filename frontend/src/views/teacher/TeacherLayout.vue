@@ -13,25 +13,8 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-const handleChangePassword = async () => {
-  const newPwd = prompt('请输入新密码：')
-  if (newPwd) {
-    try {
-      const res = await fetch('http://localhost:8080/api/auth/change-password', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authStore.token}`
-        },
-        body: JSON.stringify({ password: newPwd })
-      })
-      const data = await res.json()
-      if (data.error) alert('修改失败：' + data.error)
-      else alert('修改成功！')
-    } catch (e) {
-      alert('网络错误')
-    }
-  }
+const handleSettings = () => {
+  router.push('/teacher/settings')
 }
 </script>
 
@@ -117,13 +100,13 @@ const handleChangePassword = async () => {
         </div>
         <div style="display: flex; flex-direction: column; gap: 8px;">
           <button 
-            @click="handleChangePassword" 
+            @click="handleSettings" 
             class="logoutBtn"
             style="color: var(--ink);"
-            title="修改密码"
+            title="个人设置"
           >
             <span class="logoutIcon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></span>
-            <span class="logoutText">修改密码</span>
+            <span class="logoutText">个人设置</span>
           </button>
           <button 
             @click="handleLogout" 

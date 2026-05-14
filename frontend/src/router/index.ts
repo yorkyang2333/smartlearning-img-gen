@@ -72,6 +72,11 @@ const router = createRouter({
           path: 'live',
           name: 'teacher-live',
           component: Live
+        },
+        {
+          path: 'settings',
+          name: 'teacher-settings',
+          component: () => import('../views/teacher/Settings.vue')
         }
       ]
     },
