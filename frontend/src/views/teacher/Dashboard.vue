@@ -155,13 +155,13 @@ import LiveFeed from './Live.vue'
             <div style="position: absolute; top: 0; left: 0; right: 0; border-top: 1px dashed var(--hairline); z-index: 0;"></div>
             <div style="position: absolute; top: 50%; left: 0; right: 0; border-top: 1px dashed var(--hairline); z-index: 0;"></div>
             <div style="position: absolute; bottom: 0; left: 0; right: 0; border-top: 1px solid var(--hairline); z-index: 0;"></div>
-            
-            <div v-for="(t, idx) in stats.dailyTrend" :key="idx" style="flex: 1; display: flex; flex-direction: column; align-items: center; z-index: 1;">
+
+            <div v-for="(t, idx) in stats.dailyTrend" :key="idx" style="flex: 1; display: flex; flex-direction: column; align-items: center; z-index: 1; height: 100%;">
               <div class="chart-bar-container" style="width: 100%; display: flex; justify-content: center; height: 100%; align-items: flex-end; position: relative;">
                 <div class="tooltip">{{ t.count }} 次</div>
                 <div class="chart-bar" :style="{ width: '60%', height: `${(t.count / maxTrend) * 100}%`, background: (t.count / maxTrend) * 100 > 0 ? 'var(--primary)' : 'transparent', minHeight: (t.count / maxTrend) * 100 > 0 ? '4px' : '0', borderRadius: '4px 4px 0 0', transition: 'height 0.5s ease' }" />
               </div>
-              <div style="margin-top: 12px; font-size: 0.8rem; color: var(--muted);">{{ t.date }}</div>
+              <div style="margin-top: 12px; font-size: 0.8rem; color: var(--muted); flex-shrink: 0;">{{ t.date }}</div>
             </div>
           </div>
         </div>
