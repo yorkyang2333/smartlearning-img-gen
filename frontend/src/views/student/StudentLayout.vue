@@ -175,9 +175,6 @@ const handleLogout = () => {
           <span class="userName">{{ authStore.user?.displayName || authStore.user?.username }}</span>
           <span class="userRole">学生</span>
           <div v-if="!isCollapsed && stats" style="font-size: 11px; color: var(--muted); margin-top: 4px;">
-            <div style="margin-bottom: 2px;">
-               今日配额: {{ stats.todayCount }} / {{ stats.dailyLimit }} 次
-            </div>
             <div>
                本周创作 {{ stats.thisWeekCount }} 次 · 总计 {{ stats.totalGenerations }} 次
             </div>
