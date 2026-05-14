@@ -95,8 +95,23 @@ const tutorModelOptions = computed(() => {
   return opts
 })
 
-const imageModels = computed(() => models.value.filter(m => m.type !== 'TEXT_GENERATION'))
-const textModels = computed(() => models.value.filter(m => m.type === 'TEXT_GENERATION'))
+const searchQuery = ref('')
+const isImageExpanded = ref(false)
+const isTextExpanded = ref(false)
+
+const filteredModels = computed(() => {
+  const q = searchQuery.value.toLowerCase().trim()
+  if (!q) return models.value
+  return models.value.filter(m => 
+    (m.name && m.name.toLowerCase().includes(q)) || 
+    (m.modelId && m.modelId.toLowerCase().includes(q)) ||
+    (m.description && m.description.toLowerCase().includes(q)) ||
+    (m.provider && m.provider.toLowerCase().includes(q))
+  )
+})
+
+const imageModels = computed(() => filteredModels.value.filter(m => m.type !== 'TEXT_GENERATION'))
+const textModels = computed(() => filteredModels.value.filter(m => m.type === 'TEXT_GENERATION'))
 
 const parseSizes = (config?: string) => {
   if (!config) return []
@@ -325,9 +340,14 @@ onMounted(async () => {
 
     <!-- ============ SECTION 3: MODEL DIRECTORY ============ -->
     <section class="section-block">
-      <div class="section-head">
-        <h2 class="section-title">可用模型池</h2>
-        <p class="section-desc">面向学生开放的生成模型清单。</p>
+      <div class="section-head" style="display: flex; justify-content: space-between; align-items: flex-end;">
+        <div>
+          <h2 class="section-title">可用模型池</h2>
+          <p class="section-desc">面向学生开放的生成模型清单。</p>
+        </div>
+        <div style="width: 280px;">
+          <input type="text" v-model="searchQuery" class="field-input" placeholder="搜索模型名称或标识符..." />
+        </div>
       </div>
 
       <div v-if="models.length === 0" class="empty-card">
@@ -338,11 +358,12 @@ onMounted(async () => {
 
       <!-- Image models -->
       <div v-if="imageModels.length > 0" class="table-group">
-        <h3 class="table-group-title">
+        <h3 class="table-group-title" @click="isImageExpanded = !isImageExpanded" style="cursor: pointer; user-select: none;">
           <span class="badge-coral">图像生成</span>
           <span class="count-muted">{{ imageModels.length }} 款可用</span>
+          <span style="margin-left: auto; color: var(--muted); font-size: 13px;">{{ isImageExpanded ? '收起 ▲' : '展开 ▼' }}</span>
         </h3>
-        <div class="table-card">
+        <div v-show="isImageExpanded" class="table-card">
           <table class="model-table">
             <thead><tr>
               <th width="100">STATUS</th><th>MODEL NAME</th><th>IDENTIFIER</th><th>TYPE</th><th>PROVIDER</th><th>SIZES</th><th width="100" style="text-align:right">ACTIONS</th>
@@ -378,11 +399,12 @@ onMounted(async () => {
 
       <!-- Text models -->
       <div v-if="textModels.length > 0" class="table-group">
-        <h3 class="table-group-title">
+        <h3 class="table-group-title" @click="isTextExpanded = !isTextExpanded" style="cursor: pointer; user-select: none;">
           <span class="badge-teal">多模态/文本</span>
           <span class="count-muted">{{ textModels.length }} 款可用</span>
+          <span style="margin-left: auto; color: var(--muted); font-size: 13px;">{{ isTextExpanded ? '收起 ▲' : '展开 ▼' }}</span>
         </h3>
-        <div class="table-card">
+        <div v-show="isTextExpanded" class="table-card">
           <table class="model-table">
             <thead><tr>
               <th width="100">STATUS</th><th>MODEL NAME</th><th>IDENTIFIER</th><th>PROVIDER</th><th width="100" style="text-align:right">ACTIONS</th>
