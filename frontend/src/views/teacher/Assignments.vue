@@ -82,7 +82,7 @@ onMounted(() => {
           </div>
           
           <div style="display: flex; flex-direction: column; gap: 8px; width: 120px;">
-             <a v-if="assignment.type === 'CHALLENGE' && assignment.isActive" :href="`/teacher/assignments/${assignment.id}/live`" target="_blank" class="btn btn-primary" style="width: 100%; background: var(--accent-amber); border: none; color: #fff;">
+             <a v-if="assignment.type === 'CHALLENGE' && assignment.isActive" href="/teacher/live" target="_blank" class="btn btn-primary" style="width: 100%; background: var(--accent-amber); border: none; color: #fff;">
                 进入大屏
              </a>
              <button v-else @click="router.push(`/teacher/assignments/${assignment.id}`)" class="btn btn-primary" style="width: 100%;">
