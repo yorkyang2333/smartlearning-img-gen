@@ -302,7 +302,7 @@ onMounted(async () => {
             </div>
             <div class="gateway-meta">
               <span>ACTIVE: <span class="cell-mono-light">{{ gatewayResolvedBaseUrl }}</span></span>
-              <span v-if="gatewayUpdatedAt">SYNC: {{ new Date(gatewayUpdatedAt).toLocaleString() }}</span>
+              <span v-if="gatewayUpdatedAt">SYNC: {{ new Date(gatewayUpdatedAt).toLocaleString('zh-CN') }}</span>
             </div>
             <div class="card-actions">
               <span v-if="gatewayMessage" :class="gatewayMessage.includes('失败') ? 'msg-error' : 'msg-success'">{{ gatewayMessage }}</span>

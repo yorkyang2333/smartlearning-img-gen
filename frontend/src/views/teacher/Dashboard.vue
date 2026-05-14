@@ -209,7 +209,7 @@ import LiveFeed from './Live.vue'
                   {{ item.prompt }}
                 </div>
               </td>
-              <td style="padding: 16px 24px; color: var(--muted); font-size: 14px;">{{ new Date(item.createdAt).toLocaleString() }}</td>
+              <td style="padding: 16px 24px; color: var(--muted); font-size: 14px;">{{ new Date(item.createdAt).toLocaleString('zh-CN') }}</td>
             </tr>
           </tbody>
         </table>
@@ -257,7 +257,7 @@ import LiveFeed from './Live.vue'
                     <div class="user-avatar-placeholder">{{ selectedStudent.name.charAt(0).toUpperCase() }}</div>
                   </div>
                   <div class="message-content">
-                    <div class="message-sender">{{ selectedStudent.name }} <span class="time-meta">{{ new Date(item.createdAt).toLocaleTimeString() }}</span></div>
+                    <div class="message-sender">{{ selectedStudent.name }} <span class="time-meta">{{ new Date(item.createdAt).toLocaleTimeString('zh-CN') }}</span></div>
                     <div class="bubble bubble-user">
                       {{ item.prompt }}
                       <div class="bubble-meta">模型: {{ item.model?.name }}</div>

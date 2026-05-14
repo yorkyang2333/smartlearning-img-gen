@@ -99,7 +99,7 @@ onMounted(() => {
               <span class="author" style="display: flex; align-items: center; gap: 4px;">
                 {{ gen.user?.displayName || '未知' }}
               </span>
-              <span class="time">{{ new Date(gen.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</span>
+              <span class="time">{{ new Date(gen.createdAt).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'}) }}</span>
            </div>
         </div>
       </div>

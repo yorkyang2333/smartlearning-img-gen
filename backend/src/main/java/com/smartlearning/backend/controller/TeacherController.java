@@ -90,7 +90,7 @@ public class TeacherController {
             List<Generation> recentGenerations = generationRepository.findByCreatedAtAfter(sevenDaysAgo);
 
             Map<String, Integer> trendMap = new java.util.LinkedHashMap<>();
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM d");
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("M/d");
             for (int i = 0; i < 7; i++) {
                 LocalDateTime d = sevenDaysAgo.plusDays(i);
                 trendMap.put(d.format(formatter), 0);

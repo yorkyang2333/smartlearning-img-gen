@@ -112,7 +112,7 @@ onMounted(() => {
 
         <div class="info-section" v-if="assignment.deadline">
           <label>截止时间</label>
-          <div class="meta-val">{{ new Date(assignment.deadline).toLocaleString() }}</div>
+          <div class="meta-val">{{ new Date(assignment.deadline).toLocaleString('zh-CN') }}</div>
         </div>
 
         <div class="info-section">
@@ -156,7 +156,7 @@ onMounted(() => {
               </div>
               <div class="selected-meta">
                 <div class="selected-prompt">{{ selectedGeneration.prompt }}</div>
-                <span class="selected-time">{{ new Date(selectedGeneration.createdAt).toLocaleString() }}</span>
+                <span class="selected-time">{{ new Date(selectedGeneration.createdAt).toLocaleString('zh-CN') }}</span>
               </div>
               <div class="submit-bar">
                 <button class="btn btn-primary" @click="handleSubmit" :disabled="isSubmitting">

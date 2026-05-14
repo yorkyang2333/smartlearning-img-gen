@@ -58,7 +58,7 @@ onMounted(() => {
             <div style="margin-top: 16px; display: flex; gap: 16px; font-size: 13px; color: var(--muted);">
                <span style="font-weight: 500; color: var(--primary);">已提交: {{ assignment._count?.submissions || 0 }} 份</span>
                <span>状态: {{ assignment.isActive ? '🟢 进行中' : '⚪ 已结束' }}</span>
-               <span>发布于: {{ new Date(assignment.createdAt).toLocaleDateString() }}</span>
+               <span>发布于: {{ new Date(assignment.createdAt).toLocaleDateString('zh-CN') }}</span>
                <span v-if="assignment.deadline">截止: {{ formatDeadline(assignment.deadline) }}</span>
                <span v-if="assignment.type === 'CHALLENGE' && assignment.durationMin">时长: {{ assignment.durationMin }} 分钟</span>
             </div>

@@ -146,7 +146,7 @@ onMounted(() => {
             <div class="sub-avatar"><img :src="sub.imageUrl" alt="thumbnail" /></div>
             <div class="sub-info">
               <div class="sub-name">{{ getStudentName(sub.studentId) }}</div>
-              <div class="sub-time">{{ new Date(sub.createdAt).toLocaleString() }}</div>
+              <div class="sub-time">{{ new Date(sub.createdAt).toLocaleString('zh-CN') }}</div>
             </div>
             <div class="sub-status">
               <span v-if="sub.status === 'REVIEWED'" class="badge-success">{{ sub.score }}分</span>

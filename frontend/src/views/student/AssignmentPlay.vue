@@ -220,7 +220,7 @@ onUnmounted(() => {
               </div>
               <div class="selected-info">
                 <p class="selected-prompt">{{ selectedGeneration.prompt }}</p>
-                <span class="selected-time">{{ new Date(selectedGeneration.createdAt).toLocaleString() }}</span>
+                <span class="selected-time">{{ new Date(selectedGeneration.createdAt).toLocaleString('zh-CN') }}</span>
               </div>
               <div class="submit-action-box">
                 <button class="btn btn-challenge" @click="handleSubmit" :disabled="isSubmitting">

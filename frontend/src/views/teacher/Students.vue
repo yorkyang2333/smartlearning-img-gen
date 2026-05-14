@@ -218,7 +218,7 @@ onMounted(() => {
                 {{ student.isActive !== false ? '正常' : '已停用' }}
               </span>
             </td>
-            <td style="padding: 1rem; color: var(--muted);">{{ new Date(student.createdAt).toLocaleDateString() }}</td>
+            <td style="padding: 1rem; color: var(--muted);">{{ new Date(student.createdAt).toLocaleDateString('zh-CN') }}</td>
             <td style="padding: 1rem;">{{ student._count?.generations || 0 }}</td>
             <td style="padding: 1rem; text-align: right;">
               <div v-if="editingId === student.id" style="display: flex; gap: 0.5rem; justify-content: flex-end; align-items: center;">
