@@ -64,12 +64,7 @@ public class DemoSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        boolean alreadySeeded = templateRepository.findAll().stream()
-                .anyMatch(t -> DEMO_MARKER_TITLE.equals(t.getTitle()));
-        if (alreadySeeded) {
-            System.out.println("ℹ️ 演示数据已存在，跳过 DemoSeeder。");
-            return;
-        }
+        wipeDemoData();
 
         ensureModels();
         User teacher = ensureTeacher();
@@ -83,6 +78,41 @@ public class DemoSeeder implements CommandLineRunner {
         System.out.println("  · 学生 " + students.size() + " 人（默认密码 123456）");
         System.out.println("  · 作业 " + assignments.size() + " 个（含进行中/已结束/限时挑战）");
         System.out.println("  · 提交 " + submissionRepository.count() + " 条 / 生成记录 " + generationRepository.count() + " 条");
+    }
+
+    // 每次启动先清掉旧的演示数据（仅 ROSTER 学生 + teacher 名下的作业 + [演示] 模板），
+    // 不影响默认 student 账号或非演示数据。
+    private void wipeDemoData() {
+        java.util.Optional<User> teacherOpt = userRepository.findByUsername("teacher");
+
+        teacherOpt.ifPresent(t -> {
+            jdbcTemplate.update(
+                "DELETE FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE teacher_id = ?)",
+                t.getId());
+            jdbcTemplate.update("DELETE FROM assignments WHERE teacher_id = ?", t.getId());
+            jdbcTemplate.update(
+                "DELETE FROM templates WHERE teacher_id = ? AND title LIKE '[演示]%'",
+                t.getId());
+        });
+
+        List<String> usernames = new ArrayList<>();
+        for (String[] row : ROSTER) usernames.add(row[0]);
+        if (usernames.isEmpty()) return;
+
+        String placeholders = String.join(",", java.util.Collections.nCopies(usernames.size(), "?"));
+        Object[] args = usernames.toArray();
+
+        List<String> demoStudentIds = jdbcTemplate.queryForList(
+            "SELECT id FROM users WHERE username IN (" + placeholders + ")",
+            String.class, args);
+
+        if (!demoStudentIds.isEmpty()) {
+            String idPlaceholders = String.join(",", java.util.Collections.nCopies(demoStudentIds.size(), "?"));
+            Object[] idArgs = demoStudentIds.toArray();
+            jdbcTemplate.update("DELETE FROM submissions WHERE student_id IN (" + idPlaceholders + ")", idArgs);
+            jdbcTemplate.update("DELETE FROM generations WHERE user_id IN (" + idPlaceholders + ")", idArgs);
+            jdbcTemplate.update("DELETE FROM conversations WHERE user_id IN (" + idPlaceholders + ")", idArgs);
+        }
     }
 
     // ---------- Models ----------
