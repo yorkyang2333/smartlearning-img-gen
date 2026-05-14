@@ -117,11 +117,12 @@ public class DemoSeeder implements CommandLineRunner {
 
     // ---------- Models ----------
     private void ensureModels() {
-        upsertModel(MODEL_GPT_IMAGE, "GPT Image 2", "BOTH", "openai", "高质量 AI 生图与编辑");
-        upsertModel(MODEL_DALLE3, "DALL-E 3 (生图)", "TEXT_TO_IMAGE", "openai", "经典 OpenAI 生图模型");
-        upsertModel(MODEL_GEMINI, "Gemini 3.1 Flash Image", "TEXT_TO_IMAGE", "google", "Google 的高速生图模型");
-        upsertModel("gpt-4o", "GPT-4o", "TEXT_GENERATION", "openai", "多模态分析与导师对话");
-        upsertModel("claude-3-5-sonnet-latest", "Claude 3.5 Sonnet", "TEXT_GENERATION", "anthropic", "长文本分析与教学反馈");
+        upsertModel(MODEL_GPT_IMAGE, "智绘大师 2", "BOTH", "openai", "高质量 AI 生图与编辑");
+        upsertModel(MODEL_DALLE3, "创意画坊 3", "TEXT_TO_IMAGE", "openai", "经典生图模型");
+        upsertModel(MODEL_GEMINI, "灵感闪绘", "TEXT_TO_IMAGE", "google", "高速生图模型");
+        upsertModel("deepseek-v4-flash", "深度思考 V4", "TEXT_GENERATION", "deepseek", "高速文本分析与导师对话");
+        upsertModel("gpt-4o", "智析多模态 4o", "TEXT_GENERATION", "openai", "多模态分析与导师对话");
+        upsertModel("claude-3-5-sonnet-latest", "文思长文本", "TEXT_GENERATION", "anthropic", "长文本分析与教学反馈");
     }
 
     private void upsertModel(String modelId, String name, String type, String provider, String desc) {

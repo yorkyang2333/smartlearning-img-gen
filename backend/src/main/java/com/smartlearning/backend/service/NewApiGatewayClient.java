@@ -130,7 +130,7 @@ public class NewApiGatewayClient implements GatewayAiClient {
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("model", modelName);
         requestBody.put("messages", List.of(
-            Map.of("role", "system", "content", systemPrompt != null ? systemPrompt : "You are a helpful AI tutor."),
+            Map.of("role", "system", "content", systemPrompt != null ? systemPrompt : "你是一个友善的AI导师。"),
             Map.of("role", "user", "content", userMessage)
         ));
 
@@ -159,7 +159,7 @@ public class NewApiGatewayClient implements GatewayAiClient {
         contentParts.add(Map.of("type", "image_url", "image_url", Map.of("url", imageUrl)));
 
         requestBody.put("messages", List.of(
-            Map.of("role", "system", "content", systemPrompt != null ? systemPrompt : "You are a helpful AI tutor."),
+            Map.of("role", "system", "content", systemPrompt != null ? systemPrompt : "你是一个友善的AI导师。"),
             Map.of("role", "user", "content", contentParts)
         ));
 
@@ -186,7 +186,7 @@ public class NewApiGatewayClient implements GatewayAiClient {
             requestBody.put("model", modelName);
             requestBody.put("stream", true);
             requestBody.put("messages", List.of(
-                Map.of("role", "system", "content", systemPrompt != null ? systemPrompt : "You are a helpful AI tutor."),
+                Map.of("role", "system", "content", systemPrompt != null ? systemPrompt : "你是一个友善的AI导师。"),
                 Map.of("role", "user", "content", userMessage)
             ));
 

@@ -241,7 +241,7 @@ onMounted(async () => {
     <header class="hero-band">
       <div class="hero-text-col">
         <h1 class="hero-title">模型与配置</h1>
-        <p class="hero-sub">通过 AI Gateway 网关统一接入大模型，<br>管理集成渠道、生图目录以及智能学伴引擎参数。</p>
+        <p class="hero-sub">通过 AI Gateway 网关统一接入大模型，<br>管理集成渠道、生图目录以及智能导师引擎参数。</p>
       </div>
       <div class="hero-actions-col">
         <button class="btn-secondary" @click="handleSyncModels" :disabled="isSyncing">
@@ -440,13 +440,13 @@ onMounted(async () => {
     <!-- ============ SECTION 4: AI TUTOR ============ -->
     <section class="section-block tutor-section">
       <div class="section-head">
-        <h2 class="section-title">AI 学伴配置引擎</h2>
-        <p class="section-desc">作为学生的“第二导师”，学伴会在创作空间实时提供点评建议。可为其指定专属的人设指令与支撑模型。</p>
+        <h2 class="section-title">AI 导师配置引擎</h2>
+        <p class="section-desc">AI 导师会在创作空间实时为学生提供点评建议。可为其指定专属的人设指令与支撑模型。</p>
       </div>
 
       <div class="card-light tutor-card">
         <div class="card-top">
-          <h3 class="card-label">学伴引擎状态</h3>
+          <h3 class="card-label">导师引擎状态</h3>
           <label class="switch-wrap switch-lg">
             <input v-model="tutorFormData.enabled" type="checkbox" class="switch-input" />
             <span class="switch-track switch-track-lg"></span>
@@ -468,11 +468,11 @@ onMounted(async () => {
               <label class="field-label">导师人设 (System Prompt)</label>
               <button type="button" class="btn-text-link" @click="tutorFormData.systemPrompt = ''">恢复系统默认</button>
             </div>
-            <textarea class="field-input" style="height: auto; font-family: var(--font-mono); resize: vertical; line-height: 1.6;" rows="5" v-model="tutorFormData.systemPrompt" placeholder="留空则使用默认学伴提示词规则。你可以用 markdown 为学伴编排特定的回复格式要求。"></textarea>
+            <textarea class="field-input" style="height: auto; font-family: var(--font-mono); resize: vertical; line-height: 1.6;" rows="5" v-model="tutorFormData.systemPrompt" placeholder="留空则使用默认导师提示词规则。你可以用 markdown 为导师编排特定的回复格式要求。"></textarea>
           </div>
           <div class="card-actions" style="margin-top:32px">
             <span v-if="tutorMessage" :class="tutorMessage.includes('失败') || tutorMessage.includes('错误') ? 'msg-error' : 'msg-success'">{{ tutorMessage }}</span>
-            <button type="submit" class="btn-primary" :disabled="isSavingTutor">{{ isSavingTutor ? '同步更新中...' : '发布学伴配置' }}</button>
+            <button type="submit" class="btn-primary" :disabled="isSavingTutor">{{ isSavingTutor ? '同步更新中...' : '发布导师配置' }}</button>
           </div>
         </form>
       </div>

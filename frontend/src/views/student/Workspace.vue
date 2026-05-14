@@ -157,9 +157,10 @@ const isPreferredGptImage2 = (model: any) => {
 }
 
 const getModelBrand = (model: any) => {
+  const id = model.modelId?.toLowerCase() || ''
   const name = model.name?.toLowerCase() || ''
-  if (name.includes('gpt') || name.includes('dall')) return 'OpenAI 系列'
-  if (name.includes('gemini') || name.includes('google')) return 'Google 系列'
+  if (id.includes('gpt') || id.includes('dall') || name.includes('gpt') || name.includes('dall')) return 'AI 生图系列'
+  if (id.includes('gemini') || id.includes('google') || name.includes('gemini') || name.includes('google')) return '闪绘系列'
   return '其他生态'
 }
 
@@ -192,8 +193,8 @@ watch(availableSizes, (sizes) => {
 const groupedModels = computed(() => {
   const acc: any = {}
   const brandPriority: Record<string, number> = {
-    'OpenAI 系列': 0,
-    'Google 系列': 1,
+    'AI 生图系列': 0,
+    '闪绘系列': 1,
     '其他生态': 2
   }
 
@@ -218,11 +219,11 @@ const groupedModels = computed(() => {
 const getModelMeta = (name: string) => {
   if (!name) return { icon: '📦', desc: '标准创作引擎' }
   const n = name.toLowerCase()
-  if (n.includes('dall-e 3')) return { icon: '✨', desc: '顶级语义理解，细节丰富' }
+  if (n.includes('dall-e 3') || n.includes('创意画坊')) return { icon: '✨', desc: '顶级语义理解，细节丰富' }
   if (n.includes('dall-e 2')) return { icon: '🎨', desc: '经典画质，适合抽象风格' }
-  if (n.includes('gpt image 2')) return { icon: '⚡', desc: '快速生成，构图优秀' }
+  if (n.includes('gpt image 2') || n.includes('智绘大师')) return { icon: '⚡', desc: '快速生成，构图优秀' }
   if (n.includes('gemini 3 pro')) return { icon: '🧠', desc: '多模态强，光影自然' }
-  if (n.includes('gemini 3.1')) return { icon: '🚀', desc: '极速出图，强劲性能' }
+  if (n.includes('gemini 3.1') || n.includes('灵感闪绘')) return { icon: '🚀', desc: '极速出图，强劲性能' }
   if (n.includes('gemini')) return { icon: '💎', desc: '高性价比，清晰锐利' }
   return { icon: '📦', desc: '标准创作引擎' }
 }

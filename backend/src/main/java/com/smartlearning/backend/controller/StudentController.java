@@ -253,7 +253,7 @@ public class StudentController {
         if (student.getTeacherId() == null) {
             return ResponseEntity.ok(Map.of(
                 "role", "assistant",
-                "content", "您当前没有绑定的教师，AI学伴暂时不可用。"
+                "content", "您当前没有绑定的教师，AI导师暂时不可用。"
             ));
         }
 
@@ -261,7 +261,7 @@ public class StudentController {
         if (tutorConfig == null || !tutorConfig.getEnabled() || tutorConfig.getModelName() == null || tutorConfig.getModelName().isBlank()) {
             return ResponseEntity.ok(Map.of(
                 "role", "assistant",
-                "content", "您的老师暂时没有启用AI学伴功能。"
+                "content", "您的老师暂时没有启用AI导师功能。"
             ));
         }
 
@@ -284,7 +284,7 @@ public class StudentController {
         } catch (Exception e) {
             return ResponseEntity.ok(Map.of(
                 "role", "assistant",
-                "content", "抱歉，AI学伴在思考时遇到了一些问题：" + e.getMessage()
+                "content", "抱歉，AI导师在思考时遇到了一些问题：" + e.getMessage()
             ));
         }
     }

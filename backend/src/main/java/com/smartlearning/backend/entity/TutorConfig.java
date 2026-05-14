@@ -21,7 +21,7 @@ public class TutorConfig {
     private String systemPrompt;
 
     @Column(nullable = false)
-    private String modelName = "gemini-3.1-flash-lite-preview";
+    private String modelName = "deepseek-v4-flash";
 
     @Column(name = "api_endpoint_id")
     private String apiEndpointId;
