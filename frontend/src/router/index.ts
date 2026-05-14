@@ -47,6 +47,11 @@ const router = createRouter({
           component: Assignments
         },
         {
+          path: 'assignments/new',
+          name: 'teacher-assignment-new',
+          component: () => import('../views/teacher/AssignmentNew.vue')
+        },
+        {
           path: 'students',
           name: 'teacher-students',
           component: Students
