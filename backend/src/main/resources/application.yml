@@ -1,8 +1,8 @@
 spring:
   application:
-    name: smartcanvas-backend
+    name: jincai-zhihui-backend
   datasource:
-    url: jdbc:mysql://localhost:3306/smartcanvas?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
+    url: jdbc:mysql://localhost:3306/jincai_zhihui?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: root
     password: ""

@@ -338,6 +338,6 @@ public class DemoSeeder implements CommandLineRunner {
     }
 
     private String seedFor(String key) {
-        return "https://picsum.photos/seed/smartcanvas-" + key + "/1024/1024";
+        return "https://picsum.photos/seed/jincai-zhihui-" + key + "/1024/1024";
     }
 }

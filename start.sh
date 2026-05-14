@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# SmartCanvas 一键启动脚本 (macOS & Linux)
+# 晋彩智绘 一键启动脚本 (macOS & Linux)
 
 echo "================================================="
-echo "🚀 正在启动 SmartCanvas (Spring Boot + Vue 3)..."
+echo "🚀 正在启动 晋彩智绘 (Spring Boot + Vue 3)..."
 echo "================================================="
 
 # 判断操作系统类型，给出更贴心的安装提示

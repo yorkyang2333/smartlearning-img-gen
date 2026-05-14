@@ -51,7 +51,7 @@ const handleLogin = async () => {
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="w-6 h-6 text-ink">
             <path d="M12 2L12 22M2 12L22 12M5 5L19 19M5 19L19 5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
           </svg>
-          智绘 SmartCanvas
+          晋彩智绘
         </div>
 
         <div class="mb-16">

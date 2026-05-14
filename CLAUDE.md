@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-SmartCanvas (智绘) — a teacher/student AI image-generation platform. Three runtimes work together: Vue 3 frontend, Spring Boot backend, and a New API "AI Gateway" (Docker) that fronts all upstream LLM/image providers.
+晋彩智绘 — a teacher/student AI image-generation platform. Three runtimes work together: Vue 3 frontend, Spring Boot backend, and a New API "AI Gateway" (Docker) that fronts all upstream LLM/image providers.
 
 ## Common commands
 
@@ -61,7 +61,7 @@ Layout under [backend/src/main/java/com/smartlearning/backend/](backend/src/main
 
 Gateway config precedence: a `GatewayConfig` row in the database overrides the `NEWAPI_BASE_URL` / `NEWAPI_API_KEY` env vars. The teacher UI (Models page → "AI Gateway 网关管理") writes that row.
 
-Datasource: [application.yml](backend/src/main/resources/application.yml) is configured for MySQL on localhost (`smartcanvas` schema, root user, empty password). H2 is on the classpath as a fallback. The README mentions SQLite but the live config is MySQL — verify which is actually running before assuming.
+Datasource: [application.yml](backend/src/main/resources/application.yml) is configured for MySQL on localhost (`jincai_zhihui` schema, root user, empty password). H2 is on the classpath as a fallback. The README mentions SQLite but the live config is MySQL — verify which is actually running before assuming.
 
 ### Frontend (Vue 3 + TS + Vite + Pinia)
 

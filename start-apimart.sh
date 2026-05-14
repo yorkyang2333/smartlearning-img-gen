@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SmartCanvas — APIMart 直连启动脚本
+# 晋彩智绘 — APIMart 直连启动脚本
 # 跳过本地 New API 网关，后端直接走 https://api.apimart.ai
 
 set -e
@@ -9,7 +9,7 @@ ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
 ENV_FILE="${ROOT_DIR}/.env.apimart"
 
 echo "================================================="
-echo "🚀 SmartCanvas (APIMart 直连模式)"
+echo "🚀 晋彩智绘 (APIMart 直连模式)"
 echo "================================================="
 
 if [ -f "$ENV_FILE" ]; then

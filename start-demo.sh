@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SmartCanvas 演示一键启动脚本
+# 晋彩智绘 演示一键启动脚本
 # 用法:
 #   sh start-demo.sh           # 正常启动（DemoSeeder 在数据未铺过时自动注入）
 #   sh start-demo.sh --reset   # 先清库再启动（每次都重新注入演示数据）
@@ -8,11 +8,11 @@
 set -uo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DB_NAME="${SMARTCANVAS_DB:-smartcanvas}"
-DB_USER="${SMARTCANVAS_DB_USER:-root}"
-DB_PASSWORD="${SMARTCANVAS_DB_PASSWORD:-}"
-DB_HOST="${SMARTCANVAS_DB_HOST:-127.0.0.1}"
-DB_PORT="${SMARTCANVAS_DB_PORT:-3306}"
+DB_NAME="${JINCAI_ZHIHUI_DB:-jincai_zhihui}"
+DB_USER="${JINCAI_ZHIHUI_DB_USER:-root}"
+DB_PASSWORD="${JINCAI_ZHIHUI_DB_PASSWORD:-}"
+DB_HOST="${JINCAI_ZHIHUI_DB_HOST:-127.0.0.1}"
+DB_PORT="${JINCAI_ZHIHUI_DB_PORT:-3306}"
 
 RESET_DB=false
 for arg in "$@"; do
@@ -26,7 +26,7 @@ for arg in "$@"; do
 done
 
 echo "================================================="
-echo "🎬 SmartCanvas 演示模式启动"
+echo "🎬 晋彩智绘 演示模式启动"
 echo "================================================="
 
 # ---------- 依赖检查 ----------
@@ -54,9 +54,9 @@ if [ "$RESET_DB" = true ]; then
         MYSQL_PWD_OPT=(-p"$DB_PASSWORD")
     fi
     if ! mysql -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" "${MYSQL_PWD_OPT[@]}" \
-        -e "DROP DATABASE IF EXISTS ${DB_NAME}; CREATE DATABASE ${DB_NAME} DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/tmp/smartcanvas-mysql.err; then
-        echo "❌ 重置数据库失败，详情见 /tmp/smartcanvas-mysql.err"
-        cat /tmp/smartcanvas-mysql.err
+        -e "DROP DATABASE IF EXISTS ${DB_NAME}; CREATE DATABASE ${DB_NAME} DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci;" 2>/tmp/jincai-zhihui-mysql.err; then
+        echo "❌ 重置数据库失败，详情见 /tmp/jincai-zhihui-mysql.err"
+        cat /tmp/jincai-zhihui-mysql.err
         exit 1
     fi
     echo "✅ 数据库已重置，启动后将自动重铺演示数据。"

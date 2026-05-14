@@ -2,7 +2,7 @@
 
 ## 目标
 - 用 AI Gateway 统一管理上游 provider、API Key、路由策略
-- SmartCanvas 应用只维护模型目录，不再在教师端手工配置渠道和密钥
+- 晋彩智绘应用只维护模型目录，不再在教师端手工配置渠道和密钥
 - 后端统一通过 OpenAI-compatible 接口调用网关
 
 ## 环境变量

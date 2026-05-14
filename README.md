@@ -1,4 +1,4 @@
-# 智绘 AI 图像生成平台 (SmartCanvas AI Image Generation Platform)
+# 晋彩智绘 AI 图像生成平台
 
 专为教育环境打造的综合性全栈 AI 图像生成平台。本平台提供了一套精致的“暖色编辑 (Warm Editorial)”风格界面，让学生们能够在一个充满艺术感的环境中探索 AI 创意；同时为教师提供了一个强大的控制台，用于管理 AI 模型、学生权限并监控生成历史。
 
@@ -27,7 +27,7 @@
 - **Node.js** (推荐 v20 或更高版本)
 - **Java JDK** (v17 或更高版本，例如 Eclipse Temurin 17)
 - **Maven** (部分系统可能需要，项目自带 `mvnw` wrapper 可选)
-- **MySQL 8** (默认连接 localhost:3306，schema 名 `smartcanvas`，root 用户空密码)
+- **MySQL 8** (默认连接 localhost:3306，schema 名 `jincai_zhihui`，root 用户空密码)
 - **Docker** (需要 Docker 运行 New API 网关，推荐安装 Colima 或 Docker Desktop)
 
 ### 2. 一键启动
