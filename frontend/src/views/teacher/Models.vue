@@ -220,6 +220,7 @@ onMounted(async () => {
   await fetchTutorConfig()
 })
 </script>
+
 <template>
   <div v-if="modelsLoading" class="loading-state">
     <div class="loading-spinner"></div>
@@ -227,13 +228,13 @@ onMounted(async () => {
   </div>
 
   <div v-else class="page-root">
-    <!-- ============ SECTION 1: PAGE HEADER ============ -->
-    <header class="page-hero">
-      <div>
+    <!-- ============ SECTION 1: PAGE HEADER (HERO BAND) ============ -->
+    <header class="hero-band">
+      <div class="hero-text-col">
         <h1 class="hero-title">模型与配置</h1>
-        <p class="hero-sub">通过 AI Gateway 网关统一接入大模型，管理渠道、模型目录和 AI 学伴教学配置。</p>
+        <p class="hero-sub">通过 AI Gateway 网关统一接入大模型，<br>管理集成渠道、生图目录以及智能学伴引擎参数。</p>
       </div>
-      <div class="hero-actions">
+      <div class="hero-actions-col">
         <button class="btn-secondary" @click="handleSyncModels" :disabled="isSyncing">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
           {{ isSyncing ? '同步中...' : '同步模型' }}
@@ -249,14 +250,14 @@ onMounted(async () => {
     <div v-if="showSyncDetails" class="sync-panel">
       <div class="sync-panel-header">
         <div class="sync-status-row">
-          <div v-if="isSyncing" class="sync-pulse"><span class="pulse-dot"></span> 正在探测 AI Gateway 模型...</div>
+          <div v-if="isSyncing" class="sync-pulse"><span class="pulse-dot"></span> 正在探测网关节点并映射模型...</div>
           <span v-else-if="syncMessage" :class="syncMessage.includes('失败') ? 'msg-error' : 'msg-success'">{{ syncMessage }}</span>
         </div>
         <button class="btn-icon" @click="showSyncDetails = false" title="关闭">✕</button>
       </div>
       <div v-if="syncDetails.length > 0" class="sync-detail-list">
         <div v-for="item in syncDetails" :key="item.modelId" class="sync-detail-item">
-          <span class="sync-badge" :class="item.isNew ? 'badge-new' : 'badge-exist'">{{ item.isNew ? '新增' : '已有' }}</span>
+          <span class="sync-badge" :class="item.isNew ? 'badge-new' : 'badge-exist'">{{ item.isNew ? 'NEW' : 'EXISTING' }}</span>
           <span class="sync-model-name">{{ item.name }}</span>
           <span class="sync-model-id">{{ item.modelId }}</span>
           <span class="sync-model-type">{{ typeLabel(item.type) }}</span>
@@ -264,63 +265,62 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- ============ SECTION 2: GATEWAY + CHANNELS ============ -->
+    <!-- ============ SECTION 2: INFRASTRUCTURE (DARK & TILES) ============ -->
     <section class="section-block">
       <div class="section-head">
-        <h2 class="section-title">AI Gateway 网关</h2>
-        <p class="section-desc">配置 New API 网关连接参数，管理上游渠道。</p>
+        <h2 class="section-title">基础设施架构</h2>
+        <p class="section-desc">配置核心网关连接参数，监控上游 API 渠道节点的健康状态。</p>
       </div>
 
       <div class="gateway-grid">
-        <!-- Left: config form -->
-        <form class="card-cream" @submit="handleGatewaySubmit">
-          <div class="card-top">
-            <h3 class="card-label">网关连接</h3>
+        <!-- Left: config form (DARK MOCKUP) -->
+        <form class="product-mockup-card-dark" @submit="handleGatewaySubmit">
+          <div class="dark-card-top">
+            <h3 class="dark-card-label">网关直连配置</h3>
             <label class="switch-wrap">
-              <input v-model="gatewayFormData.enabled" type="checkbox" class="switch-input" />
-              <span class="switch-track"></span>
+              <input v-model="gatewayFormData.enabled" type="checkbox" class="switch-input switch-input-dark" />
+              <span class="switch-track switch-track-dark"></span>
             </label>
           </div>
-          <div class="card-inner">
+          <div class="dark-card-inner">
             <div class="field">
-              <label class="field-label">Base URL</label>
-              <input type="url" class="field-input" v-model="gatewayFormData.baseUrl" placeholder="http://localhost:4000" />
+              <label class="field-label-dark">Base URL</label>
+              <input type="url" class="field-input-dark" v-model="gatewayFormData.baseUrl" placeholder="http://localhost:4000" />
             </div>
             <div class="field">
-              <label class="field-label">API Key</label>
-              <input type="password" class="field-input" v-model="gatewayFormData.apiKey" placeholder="留空表示网关无需鉴权" />
+              <label class="field-label-dark">API Key</label>
+              <input type="password" class="field-input-dark" v-model="gatewayFormData.apiKey" placeholder="留空表示网关无需鉴权" />
             </div>
             <div class="gateway-meta">
-              <span>当前生效：{{ gatewayResolvedBaseUrl }}</span>
-              <span v-if="gatewayUpdatedAt">更新于：{{ new Date(gatewayUpdatedAt).toLocaleString() }}</span>
+              <span>ACTIVE: <span class="cell-mono-light">{{ gatewayResolvedBaseUrl }}</span></span>
+              <span v-if="gatewayUpdatedAt">SYNC: {{ new Date(gatewayUpdatedAt).toLocaleString() }}</span>
             </div>
             <div class="card-actions">
-              <span v-if="gatewayMessage" :class="gatewayMessage.includes('失败') ? 'msg-error' : 'msg-success'">{{ gatewayMessage }}</span>
-              <button type="submit" class="btn-primary btn-sm" :disabled="isSavingGateway">{{ isSavingGateway ? '保存中...' : '保存网关配置' }}</button>
+              <span v-if="gatewayMessage" :class="gatewayMessage.includes('失败') ? 'msg-error' : 'msg-success-dark'">{{ gatewayMessage }}</span>
+              <button type="submit" class="btn-dark btn-sm" :disabled="isSavingGateway">{{ isSavingGateway ? 'Saving...' : '保存参数配置' }}</button>
             </div>
           </div>
         </form>
 
-        <!-- Right: channel list -->
-        <div class="card-cream">
-          <div class="card-top">
-            <h3 class="card-label">上游渠道</h3>
-            <span class="channel-count">{{ channels.length }} 个渠道</span>
+        <!-- Right: channel list (CONNECTOR TILES) -->
+        <div class="channel-tiles-wrapper">
+          <div class="card-top-transparent">
+            <h3 class="section-title-sm">活跃集成节点</h3>
+            <span class="channel-count">{{ channels.length }} 个节点</span>
           </div>
-          <div class="card-inner channel-list-area">
+          <div class="channel-list-area">
             <div v-if="channels.length === 0" class="empty-hint">
-              <p>暂无渠道数据。请先保存网关配置，或前往 New API 管理面板添加渠道。</p>
+              <p>暂无活跃的渠道数据。<br>请先保存网关配置并到 New API 控制台录入。</p>
             </div>
-            <div v-else class="channel-list">
-              <div v-for="ch in channels" :key="ch.id" class="channel-item">
-                <div class="channel-status-dot" :class="channelStatusClass(ch.status)"></div>
-                <div class="channel-info">
-                  <div class="channel-name">{{ ch.name || `渠道 #${ch.id}` }}</div>
-                  <div class="channel-meta-row">
-                    <span class="channel-type-tag">{{ channelTypeLabel(ch.type) }}</span>
-                    <span v-if="ch.responseTime > 0" class="channel-latency">{{ ch.responseTime }}ms</span>
-                    <span class="channel-status-text">{{ channelStatusLabel(ch.status) }}</span>
-                  </div>
+            <div v-else class="connector-tiles-grid">
+              <div v-for="ch in channels" :key="ch.id" class="connector-tile">
+                <div class="tile-header">
+                  <div class="tile-title">{{ ch.name || `Channel #${ch.id}` }}</div>
+                  <div class="channel-status-dot" :class="channelStatusClass(ch.status)"></div>
+                </div>
+                <div class="tile-meta">
+                  <span class="channel-type-tag">{{ channelTypeLabel(ch.type) }}</span>
+                  <span v-if="ch.responseTime > 0" class="channel-latency">{{ ch.responseTime }}ms</span>
                 </div>
               </div>
             </div>
@@ -329,36 +329,36 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- ============ SECTION 3: MODEL TABLE ============ -->
+    <!-- ============ SECTION 3: MODEL DIRECTORY ============ -->
     <section class="section-block">
       <div class="section-head">
-        <h2 class="section-title">全局模型目录</h2>
-        <p class="section-desc">管理可供学生使用的生图模型和文本分析模型。</p>
+        <h2 class="section-title">可用模型池</h2>
+        <p class="section-desc">面向学生开放的生成模型清单。</p>
       </div>
 
       <div v-if="models.length === 0" class="empty-card">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        <h3>暂无模型</h3>
-        <p>先从 AI Gateway 同步模型，或手动录入模型。</p>
+        <h3>模型库为空</h3>
+        <p>请点击顶部“同步模型”从网关抓取或手动添加。</p>
       </div>
 
       <!-- Image models -->
       <div v-if="imageModels.length > 0" class="table-group">
         <h3 class="table-group-title">
-          <span class="badge-coral">生图</span>
-          生图模型 <span class="count-muted">{{ imageModels.length }}</span>
+          <span class="badge-coral">图像生成</span>
+          <span class="count-muted">{{ imageModels.length }} 款可用</span>
         </h3>
         <div class="table-card">
           <table class="model-table">
             <thead><tr>
-              <th width="90">状态</th><th>展示名称</th><th>模型 ID</th><th>类型</th><th>提供方</th><th>尺寸</th><th width="90" style="text-align:right">操作</th>
+              <th width="100">STATUS</th><th>MODEL NAME</th><th>IDENTIFIER</th><th>TYPE</th><th>PROVIDER</th><th>SIZES</th><th width="100" style="text-align:right">ACTIONS</th>
             </tr></thead>
             <tbody>
               <tr v-for="model in imageModels" :key="model.id" :class="{ 'row-disabled': !model.isActive }">
                 <td>
                   <button class="toggle-btn" :class="model.isActive ? 'on' : 'off'" @click="handleModelToggle(model, !!model.isActive)">
                     <span class="toggle-dot" :class="model.isActive ? 'dot-on' : 'dot-off'"></span>
-                    {{ model.isActive ? '启用' : '停用' }}
+                    {{ model.isActive ? 'ENABLED' : 'DISABLED' }}
                   </button>
                 </td>
                 <td><div class="cell-name"><strong>{{ model.name }}</strong><span v-if="model.description" class="cell-desc">{{ model.description }}</span></div></td>
@@ -385,20 +385,20 @@ onMounted(async () => {
       <!-- Text models -->
       <div v-if="textModels.length > 0" class="table-group">
         <h3 class="table-group-title">
-          <span class="badge-teal">文本</span>
-          文本分析模型 <span class="count-muted">{{ textModels.length }}</span>
+          <span class="badge-teal">多模态/文本</span>
+          <span class="count-muted">{{ textModels.length }} 款可用</span>
         </h3>
         <div class="table-card">
           <table class="model-table">
             <thead><tr>
-              <th width="90">状态</th><th>展示名称</th><th>模型 ID</th><th>提供方</th><th width="90" style="text-align:right">操作</th>
+              <th width="100">STATUS</th><th>MODEL NAME</th><th>IDENTIFIER</th><th>PROVIDER</th><th width="100" style="text-align:right">ACTIONS</th>
             </tr></thead>
             <tbody>
               <tr v-for="model in textModels" :key="model.id" :class="{ 'row-disabled': !model.isActive }">
                 <td>
                   <button class="toggle-btn" :class="model.isActive ? 'on' : 'off'" @click="handleModelToggle(model, !!model.isActive)">
                     <span class="toggle-dot" :class="model.isActive ? 'dot-on' : 'dot-off'"></span>
-                    {{ model.isActive ? '启用' : '停用' }}
+                    {{ model.isActive ? 'ENABLED' : 'DISABLED' }}
                   </button>
                 </td>
                 <td><div class="cell-name"><strong>{{ model.name }}</strong><span v-if="model.description" class="cell-desc">{{ model.description }}</span></div></td>
@@ -421,40 +421,40 @@ onMounted(async () => {
       </div>
     </section>
 
-    <!-- ============ SECTION 4: AI TUTOR (DARK) ============ -->
-    <section class="section-dark">
-      <div class="dark-inner">
-        <div class="dark-header">
+    <!-- ============ SECTION 4: AI TUTOR (CORAL) ============ -->
+    <section class="section-coral">
+      <div class="callout-card-coral">
+        <div class="coral-header">
           <div>
-            <h2 class="dark-title">AI 学伴配置</h2>
-            <p class="dark-desc">为学生提供 AI 辅导伴侣。开启后，学生在创作工作区可以获得 AI 的点评与建议。</p>
+            <h2 class="coral-title">AI 学伴配置引擎</h2>
+            <p class="coral-desc">作为学生的“第二导师”，学伴会在创作空间实时提供点评建议。可为其指定专属的人设指令与支撑模型。</p>
           </div>
           <label class="switch-wrap switch-lg">
-            <input v-model="tutorFormData.enabled" type="checkbox" class="switch-input" />
-            <span class="switch-track switch-track-lg"></span>
+            <input v-model="tutorFormData.enabled" type="checkbox" class="switch-input switch-input-coral" />
+            <span class="switch-track switch-track-coral"></span>
           </label>
         </div>
 
-        <form @submit="handleTutorSubmit" class="dark-form" :class="{ 'form-disabled': !tutorFormData.enabled }">
-          <div class="dark-form-grid">
+        <form @submit="handleTutorSubmit" class="coral-form" :class="{ 'form-disabled': !tutorFormData.enabled }">
+          <div class="coral-form-grid">
             <div class="field">
-              <label class="field-label-dark">分析模型</label>
-              <select class="field-input-dark" v-model="tutorFormData.modelName">
+              <label class="field-label-coral">底层分析模型绑定</label>
+              <select class="field-input-coral" v-model="tutorFormData.modelName">
                 <option value="">-- 选择文本/多模态模型 --</option>
                 <option v-for="m in tutorModelOptions" :key="m.modelId" :value="m.modelId">{{ m.name }} ({{ m.modelId }})</option>
               </select>
             </div>
           </div>
-          <div class="field" style="margin-top:20px">
+          <div class="field" style="margin-top:24px">
             <div class="field-label-row">
-              <label class="field-label-dark">导师人设 (System Prompt)</label>
-              <button type="button" class="btn-ghost-dark" @click="tutorFormData.systemPrompt = ''">恢复默认</button>
+              <label class="field-label-coral">导师人设 (System Prompt)</label>
+              <button type="button" class="btn-ghost-coral" @click="tutorFormData.systemPrompt = ''">恢复系统默认</button>
             </div>
-            <textarea class="field-textarea-dark" rows="5" v-model="tutorFormData.systemPrompt" placeholder="留空则使用默认提示词。"></textarea>
+            <textarea class="field-textarea-coral" rows="5" v-model="tutorFormData.systemPrompt" placeholder="留空则使用默认学伴提示词规则。你可以用 markdown 为学伴编排特定的回复格式要求。"></textarea>
           </div>
-          <div class="card-actions" style="margin-top:20px">
-            <span v-if="tutorMessage" :class="tutorMessage.includes('失败') || tutorMessage.includes('错误') ? 'msg-error' : 'msg-success-dark'">{{ tutorMessage }}</span>
-            <button type="submit" class="btn-dark" :disabled="isSavingTutor">{{ isSavingTutor ? '保存中...' : '保存学伴配置' }}</button>
+          <div class="card-actions" style="margin-top:24px">
+            <span v-if="tutorMessage" :class="tutorMessage.includes('失败') || tutorMessage.includes('错误') ? 'msg-error-coral' : 'msg-success-coral'">{{ tutorMessage }}</span>
+            <button type="submit" class="btn-coral-invert" :disabled="isSavingTutor">{{ isSavingTutor ? '同步更新中...' : '发布学伴配置' }}</button>
           </div>
         </form>
       </div>
@@ -463,40 +463,43 @@ onMounted(async () => {
     <!-- ============ MODEL MODAL ============ -->
     <div v-if="isModelModalOpen" class="modal-backdrop" @click.self="isModelModalOpen = false">
       <div class="modal-panel">
-        <h2 class="modal-title">{{ editingModel ? '编辑模型' : '手动添加模型' }}</h2>
+        <h2 class="modal-title">{{ editingModel ? '编辑模型参数' : '手动挂载模型' }}</h2>
         <form @submit="handleModelSubmit" class="modal-form">
           <div class="form-row">
-            <div class="field"><label class="field-label">展示名称</label><input type="text" class="field-input" required v-model="modelFormData.name" placeholder="如: GPT Image 2" /></div>
-            <div class="field"><label class="field-label">模型 ID</label><input type="text" class="field-input" required v-model="modelFormData.modelId" placeholder="如: gpt-image-1" /></div>
+            <div class="field"><label class="field-label">展示名称</label><input type="text" class="field-input" required v-model="modelFormData.name" placeholder="例如: Stable Diffusion XL" /></div>
+            <div class="field"><label class="field-label">API Identifier (模型 ID)</label><input type="text" class="field-input cell-mono" required v-model="modelFormData.modelId" placeholder="例如: sd-xl-v1.0" /></div>
           </div>
           <div class="form-row">
             <div class="field">
-              <label class="field-label">支持类型</label>
+              <label class="field-label">引擎特性</label>
               <select class="field-input" v-model="modelFormData.type">
-                <option value="TEXT_TO_IMAGE">文生图</option><option value="BOTH">生图+编辑</option>
-                <option value="IMAGE_TO_IMAGE">图生图</option><option value="TEXT_GENERATION">文本分析</option>
+                <option value="TEXT_TO_IMAGE">文生图 (Text-to-Image)</option>
+                <option value="IMAGE_TO_IMAGE">图生图 (Image-to-Image)</option>
+                <option value="BOTH">混合生图 (Text & Image)</option>
+                <option value="TEXT_GENERATION">多模态文本 (Text Generation)</option>
               </select>
             </div>
             <div class="field">
-              <label class="field-label">提供方</label>
+              <label class="field-label">服务提供商</label>
               <select class="field-input" v-model="modelFormData.provider">
                 <option value="openai">OpenAI</option><option value="anthropic">Anthropic</option>
                 <option value="google">Google</option><option value="deepseek">DeepSeek</option>
-                <option value="alibaba">Alibaba</option><option value="meta">Meta</option><option value="other">其它</option>
+                <option value="alibaba">Alibaba</option><option value="meta">Meta</option><option value="other">自定义渠道</option>
               </select>
             </div>
           </div>
-          <div class="field"><label class="field-label">功能描述</label><input type="text" class="field-input" v-model="modelFormData.description" placeholder="一句话介绍..." /></div>
-          <div class="field"><label class="field-label">配置 JSON</label><textarea class="field-input cell-mono" rows="3" v-model="modelFormData.config"></textarea></div>
+          <div class="field"><label class="field-label">简要描述</label><input type="text" class="field-input" v-model="modelFormData.description" placeholder="一句话说明该模型的特长或用途..." /></div>
+          <div class="field"><label class="field-label">扩展配置 (JSON 格式)</label><textarea class="field-input cell-mono" style="height:auto" rows="3" v-model="modelFormData.config"></textarea></div>
           <div class="modal-actions">
             <button type="button" class="btn-secondary" @click="isModelModalOpen = false">取消</button>
-            <button type="submit" class="btn-primary">{{ editingModel ? '保存更改' : '确认添加' }}</button>
+            <button type="submit" class="btn-primary">{{ editingModel ? '保存修改' : '确认添加' }}</button>
           </div>
         </form>
       </div>
     </div>
   </div>
 </template>
+
 <style scoped>
 /* ===== LOADING ===== */
 .loading-state { display:flex; align-items:center; justify-content:center; gap:12px; min-height:60vh; color:var(--muted); font-size:15px; }
@@ -504,16 +507,17 @@ onMounted(async () => {
 @keyframes spin { to { transform:rotate(360deg); } }
 
 /* ===== PAGE ROOT ===== */
-.page-root { max-width:1080px; margin:0 auto; padding-bottom:96px; }
+.page-root { max-width:1120px; margin:0 auto; padding-bottom:120px; }
 
-/* ===== SECTION 1: HERO ===== */
-.page-hero { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:40px; }
-.hero-title { font-family:var(--font-serif); font-size:48px; font-weight:400; line-height:1.1; letter-spacing:-1px; color:var(--ink); margin:0 0 12px 0; }
-.hero-sub { font-family:var(--font-inter); font-size:16px; color:var(--muted); line-height:1.55; margin:0; max-width:560px; }
-.hero-actions { display:flex; gap:12px; flex-shrink:0; }
+/* ===== SECTION 1: HERO BAND ===== */
+.hero-band { display:flex; justify-content:space-between; align-items:center; padding:96px 0; }
+.hero-text-col { flex:1; }
+.hero-title { font-family:var(--font-serif); font-size:48px; font-weight:400; line-height:1.1; letter-spacing:-1px; color:var(--ink); margin:0 0 16px 0; }
+.hero-sub { font-family:var(--font-inter); font-size:18px; color:var(--muted); line-height:1.6; margin:0; max-width:600px; font-weight:400; }
+.hero-actions-col { display:flex; gap:16px; flex-shrink:0; align-items:center; }
 
 /* ===== BUTTONS ===== */
-.btn-primary, .btn-secondary, .btn-dark { display:inline-flex; align-items:center; gap:8px; padding:10px 20px; border-radius:var(--radius-md); font-weight:500; font-size:14px; cursor:pointer; border:none; transition:background 0.15s; }
+.btn-primary, .btn-secondary, .btn-dark, .btn-coral-invert { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 20px; height:40px; border-radius:var(--radius-md); font-weight:500; font-size:14px; cursor:pointer; border:none; transition:background 0.15s, opacity 0.15s, box-shadow 0.15s; font-family:var(--font-inter); }
 .btn-primary { background:var(--primary); color:var(--on-primary); }
 .btn-primary:hover:not(:disabled) { background:var(--primary-active); }
 .btn-primary:disabled { background:var(--primary-disabled); color:var(--muted); cursor:not-allowed; }
@@ -521,41 +525,57 @@ onMounted(async () => {
 .btn-secondary:hover:not(:disabled) { background:var(--surface-card); }
 .btn-dark { background:var(--surface-dark-elevated); color:var(--on-dark); }
 .btn-dark:hover:not(:disabled) { background:#2f2d2a; }
-.btn-sm { padding:8px 16px; font-size:13px; }
+.btn-coral-invert { background:white; color:var(--primary); }
+.btn-coral-invert:hover:not(:disabled) { opacity:0.9; }
+.btn-sm { padding:0 16px; height:36px; font-size:13px; }
 .btn-icon { background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; padding:4px; }
-.btn-ghost-dark { background:none; border:none; color:var(--on-dark-soft); cursor:pointer; font-size:13px; }
-.btn-ghost-dark:hover { color:var(--on-dark); }
+.btn-ghost-coral { background:none; border:none; color:rgba(255,255,255,0.7); cursor:pointer; font-size:13px; font-family:var(--font-inter); }
+.btn-ghost-coral:hover { color:white; }
 
 /* ===== SYNC PANEL ===== */
-.sync-panel { background:var(--surface-card); border:1px solid var(--hairline); border-radius:var(--radius-lg); padding:16px 20px; margin-bottom:32px; }
+.sync-panel { background:var(--surface-card); border-radius:var(--radius-lg); padding:32px; margin-bottom:48px; border:none; }
 .sync-panel-header { display:flex; justify-content:space-between; align-items:center; }
 .sync-pulse { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--accent-teal); }
 .pulse-dot { width:8px; height:8px; border-radius:50%; background:var(--accent-teal); animation:pulse 1.5s infinite; }
 @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-.sync-detail-list { margin-top:12px; display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; }
-.sync-detail-item { display:flex; align-items:center; gap:10px; font-size:13px; padding:6px 0; border-bottom:1px solid var(--hairline-soft); }
-.sync-badge { padding:2px 8px; border-radius:var(--radius-pill); font-size:11px; font-weight:500; }
+.sync-detail-list { margin-top:16px; display:flex; flex-direction:column; gap:8px; max-height:240px; overflow-y:auto; }
+.sync-detail-item { display:flex; align-items:center; gap:12px; font-size:14px; padding:8px 0; border-bottom:1px solid var(--hairline-soft); }
+.sync-badge { padding:2px 8px; border-radius:var(--radius-pill); font-size:11px; font-weight:600; letter-spacing:1px; }
 .badge-new { background:var(--primary); color:white; }
 .badge-exist { background:var(--surface-cream-strong); color:var(--muted); }
 .sync-model-name { font-weight:500; color:var(--ink); }
-.sync-model-id { font-family:var(--font-mono); font-size:12px; color:var(--muted); }
-.sync-model-type { color:var(--muted-soft); font-size:12px; margin-left:auto; }
+.sync-model-id { font-family:var(--font-mono); font-size:13px; color:var(--muted); }
+.sync-model-type { color:var(--muted-soft); font-size:12px; margin-left:auto; text-transform:uppercase; letter-spacing:0.5px; }
 
 /* ===== SECTION BLOCKS ===== */
-.section-block { margin-bottom:48px; }
-.section-head { margin-bottom:16px; }
-.section-title { font-family:var(--font-serif); font-size:28px; font-weight:400; letter-spacing:-0.3px; color:var(--ink); margin:0 0 6px 0; }
-.section-desc { font-size:14px; color:var(--muted); margin:0; line-height:1.5; }
+.section-block { margin-bottom:96px; }
+.section-head { margin-bottom:32px; }
+.section-title { font-family:var(--font-serif); font-size:36px; font-weight:400; letter-spacing:-0.5px; color:var(--ink); margin:0 0 12px 0; }
+.section-desc { font-size:16px; color:var(--muted); margin:0; line-height:1.55; }
+.section-title-sm { margin:0; font-size:22px; font-family:var(--font-serif); font-weight:400; color:var(--ink); letter-spacing:-0.5px; }
 
-/* ===== GATEWAY GRID ===== */
-.gateway-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+/* ===== GATEWAY GRID (INFRASTRUCTURE) ===== */
+.gateway-grid { display:grid; grid-template-columns:1fr 1fr; gap:32px; align-items:start; }
 
-/* ===== CARDS (CREAM) ===== */
-.card-cream { background:var(--surface-card); border:1px solid var(--hairline); border-radius:var(--radius-lg); overflow:hidden; }
-.card-top { display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--hairline); }
-.card-label { margin:0; font-size:15px; font-weight:500; color:var(--ink); font-family:var(--font-inter); }
-.card-inner { padding:20px; }
-.card-actions { display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-top:16px; }
+/* ===== DARK MOCKUP CARD (GATEWAY) ===== */
+.product-mockup-card-dark { background:var(--surface-dark); border-radius:var(--radius-lg); padding:32px; color:var(--on-dark); }
+.dark-card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; }
+.dark-card-label { margin:0; font-size:18px; font-weight:500; font-family:var(--font-inter); color:var(--on-dark); }
+.dark-card-inner { display:flex; flex-direction:column; gap:16px; }
+
+.gateway-meta { display:flex; justify-content:space-between; gap:16px; margin-top:8px; font-size:12px; color:var(--on-dark-soft); font-family:var(--font-mono); }
+.cell-mono-light { color:var(--accent-teal); }
+
+/* ===== CONNECTOR TILES (CHANNELS) ===== */
+.channel-tiles-wrapper { padding-top:4px; }
+.card-top-transparent { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:24px; }
+.channel-count { font-size:14px; color:var(--muted); font-weight:500; }
+.connector-tiles-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; max-height:380px; overflow-y:auto; padding-right:8px; padding-bottom:8px; }
+.connector-tile { background:var(--surface-card); border:none; border-radius:var(--radius-lg); padding:20px; display:flex; flex-direction:column; gap:16px; transition:transform 0.2s, box-shadow 0.2s; }
+.connector-tile:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(20,20,19,0.06); }
+.tile-header { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; }
+.tile-title { font-size:16px; font-weight:500; color:var(--ink); line-height:1.4; word-break:break-all; }
+.tile-meta { display:flex; align-items:center; gap:8px; margin-top:auto; }
 
 /* ===== SWITCH ===== */
 .switch-wrap { position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; cursor:pointer; }
@@ -564,111 +584,121 @@ onMounted(async () => {
 .switch-track::before { content:''; position:absolute; height:20px; width:20px; left:2px; bottom:2px; background:white; border-radius:50%; transition:transform 0.25s; box-shadow:0 2px 4px rgba(0,0,0,0.1); }
 .switch-input:checked + .switch-track { background:var(--primary); }
 .switch-input:checked + .switch-track::before { transform:translateX(20px); }
+
+.switch-track-dark { background:var(--surface-dark-elevated); }
+.switch-input-dark:checked + .switch-track-dark { background:var(--primary); }
+
+.switch-track-coral { background:rgba(0,0,0,0.2); }
+.switch-input-coral:checked + .switch-track-coral { background:white; }
+.switch-input-coral:checked + .switch-track-coral::before { background:var(--primary); box-shadow:none; }
+
 .switch-lg { width:52px; height:28px; }
 .switch-track-lg { border-radius:28px; }
 .switch-track-lg::before { height:24px; width:24px; }
 .switch-input:checked + .switch-track-lg::before { transform:translateX(24px); }
 
 /* ===== FIELDS ===== */
-.field { display:flex; flex-direction:column; gap:6px; }
-.field + .field { margin-top:14px; }
+.field { display:flex; flex-direction:column; gap:8px; }
 .field-label { font-size:13px; font-weight:500; color:var(--body-strong); }
 .field-label-dark { font-size:13px; font-weight:500; color:var(--on-dark-soft); }
+.field-label-coral { font-size:14px; font-weight:500; color:rgba(255,255,255,0.9); }
 .field-label-row { display:flex; justify-content:space-between; align-items:flex-end; }
-.field-input { width:100%; padding:10px 14px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:white; font-size:14px; color:var(--ink); font-family:var(--font-inter); }
-.field-input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(204,120,92,0.12); }
-.field-input-dark { width:100%; padding:10px 14px; border:1px solid var(--surface-dark-elevated); border-radius:var(--radius-md); background:var(--surface-dark-soft); font-size:14px; color:var(--on-dark); font-family:var(--font-inter); }
+
+.field-input { width:100%; height:40px; padding:0 14px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:white; font-size:14px; color:var(--ink); font-family:var(--font-inter); transition:border-color 0.15s, box-shadow 0.15s; }
+.field-input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(204,120,92,0.15); }
+
+.field-input-dark { width:100%; height:40px; padding:0 14px; border:1px solid var(--surface-dark-elevated); border-radius:var(--radius-md); background:var(--surface-dark-soft); font-size:14px; color:var(--on-dark); font-family:var(--font-inter); transition:border-color 0.15s; }
 .field-input-dark:focus { outline:none; border-color:var(--primary); }
-.field-textarea-dark { width:100%; padding:12px 14px; border:1px solid var(--surface-dark-elevated); border-radius:var(--radius-md); background:var(--surface-dark-soft); color:var(--on-dark); font-size:14px; font-family:var(--font-mono); resize:vertical; line-height:1.6; }
-.field-textarea-dark:focus { outline:none; border-color:var(--primary); }
-.gateway-meta { display:flex; justify-content:space-between; gap:16px; margin-top:12px; font-size:12px; color:var(--muted); }
+
+.field-input-coral { width:100%; height:40px; padding:0 14px; border:1px solid rgba(255,255,255,0.3); border-radius:var(--radius-md); background:rgba(255,255,255,0.1); font-size:14px; color:white; font-family:var(--font-inter); transition:border-color 0.15s; }
+.field-input-coral:focus { outline:none; border-color:white; }
+.field-input-coral option { color:var(--ink); background:white; }
+
+.field-textarea-coral { width:100%; padding:14px; border:1px solid rgba(255,255,255,0.3); border-radius:var(--radius-md); background:rgba(255,255,255,0.1); color:white; font-size:14px; font-family:var(--font-mono); resize:vertical; line-height:1.6; transition:border-color 0.15s; }
+.field-textarea-coral:focus { outline:none; border-color:white; }
 
 /* ===== CHANNELS ===== */
-.channel-count { font-size:13px; color:var(--muted); }
-.channel-list-area { max-height:280px; overflow-y:auto; }
-.channel-list { display:flex; flex-direction:column; gap:2px; }
-.channel-item { display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--hairline-soft); }
-.channel-item:last-child { border-bottom:none; }
 .channel-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.status-ok { background:var(--success); }
+.status-ok { background:var(--success); box-shadow:0 0 0 2px rgba(93,184,114,0.2); }
 .status-off { background:var(--muted-soft); }
 .status-err { background:var(--error); }
-.channel-info { flex:1; min-width:0; }
-.channel-name { font-size:14px; font-weight:500; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.channel-meta-row { display:flex; gap:8px; align-items:center; margin-top:3px; }
-.channel-type-tag { font-size:11px; padding:1px 6px; background:var(--surface-cream-strong); border-radius:var(--radius-xs); color:var(--muted); }
-.channel-latency { font-size:11px; color:var(--accent-teal); font-family:var(--font-mono); }
-.channel-status-text { font-size:11px; color:var(--muted-soft); }
-.empty-hint { color:var(--muted); font-size:14px; text-align:center; padding:24px 0; }
-.empty-hint p { margin:0; }
+.channel-type-tag { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; padding:2px 8px; background:var(--canvas); border-radius:var(--radius-xs); color:var(--muted); border:1px solid var(--hairline); }
+.channel-latency { font-size:12px; color:var(--accent-teal); font-family:var(--font-mono); font-weight:500; }
+.empty-hint { color:var(--muted); font-size:15px; padding:32px 0; line-height:1.6; }
 
-/* ===== MODEL TABLE ===== */
-.table-group { margin-bottom:24px; }
-.table-group-title { font-family:var(--font-inter); font-size:15px; font-weight:500; color:var(--ink); margin:0 0 10px 0; display:flex; align-items:center; gap:8px; }
-.count-muted { color:var(--muted-soft); font-weight:400; }
-.badge-coral, .badge-teal { display:inline-block; padding:2px 10px; border-radius:var(--radius-pill); font-size:11px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; }
+/* ===== MODEL TABLE (DIRECTORY) ===== */
+.table-group { margin-bottom:48px; }
+.table-group-title { font-family:var(--font-inter); font-size:16px; font-weight:500; color:var(--ink); margin:0 0 16px 0; display:flex; align-items:center; gap:12px; }
+.count-muted { color:var(--muted-soft); font-weight:400; font-size:14px; }
+.badge-coral, .badge-teal { display:inline-block; padding:4px 12px; border-radius:var(--radius-pill); font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; }
 .badge-coral { background:var(--primary); color:white; }
 .badge-teal { background:var(--accent-teal); color:white; }
-.badge-pill { display:inline-block; padding:2px 8px; border-radius:var(--radius-pill); font-size:12px; font-weight:500; }
+.badge-pill { display:inline-block; padding:4px 12px; border-radius:var(--radius-pill); font-size:12px; font-weight:500; }
 .badge-coral-light { background:rgba(204,120,92,0.12); color:var(--primary-active); }
-.table-card { background:var(--surface-card); border:1px solid var(--hairline); border-radius:var(--radius-lg); overflow:hidden; }
+
+.table-card { background:transparent; border:none; border-radius:0; overflow:visible; }
 .model-table { width:100%; border-collapse:collapse; }
-.model-table th { padding:12px 16px; text-align:left; font-size:12px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; border-bottom:1px solid var(--hairline); background:var(--surface-soft); }
-.model-table td { padding:14px 16px; border-bottom:1px solid var(--hairline-soft); vertical-align:top; font-size:14px; }
+.model-table th { padding:0 20px 16px 20px; text-align:left; font-size:12px; font-weight:600; color:var(--muted); letter-spacing:1px; text-transform:uppercase; border-bottom:1px solid var(--hairline); background:transparent; }
+.model-table td { padding:24px 20px; border-bottom:1px solid var(--hairline-soft); vertical-align:top; font-size:14px; transition:background 0.15s; }
+.model-table tbody tr:hover td { background:rgba(230, 223, 216, 0.2); }
 .model-table tbody tr:last-child td { border-bottom:none; }
-.row-disabled { opacity:0.5; }
+.row-disabled { opacity:0.4; }
 
 /* ===== TABLE CELLS ===== */
-.toggle-btn { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--hairline); border-radius:var(--radius-pill); background:white; cursor:pointer; font-size:12px; }
+.toggle-btn { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border:1px solid var(--hairline); border-radius:var(--radius-pill); background:transparent; cursor:pointer; font-size:11px; font-weight:600; letter-spacing:0.5px; }
 .toggle-btn.on { color:var(--ink); }
 .toggle-btn.off { color:var(--muted); }
-.toggle-dot { width:7px; height:7px; border-radius:50%; }
+.toggle-dot { width:6px; height:6px; border-radius:50%; }
 .dot-on { background:var(--success); }
 .dot-off { background:var(--warning); }
-.cell-name { display:flex; flex-direction:column; gap:3px; }
-.cell-desc { font-size:12px; color:var(--muted); }
-.cell-mono { font-family:var(--font-mono); font-size:12px; color:var(--muted); }
-.cell-sizes { font-size:13px; color:var(--muted); }
-.cell-actions { display:flex; justify-content:flex-end; gap:6px; }
-.act-btn { width:30px; height:30px; display:flex; align-items:center; justify-content:center; border:1px solid var(--hairline); border-radius:var(--radius-sm); background:white; cursor:pointer; color:var(--muted); }
-.act-btn:hover { color:var(--ink); border-color:var(--muted-soft); }
+.cell-name { display:flex; flex-direction:column; gap:4px; }
+.cell-name strong { font-size:15px; font-weight:500; }
+.cell-desc { font-size:13px; color:var(--muted); line-height:1.4; }
+.cell-mono { font-family:var(--font-mono); font-size:13px; color:var(--muted); }
+.cell-sizes { font-size:14px; color:var(--muted); }
+.cell-actions { display:flex; justify-content:flex-end; gap:8px; }
+.act-btn { width:32px; height:32px; display:flex; align-items:center; justify-content:center; border:1px solid var(--hairline); border-radius:var(--radius-sm); background:transparent; cursor:pointer; color:var(--muted); transition:all 0.15s; }
+.act-btn:hover { color:var(--ink); background:var(--surface-card); }
 .act-danger { color:var(--error); }
-.act-danger:hover { color:var(--error); background:rgba(198,69,69,0.06); }
+.act-danger:hover { color:var(--error); background:rgba(198,69,69,0.06); border-color:transparent; }
 
 /* ===== EMPTY CARD ===== */
-.empty-card { padding:48px; border:1px dashed var(--hairline); border-radius:var(--radius-lg); text-align:center; color:var(--muted); }
-.empty-card h3 { font-family:var(--font-inter); margin:12px 0 4px; }
+.empty-card { padding:64px; border:1px dashed var(--hairline); border-radius:var(--radius-lg); text-align:center; color:var(--muted); }
+.empty-card h3 { font-family:var(--font-serif); font-size:24px; margin:16px 0 8px; color:var(--ink); font-weight:400; }
 .empty-card svg { color:var(--muted-soft); }
 
-/* ===== DARK SECTION (AI TUTOR) ===== */
-.section-dark { background:var(--surface-dark); border-radius:var(--radius-lg); margin-bottom:48px; }
-.dark-inner { padding:32px; }
-.dark-header { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:24px; }
-.dark-title { font-family:var(--font-serif); font-size:28px; font-weight:400; letter-spacing:-0.3px; color:var(--on-dark); margin:0 0 8px 0; }
-.dark-desc { font-size:14px; color:var(--on-dark-soft); margin:0; line-height:1.5; max-width:600px; }
-.dark-form { transition:opacity 0.2s; }
-.form-disabled { opacity:0.4; pointer-events:none; }
-.dark-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+/* ===== SECTION 4: CORAL (AI TUTOR) ===== */
+.section-coral { margin-bottom:96px; }
+.callout-card-coral { background:var(--primary); border-radius:var(--radius-lg); padding:48px; color:var(--on-primary); box-shadow:0 8px 32px rgba(204,120,92,0.15); }
+.coral-header { display:flex; justify-content:space-between; align-items:flex-start; gap:24px; margin-bottom:40px; }
+.coral-title { font-family:var(--font-serif); font-size:36px; font-weight:400; letter-spacing:-0.5px; color:white; margin:0 0 12px 0; }
+.coral-desc { font-size:16px; color:rgba(255,255,255,0.9); margin:0; line-height:1.55; max-width:600px; }
+.coral-form { transition:opacity 0.2s; }
+.form-disabled { opacity:0.5; pointer-events:none; }
+.coral-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+.card-actions { display:flex; align-items:center; justify-content:flex-end; gap:16px; margin-top:24px; }
 
 /* ===== MODAL ===== */
-.modal-backdrop { position:fixed; inset:0; background:rgba(20,20,19,0.45); display:flex; align-items:center; justify-content:center; padding:24px; z-index:100; }
-.modal-panel { width:min(680px,100%); background:white; border-radius:var(--radius-xl); border:1px solid var(--hairline); padding:28px; }
-.modal-title { font-family:var(--font-serif); font-size:24px; font-weight:400; letter-spacing:-0.3px; margin:0 0 20px 0; }
-.modal-form { display:flex; flex-direction:column; gap:14px; }
-.form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.modal-actions { display:flex; justify-content:flex-end; gap:12px; margin-top:8px; }
+.modal-backdrop { position:fixed; inset:0; background:rgba(20,20,19,0.45); display:flex; align-items:center; justify-content:center; padding:24px; z-index:100; backdrop-filter:blur(2px); }
+.modal-panel { width:min(720px,100%); background:var(--canvas); border-radius:var(--radius-xl); border:1px solid var(--hairline); padding:40px; box-shadow:0 24px 48px rgba(20,20,19,0.1); }
+.modal-title { font-family:var(--font-serif); font-size:32px; font-weight:400; letter-spacing:-0.5px; margin:0 0 32px 0; color:var(--ink); }
+.modal-form { display:flex; flex-direction:column; gap:16px; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.modal-actions { display:flex; justify-content:flex-end; gap:12px; margin-top:16px; }
 
 /* ===== MESSAGES ===== */
-.msg-success { color:var(--success); font-size:13px; }
-.msg-success-dark { color:var(--accent-teal); font-size:13px; }
-.msg-error { color:var(--error); font-size:13px; }
+.msg-success { color:var(--success); font-size:13px; font-weight:500; }
+.msg-success-dark { color:var(--accent-teal); font-size:13px; font-weight:500; }
+.msg-success-coral { color:white; font-size:14px; font-weight:500; }
+.msg-error { color:var(--error); font-size:13px; font-weight:500; }
+.msg-error-coral { color:#ffd0d0; font-size:14px; font-weight:500; }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
-  .page-hero { flex-direction:column; }
-  .hero-title { font-size:36px; }
+  .hero-band { flex-direction:column; align-items:flex-start; gap:32px; padding:64px 0; }
+  .hero-title { font-size:40px; }
   .gateway-grid { grid-template-columns:1fr; }
-  .form-row, .dark-form-grid { grid-template-columns:1fr; }
-  .hero-actions { width:100%; }
+  .form-row, .coral-form-grid { grid-template-columns:1fr; }
+  .hero-actions-col { width:100%; }
 }
 </style>
