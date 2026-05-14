@@ -3,19 +3,23 @@ package com.smartlearning.backend.config;
 import com.smartlearning.backend.entity.Assignment;
 import com.smartlearning.backend.entity.Conversation;
 import com.smartlearning.backend.entity.Generation;
+import com.smartlearning.backend.entity.Model;
 import com.smartlearning.backend.entity.Submission;
 import com.smartlearning.backend.entity.Template;
 import com.smartlearning.backend.entity.User;
 import com.smartlearning.backend.repository.AssignmentRepository;
 import com.smartlearning.backend.repository.ConversationRepository;
 import com.smartlearning.backend.repository.GenerationRepository;
+import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.repository.SubmissionRepository;
 import com.smartlearning.backend.repository.TemplateRepository;
 import com.smartlearning.backend.repository.UserRepository;
+import com.smartlearning.backend.util.ModelConfigUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +34,9 @@ import java.util.List;
 public class DemoSeeder implements CommandLineRunner {
 
     private static final String DEMO_MARKER_TITLE = "[演示] 人物角色构图";
+    private static final String MODEL_GPT_IMAGE = "gpt-image-2";
+    private static final String MODEL_DALLE3 = "dall-e-3";
+    private static final String MODEL_GEMINI = "gemini/gemini-3.1-flash-image-preview";
 
     @Autowired private UserRepository userRepository;
     @Autowired private AssignmentRepository assignmentRepository;
@@ -37,7 +44,22 @@ public class DemoSeeder implements CommandLineRunner {
     @Autowired private GenerationRepository generationRepository;
     @Autowired private ConversationRepository conversationRepository;
     @Autowired private TemplateRepository templateRepository;
+    @Autowired private ModelRepository modelRepository;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private JdbcTemplate jdbcTemplate;
+
+    private static final String[][] ROSTER = {
+            {"linyutong", "李雨桐"},   {"zhangzixuan", "张子轩"}, {"wangzihan", "王梓涵"},  {"chensiyuan", "陈思远"},
+            {"liuxinyi", "刘欣怡"},    {"zhouhaoran", "周浩然"},  {"wuyutong", "吴语桐"},   {"zhengmingxuan", "郑明轩"},
+            {"zhaowanqing", "赵婉清"}, {"sunruotong", "孙若彤"},  {"qianyize", "钱亦泽"},   {"yuxiaobei", "俞晓贝"},
+            {"hanmuyao", "韩沐瑶"},    {"luoyichen", "罗一辰"},   {"liangshuyu", "梁书煜"}, {"hujiaxin", "胡嘉欣"},
+            {"xushiqi", "徐诗琪"},     {"shenyutong", "沈语彤"},  {"yangchenxi", "杨晨曦"}, {"caoyifeng", "曹奕枫"},
+            {"feijingxuan", "费靖萱"}, {"daimuyang", "戴沐阳"},   {"jiangzihan", "蒋梓涵"}, {"baizhihao", "白志豪"},
+            {"sunxiaomeng", "孙小萌"}, {"liuziqi", "刘梓琪"},     {"taoyichen", "陶逸辰"},  {"xiaolinghui", "萧凌慧"},
+            {"renxiyao", "任熹瑶"},    {"hexinran", "何欣然"},    {"luozhiyan", "骆芷妍"},  {"shaoyifei", "邵奕菲"},
+            {"chuqingci", "褚清辞"},   {"weifuxin", "魏抚心"},    {"tanjingyu", "谭婧瑜"},  {"miaohanxue", "缪含雪"},
+            {"keyiqian", "柯亦谦"},    {"liyiwen", "厉以文"},     {"guhanyu", "顾涵予"},    {"yuwenqi", "虞文琪"}
+    };
 
     @Override
     @Transactional
@@ -49,7 +71,51 @@ public class DemoSeeder implements CommandLineRunner {
             return;
         }
 
-        User teacher = userRepository.findByUsername("teacher").orElseGet(() -> {
+        ensureModels();
+        User teacher = ensureTeacher();
+        List<User> students = seedStudents(teacher);
+        seedTemplates(teacher);
+        List<Assignment> assignments = seedAssignments(teacher);
+        seedSubmissions(students, assignments);
+        seedFreeGenerations(students);
+
+        System.out.println("✅ 演示数据已注入：");
+        System.out.println("  · 学生 " + students.size() + " 人（默认密码 123456）");
+        System.out.println("  · 作业 " + assignments.size() + " 个（含进行中/已结束/限时挑战）");
+        System.out.println("  · 提交 " + submissionRepository.count() + " 条 / 生成记录 " + generationRepository.count() + " 条");
+    }
+
+    // ---------- Models ----------
+    private void ensureModels() {
+        upsertModel(MODEL_GPT_IMAGE, "GPT Image 2", "BOTH", "openai", "高质量 AI 生图与编辑");
+        upsertModel(MODEL_DALLE3, "DALL-E 3 (生图)", "TEXT_TO_IMAGE", "openai", "经典 OpenAI 生图模型");
+        upsertModel(MODEL_GEMINI, "Gemini 3.1 Flash Image", "TEXT_TO_IMAGE", "google", "Google 的高速生图模型");
+        upsertModel("gpt-4o", "GPT-4o", "TEXT_GENERATION", "openai", "多模态分析与导师对话");
+        upsertModel("claude-3-5-sonnet-latest", "Claude 3.5 Sonnet", "TEXT_GENERATION", "anthropic", "长文本分析与教学反馈");
+    }
+
+    private void upsertModel(String modelId, String name, String type, String provider, String desc) {
+        Model m = modelRepository.findByModelId(modelId).orElseGet(Model::new);
+        m.setModelId(modelId);
+        m.setName(name);
+        m.setType(type);
+        m.setProvider(provider);
+        m.setDescription(desc);
+        m.setIsActive(true);
+        if (m.getApiFormat() == null) {
+            m.setApiFormat("openai");
+        }
+        if (m.getConfig() == null || m.getConfig().isEmpty()) {
+            m.setConfig(("TEXT_TO_IMAGE".equals(type) || "BOTH".equals(type))
+                    ? ModelConfigUtil.buildImageConfigJson(modelId, m.getApiFormat())
+                    : "{}");
+        }
+        modelRepository.save(m);
+    }
+
+    // ---------- Users ----------
+    private User ensureTeacher() {
+        return userRepository.findByUsername("teacher").orElseGet(() -> {
             User t = new User();
             t.setUsername("teacher");
             t.setPasswordHash(passwordEncoder.encode("123456"));
@@ -58,34 +124,11 @@ public class DemoSeeder implements CommandLineRunner {
             t.setIsActive(true);
             return userRepository.save(t);
         });
-
-        List<User> students = seedStudents(teacher);
-        seedTemplates(teacher);
-        List<Assignment> assignments = seedAssignments(teacher);
-        seedSubmissionsAndGenerations(students, assignments);
-        seedFreeWorkspaceGenerations(students);
-
-        System.out.println("✅ 演示数据已注入：");
-        System.out.println("  · 学生 " + students.size() + " 人（默认密码 123456）");
-        System.out.println("  · 作业 " + assignments.size() + " 个（含进行中/已结束/限时挑战）");
-        System.out.println("  · 提交、生成历史、对话已铺好，准备好直接演示。");
     }
 
     private List<User> seedStudents(User teacher) {
-        String[][] roster = {
-                {"linyutong",  "李雨桐"},
-                {"zhangzixuan","张子轩"},
-                {"wangzihan",  "王梓涵"},
-                {"chensiyuan", "陈思远"},
-                {"liuxinyi",   "刘欣怡"},
-                {"zhouhaoran", "周浩然"},
-                {"wuyutong",   "吴语桐"},
-                {"zhengmingxuan","郑明轩"},
-                {"zhaowanqing","赵婉清"},
-                {"sunruotong", "孙若彤"}
-        };
         List<User> list = new ArrayList<>();
-        for (String[] row : roster) {
+        for (String[] row : ROSTER) {
             User u = userRepository.findByUsername(row[0]).orElseGet(User::new);
             u.setUsername(row[0]);
             u.setDisplayName(row[1]);
@@ -100,6 +143,7 @@ public class DemoSeeder implements CommandLineRunner {
         return list;
     }
 
+    // ---------- Templates ----------
     private void seedTemplates(User teacher) {
         String tid = teacher.getId();
         saveTemplate(tid, DEMO_MARKER_TITLE, "人物",
@@ -132,200 +176,295 @@ public class DemoSeeder implements CommandLineRunner {
         templateRepository.save(t);
     }
 
+    // ---------- Assignments ----------
     private List<Assignment> seedAssignments(User teacher) {
         LocalDateTime now = LocalDateTime.now();
         List<Assignment> out = new ArrayList<>();
 
-        Assignment a1 = baseAssignment(teacher, "校园秋日写生：用 AI 重现你眼中的校园",
+        out.add(saveAssignment(teacher, "校园秋日写生：用 AI 重现你眼中的校园",
                 "以校园秋天为题材，提交一幅能体现光影与情绪的作品。要求画面构图完整，色彩温暖，至少包含一处典型校园元素（教学楼、林荫道、操场、图书馆）。",
-                "STANDARD");
-        a1.setMaxSubmissions(1);
-        a1.setDeadline(now.minusDays(2));
-        a1.setCreatedAt(now.minusDays(7));
-        out.add(assignmentRepository.save(a1));
+                "STANDARD", null, 1, now.minusDays(2), null, null, now.minusDays(7)));
 
-        Assignment a2 = baseAssignment(teacher, "二十四节气海报设计 · 立春",
+        out.add(saveAssignment(teacher, "二十四节气海报设计 · 立春",
                 "围绕「立春」主题制作海报，注重中文版式、留白与节气意象。鼓励使用模板「[演示] 节气海报」起步。",
-                "STANDARD");
-        a2.setMaxSubmissions(2);
-        a2.setDeadline(now.plusDays(3));
-        a2.setCreatedAt(now.minusDays(3));
-        out.add(assignmentRepository.save(a2));
+                "STANDARD", null, 2, now.plusDays(3), null, null, now.minusDays(3)));
 
-        Assignment a3 = baseAssignment(teacher, "15 分钟限时：童话角色再设计",
+        out.add(saveAssignment(teacher, "15 分钟限时：童话角色再设计",
                 "在 15 分钟内完成一次角色再设计，可参考小红帽、白雪公主、孙悟空等经典形象，鼓励赋予现代职业或科幻设定。",
-                "CHALLENGE");
-        a3.setDurationMin(15);
-        a3.setStatus("ACTIVE");
-        a3.setStartedAt(now.minusMinutes(6));
-        a3.setMaxSubmissions(1);
-        a3.setCreatedAt(now.minusHours(1));
-        out.add(assignmentRepository.save(a3));
+                "CHALLENGE", "ACTIVE", 1, null, 15, now.minusMinutes(6), now.minusHours(1)));
 
-        Assignment a4 = baseAssignment(teacher, "20 分钟限时：未来交通工具想象",
+        out.add(saveAssignment(teacher, "20 分钟限时：未来交通工具想象",
                 "限时挑战：构想 2050 年的城市交通工具，提交一幅完整的概念图，重点是材料质感与城市背景。",
-                "CHALLENGE");
-        a4.setDurationMin(20);
-        a4.setStatus("ENDED");
-        a4.setStartedAt(now.minusDays(1).minusMinutes(20));
-        a4.setEndedAt(now.minusDays(1));
-        a4.setMaxSubmissions(1);
-        a4.setCreatedAt(now.minusDays(1).minusMinutes(30));
-        out.add(assignmentRepository.save(a4));
+                "CHALLENGE", "ENDED", 1, null, 20,
+                now.minusDays(1).minusMinutes(20), now.minusDays(1).minusMinutes(30)));
 
-        Assignment a5 = baseAssignment(teacher, "用色彩讲故事：情绪练习",
+        out.add(saveAssignment(teacher, "用色彩讲故事：情绪练习",
                 "围绕「孤独」「希望」「热烈」三种情绪任选其一，用抽象色彩与构图表达感受。提交后请在描述里说明你的色彩选择。",
-                "STANDARD");
-        a5.setMaxSubmissions(3);
-        a5.setDeadline(now.plusDays(7));
-        a5.setCreatedAt(now.minusHours(8));
-        out.add(assignmentRepository.save(a5));
+                "STANDARD", null, 3, now.plusDays(7), null, null, now.minusHours(8)));
 
         return out;
     }
 
-    private Assignment baseAssignment(User teacher, String title, String desc, String type) {
+    private Assignment saveAssignment(User teacher, String title, String desc, String type,
+                                      String status, int maxSubs, LocalDateTime deadline,
+                                      Integer durationMin, LocalDateTime startedAt,
+                                      LocalDateTime createdAt) {
         Assignment a = new Assignment();
         a.setTeacherId(teacher.getId());
         a.setTitle(title);
         a.setDescription(desc);
         a.setType(type);
+        a.setStatus(status);
+        a.setMaxSubmissions(maxSubs);
+        a.setDeadline(deadline);
+        a.setDurationMin(durationMin);
+        a.setStartedAt(startedAt);
+        if ("ENDED".equals(status) && startedAt != null && durationMin != null) {
+            a.setEndedAt(startedAt.plusMinutes(durationMin));
+        }
         a.setIsActive(true);
-        return a;
+        Assignment saved = assignmentRepository.save(a);
+        if (createdAt != null) {
+            jdbcTemplate.update("UPDATE assignments SET created_at = ? WHERE id = ?", createdAt, saved.getId());
+        }
+        return saved;
     }
 
-    private void seedSubmissionsAndGenerations(List<User> students, List<Assignment> assignments) {
-        Assignment a1 = assignments.get(0); // 校园秋日 - 已截止，已批改
-        Assignment a2 = assignments.get(1); // 节气海报 - 进行中，部分已交
-        Assignment a3 = assignments.get(2); // 限时挑战进行中
-        Assignment a4 = assignments.get(3); // 限时挑战已结束
+    // ---------- Submissions ----------
+    private void seedSubmissions(List<User> students, List<Assignment> assignments) {
+        Assignment a1 = assignments.get(0);
+        Assignment a2 = assignments.get(1);
+        Assignment a3 = assignments.get(2);
+        Assignment a4 = assignments.get(3);
+        Assignment a5 = assignments.get(4);
+        LocalDateTime now = LocalDateTime.now();
 
-        // a1: 8 名学生提交，其中 6 个已批改，2 个待批
-        int[] a1Scores = {92, 88, 85, 78, 95, 81};
+        // a1 校园秋日 (已截止): 30 学生提交 = 22 已批改 + 8 待批
         String[] a1Feedback = {
                 "构图很完整，远近层次表达得不错，建议下次在色彩饱和度上再克制一点。",
-                "光影方向把握准确，整体氛围温暖。建议加强主体的视觉中心。",
+                "光影方向把握准确，整体氛围温暖，建议加强主体的视觉中心。",
                 "整体不错，秋天的氛围出来了，落叶的节奏可以再丰富一些。",
                 "想法不错，但画面略空，建议增加前景元素丰富层次。",
-                "非常出色！色彩克制、构图扎实，是这次作业的范例。",
-                "情绪很到位，构图稳，可以再注意一下透视的统一性。"
+                "非常出色，色彩克制、构图扎实，是这次作业的范例。",
+                "情绪很到位，构图稳，可以再注意一下透视的统一性。",
+                "暖灰调用得不错，下次可以试试在重点处提高对比。",
+                "树影和地面落叶的笔触很轻盈，建议加强建筑的体量感。",
+                "前景人物的存在让画面更有故事感，整体节奏不错。",
+                "画面节奏明快，但右上方略空，可补一些远景元素。"
         };
-        for (int i = 0; i < 6; i++) {
-            seedSubmission(students.get(i), a1, "REVIEWED", a1Scores[i], a1Feedback[i],
-                    studentPrompt(i, "校园秋日"), seedFor("autumn-" + i));
+        for (int i = 0; i < 30; i++) {
+            User stu = students.get(i);
+            String prompt = studentPrompt(i, "校园秋日");
+            String url = seedFor("autumn-" + i);
+            String modelId = (i % 2 == 0) ? MODEL_GPT_IMAGE : MODEL_DALLE3;
+            LocalDateTime when = now.minusDays(2).minusHours((i % 6) + 1).minusMinutes(i * 7L);
+            if (i < 22) {
+                int score = 78 + ((i * 13) % 20);
+                seedSubmission(stu, a1, "REVIEWED", score, a1Feedback[i % a1Feedback.length],
+                        prompt, url, modelId, when);
+            } else {
+                seedSubmission(stu, a1, "PENDING", null, null, prompt, url, modelId, when);
+            }
         }
-        seedSubmission(students.get(6), a1, "PENDING", null, null,
-                studentPrompt(6, "校园秋日"), seedFor("autumn-6"));
-        seedSubmission(students.get(7), a1, "PENDING", null, null,
-                studentPrompt(7, "校园秋日"), seedFor("autumn-7"));
 
-        // a2: 4 名学生提交，1 已批改，3 待批
-        seedSubmission(students.get(0), a2, "REVIEWED", 90,
-                "中文排版处理得很好，节气意象清晰。建议字体层级再拉开一点。",
+        // a2 立春海报 (进行中): 20 学生 = 6 已批改 + 14 待批
+        String[] a2Variants = {
                 "立春主题中文海报，包含柳枝与初芽，浅绿配米色，平面排版，大量留白，宋体标题",
-                seedFor("lichun-0"));
-        seedSubmission(students.get(2), a2, "PENDING", null, null,
                 "立春主题中文海报，包含燕子与柳枝，淡粉配奶白，平面排版，大量留白，宋体标题",
-                seedFor("lichun-2"));
-        seedSubmission(students.get(4), a2, "PENDING", null, null,
                 "立春主题中文海报，包含梅花与远山，水墨配淡黄，平面排版，大量留白，宋体标题",
-                seedFor("lichun-4"));
-        seedSubmission(students.get(8), a2, "PENDING", null, null,
                 "立春主题中文海报，包含早春田野，米色配嫩绿，平面排版，大量留白，宋体标题",
-                seedFor("lichun-8"));
+                "立春主题中文海报，包含柳条与水波，靛蓝配奶白，平面排版，大量留白，宋体标题",
+                "立春主题中文海报，包含燕子轮廓，淡米黄配赭石，平面排版，大量留白，宋体标题"
+        };
+        String[] a2Feedback = {
+                "中文排版处理得很好，节气意象清晰。建议字体层级再拉开一点。",
+                "构图大气，留白舒服，立春的元素抓得很准。",
+                "色彩配比克制有度，但主标题可以再加一点张力。",
+                "整体很有传统美术风味，建议节气文字的位置再往上移。",
+                "用色雅致，节奏舒缓，是不错的海报范例。",
+                "构图与色彩都到位，下次可以尝试更鲜明的视觉中心。"
+        };
+        for (int i = 0; i < 20; i++) {
+            User stu = students.get((i + 5) % students.size());
+            String prompt = a2Variants[i % a2Variants.length];
+            String url = seedFor("lichun-" + i);
+            LocalDateTime when = now.minusDays((i % 3) + 1).minusHours(i % 12);
+            if (i < 6) {
+                seedSubmission(stu, a2, "REVIEWED", 84 + (i * 3) % 12,
+                        a2Feedback[i % a2Feedback.length], prompt, url, MODEL_GEMINI, when);
+            } else {
+                seedSubmission(stu, a2, "PENDING", null, null, prompt, url, MODEL_GEMINI, when);
+            }
+        }
 
-        // a3: 限时挑战进行中，3 名学生已经交了
-        seedSubmission(students.get(1), a3, "PENDING", null, null,
+        // a3 限时挑战进行中: 12 学生提交，全部 PENDING
+        String[] fairyVariants = {
                 "小红帽的现代再设计，赛博朋克风格，手持发光匕首，电影级渲染",
-                seedFor("fairy-1"));
-        seedSubmission(students.get(3), a3, "PENDING", null, null,
                 "孙悟空的现代再设计，蒸汽朋克风格，手持机械金箍棒，电影级渲染",
-                seedFor("fairy-3"));
-        seedSubmission(students.get(5), a3, "PENDING", null, null,
                 "白雪公主的现代再设计，极简未来风格，手持全息苹果，电影级渲染",
-                seedFor("fairy-5"));
+                "灰姑娘的现代再设计，机甲风格，手持发光水晶鞋，电影级渲染",
+                "美人鱼公主的现代再设计，深海科幻风格，手持声波法器，电影级渲染",
+                "睡美人的现代再设计，赛博修仙风格，手持光纹魔杖，电影级渲染",
+                "彼得潘的现代再设计，未来都市风格，手持折叠飞行器，电影级渲染",
+                "爱丽丝的现代再设计，迷幻几何风格，手持立体怀表，电影级渲染",
+                "牛魔王的现代再设计，重金属朋克风格，手持机械战斧，电影级渲染",
+                "哪吒的现代再设计，未来神话风格，手持等离子混天绫，电影级渲染",
+                "嫦娥的现代再设计，太空美学风格，手持电子玉兔，电影级渲染",
+                "杨戬的现代再设计，赛博修真风格，手持发光三尖刀，电影级渲染"
+        };
+        for (int i = 0; i < 12; i++) {
+            User stu = students.get((i * 3 + 1) % students.size());
+            seedSubmission(stu, a3, "PENDING", null, null,
+                    fairyVariants[i], seedFor("fairy-" + i), MODEL_GPT_IMAGE,
+                    now.minusMinutes(5 - (i % 5)));
+        }
 
-        // a4: 已结束，6 名学生交了，全部批改
-        int[] a4Scores = {86, 91, 79, 88, 94, 83};
-        String[] a4Feedback = {
+        // a4 限时挑战已结束: 25 学生提交，全部已批改
+        String[] futureFeedback = {
                 "概念清晰，但材质表现略平，建议研究一下金属与玻璃的反光。",
                 "想法新颖，城市背景的处理很高级。",
                 "时间紧的情况下完成度可以，画面中心可以再聚焦。",
                 "整体很有概念图的味道，光影方向统一。",
                 "本次最佳作品之一，材料、构图、色彩都很扎实。",
-                "构图完整，建议下次尝试更大胆的色彩对比。"
+                "构图完整，建议下次尝试更大胆的色彩对比。",
+                "未来感拿捏得不错，飞行轨迹的虚实处理很有想法。",
+                "材质上偏一致，可以尝试更多对比材料增加层次。"
         };
-        int[] futureStudents = {0, 2, 4, 6, 7, 9};
         String[] futurePrompts = {
                 "2050 年城市悬浮列车，半透明玻璃车厢，霓虹城市背景，电影级概念图",
                 "2050 年个人飞行器，碳纤维材质，黄昏天际线，电影级概念图",
                 "2050 年磁悬浮单车，未来城市街区，傍晚柔光，电影级概念图",
                 "2050 年自行车形态的飞行器，珍珠白漆面，赛博城市背景，电影级概念图",
                 "2050 年家用胶囊飞船，亚光金属机身，云海背景，电影级概念图",
-                "2050 年水陆两栖通勤舱，玻璃顶棚，海滨城市背景，电影级概念图"
+                "2050 年水陆两栖通勤舱，玻璃顶棚，海滨城市背景，电影级概念图",
+                "2050 年共享磁悬浮快艇，金属漆面，跨海大桥背景，电影级概念图",
+                "2050 年模块化通勤胶囊，珠光涂装，未来高架背景，电影级概念图"
         };
-        for (int i = 0; i < futureStudents.length; i++) {
-            int sIdx = futureStudents[i];
-            seedSubmission(students.get(sIdx), a4, "REVIEWED", a4Scores[i], a4Feedback[i],
-                    futurePrompts[i], seedFor("future-" + sIdx));
+        for (int i = 0; i < 25; i++) {
+            User stu = students.get((i * 2 + 3) % students.size());
+            seedSubmission(stu, a4, "REVIEWED", 78 + (i * 5) % 20,
+                    futureFeedback[i % futureFeedback.length],
+                    futurePrompts[i % futurePrompts.length], seedFor("future-" + i),
+                    MODEL_GPT_IMAGE, now.minusDays(1).minusMinutes(15 - (i % 15)));
         }
-        // a5: 暂无提交（刚发布），用于演示「新作业」状态
+
+        // a5 色彩情绪 (新发布): 8 学生提交，全部 PENDING
+        String[] moodPrompts = {
+                "用深蓝色与缓慢的圆形表达孤独，抽象艺术，画布纹理，高对比",
+                "用金黄与发散光线表达希望，抽象艺术，画布纹理，高对比",
+                "用红黑撞色与锯齿形状表达热烈，抽象艺术，画布纹理，高对比",
+                "用紫灰渐变与漂浮形状表达孤独，抽象艺术，画布纹理，高对比",
+                "用橙白渐层与上升线条表达希望，抽象艺术，画布纹理，高对比",
+                "用品红与撕裂的笔触表达热烈，抽象艺术，画布纹理，高对比",
+                "用青蓝与零散圆点表达孤独，抽象艺术，画布纹理，高对比",
+                "用珊瑚色与爆裂笔触表达热烈，抽象艺术，画布纹理，高对比"
+        };
+        for (int i = 0; i < 8; i++) {
+            User stu = students.get((i * 5) % students.size());
+            seedSubmission(stu, a5, "PENDING", null, null, moodPrompts[i],
+                    seedFor("mood-" + i), MODEL_DALLE3, now.minusHours(i + 1L));
+        }
     }
 
     private void seedSubmission(User student, Assignment a, String status, Integer score,
-                                String feedback, String prompt, String imageUrl) {
+                                String feedback, String prompt, String imageUrl,
+                                String modelId, LocalDateTime createdAt) {
         Generation g = new Generation();
         g.setUserId(student.getId());
-        g.setModelId("gpt-image-2");
+        g.setModelId(modelId);
         g.setType("TEXT_TO_IMAGE");
         g.setPrompt(prompt);
         g.setOutputImageUrl(imageUrl);
         g.setSize("1024x1024");
         g.setQuality("standard");
         g.setDurationMs(8400 + (Math.abs(prompt.hashCode()) % 4000));
-        Generation saved = generationRepository.save(g);
+        Generation savedGen = generationRepository.save(g);
+        if (createdAt != null) {
+            jdbcTemplate.update("UPDATE generations SET created_at = ? WHERE id = ?", createdAt, savedGen.getId());
+        }
 
         Submission s = new Submission();
         s.setAssignmentId(a.getId());
         s.setStudentId(student.getId());
-        s.setGenerationId(saved.getId());
+        s.setGenerationId(savedGen.getId());
         s.setImageUrl(imageUrl);
         s.setStatus(status);
         s.setScore(score);
         s.setFeedback(feedback);
-        submissionRepository.save(s);
+        Submission savedSub = submissionRepository.save(s);
+        if (createdAt != null) {
+            jdbcTemplate.update("UPDATE submissions SET created_at = ?, updated_at = ? WHERE id = ?",
+                    createdAt, createdAt, savedSub.getId());
+        }
     }
 
-    private void seedFreeWorkspaceGenerations(List<User> students) {
-        // 给前 5 个学生各做一个对话 + 自由创作的生成历史，撑起 Workspace / Gallery / Live
-        String[] freePrompts = {
+    // ---------- Free Workspace generations ----------
+    private void seedFreeGenerations(List<User> students) {
+        String[] models = {MODEL_GPT_IMAGE, MODEL_DALLE3, MODEL_GEMINI};
+        String[] prompts = {
                 "未来城市的清晨，氢能机车飞驰在云端轨道上，朝霞照射，电影级渲染",
                 "玻璃罐里的微型雨林，光线从顶部漏下，湿润的氛围，宫崎骏风格",
                 "穿汉服的少女在樱花树下抚琴，水彩画风，温柔光线",
                 "宇航员坐在月球边缘看地球升起，大画幅胶片质感",
-                "深海中漂浮的发光水母群，幽蓝色调，神秘梦境"
+                "深海中漂浮的发光水母群，幽蓝色调，神秘梦境",
+                "京都老茶室的雪天午后，光透过纸窗，温暖的米色",
+                "雨夜霓虹下的赛博朋克小巷，反光的水洼，超清晰细节",
+                "故宫角楼的雪景，黄昏的金色光线，水墨意境",
+                "热带雨林深处的发光蘑菇王国，奇幻插画风",
+                "古代书院的雨夜，桌上一盏油灯，光影柔和的水彩",
+                "戈壁公路上奔跑的机械鹿群，沙尘与朝霞混合",
+                "中世纪图书馆的螺旋楼梯，灯光暖黄，宏大场景",
+                "未来海上城市，玻璃穹顶下的市集，明亮干净",
+                "敦煌飞天的现代再设计，金粉飘逸，星空背景",
+                "黄昏的稻田里飞舞的萤火虫群，写实风格",
+                "雪山下的玻璃别墅，火炉旁的猫，舒缓温暖的色调",
+                "中国传统园林的雨后，青苔与红枫，水彩画风",
+                "神秘的悬浮岛屿，瀑布从底部坠入云海，奇幻风格",
+                "白色机械鲸鱼漂浮在云端，巨型机械结构，史诗感",
+                "云之上的茶馆，木结构悬空，柔和阳光，禅意"
         };
-        for (int i = 0; i < freePrompts.length; i++) {
-            User s = students.get(i);
+
+        int promptIdx = 0;
+        for (int s = 0; s < students.size(); s++) {
+            // 前 30 名学生有 2-5 条自由创作；后 10 名暂无活动，留出真实班级的差异
+            int count = (s < 30) ? (2 + (s % 4)) : 0;
+            if (count == 0) continue;
+            User stu = students.get(s);
+
             Conversation conv = new Conversation();
-            conv.setUserId(s.getId());
-            conv.setTitle("自由创作 · " + s.getDisplayName());
+            conv.setUserId(stu.getId());
+            conv.setTitle("自由创作 · " + stu.getDisplayName());
             Conversation savedConv = conversationRepository.save(conv);
 
-            for (int j = 0; j < 2; j++) {
+            for (int j = 0; j < count; j++) {
+                String modelId = models[(s + j) % models.length];
+                String prompt = prompts[promptIdx % prompts.length] + (j == 0 ? "" : "，更柔和的色调，更克制的对比");
+                String url = seedFor("free-" + s + "-" + j);
+                int dayBack = pickDayBack(s, j);
+                int hourBack = (s * 3 + j * 5) % 18;
+                LocalDateTime when = LocalDateTime.now().minusDays(dayBack).minusHours(hourBack);
+
                 Generation g = new Generation();
-                g.setUserId(s.getId());
-                g.setModelId(j == 0 ? "dall-e-3" : "gpt-image-2");
+                g.setUserId(stu.getId());
+                g.setModelId(modelId);
                 g.setType("TEXT_TO_IMAGE");
-                g.setPrompt(freePrompts[i] + (j == 0 ? "" : "，更柔和的色调，更克制的对比"));
-                g.setOutputImageUrl(seedFor("free-" + i + "-" + j));
+                g.setPrompt(prompt);
+                g.setOutputImageUrl(url);
                 g.setSize("1024x1024");
                 g.setQuality("standard");
                 g.setDurationMs(7000 + j * 1500);
                 g.setConversationId(savedConv.getId());
-                generationRepository.save(g);
+                Generation saved = generationRepository.save(g);
+                jdbcTemplate.update("UPDATE generations SET created_at = ? WHERE id = ?", when, saved.getId());
+                promptIdx++;
             }
         }
+    }
+
+    // 偏向最近几天的日期分布
+    private int pickDayBack(int s, int j) {
+        int[] dist = {0, 0, 0, 1, 1, 2, 2, 3, 4, 5, 6};
+        return dist[(s + j * 3) % dist.length];
     }
 
     private String studentPrompt(int idx, String topic) {
