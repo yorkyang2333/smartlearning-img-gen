@@ -45,3 +45,6 @@ backend/data/
 # AI Gateway
 .gateway/
 
+# Local secrets
+.env.apimart
+.env.local

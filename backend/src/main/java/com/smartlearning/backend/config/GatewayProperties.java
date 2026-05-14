@@ -12,6 +12,9 @@ public class GatewayProperties {
     @Value("${gateway.api-key:}")
     private String apiKey;
 
+    @Value("${gateway.override-from-env:false}")
+    private boolean overrideFromEnv;
+
     public String getBaseUrl() {
         if (baseUrl == null || baseUrl.isBlank()) {
             return "http://localhost:4000";
@@ -21,5 +24,9 @@ public class GatewayProperties {
 
     public String getApiKey() {
         return apiKey == null ? "" : apiKey;
+    }
+
+    public boolean isOverrideFromEnv() {
+        return overrideFromEnv;
     }
 }

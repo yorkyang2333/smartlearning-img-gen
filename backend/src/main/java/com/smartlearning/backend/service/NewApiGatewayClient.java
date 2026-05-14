@@ -20,11 +20,18 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.concurrent.CompletableFuture;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.http.HttpMethod;
 
 @Service
 public class NewApiGatewayClient implements GatewayAiClient {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final long TASK_POLL_INTERVAL_MS = 2_000L;
+    private static final long TASK_POLL_TIMEOUT_MS = 300_000L;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final GatewayConfigService gatewayConfigService;
@@ -63,7 +70,7 @@ public class NewApiGatewayClient implements GatewayAiClient {
                 request,
                 String.class
             );
-            return response.getBody();
+            return resolveAsyncImageResponse(response.getBody(), configInfo);
         } catch (Exception e) {
             throw new RuntimeException("Image generation failed via AI Gateway: " + e.getMessage());
         }
@@ -111,7 +118,7 @@ public class NewApiGatewayClient implements GatewayAiClient {
                 request,
                 String.class
             );
-            return response.getBody();
+            return resolveAsyncImageResponse(response.getBody(), configInfo);
         } catch (Exception e) {
             throw new RuntimeException("Image edit failed via AI Gateway: " + e.getMessage());
         }
@@ -262,5 +269,113 @@ public class NewApiGatewayClient implements GatewayAiClient {
 
         String hint = ModelConfigUtil.buildAspectRatioPromptHint(sizeValue);
         return hint.isBlank() ? prompt : prompt + hint;
+    }
+
+    private String resolveAsyncImageResponse(String body, GatewayConfigService.ResolvedGatewayConfig configInfo) {
+        if (body == null || body.isBlank()) {
+            return body;
+        }
+        String taskId = extractTaskId(body);
+        if (taskId == null) {
+            return body;
+        }
+        return pollTaskUntilDone(taskId, configInfo);
+    }
+
+    private String extractTaskId(String body) {
+        try {
+            JsonNode root = JSON.readTree(body);
+            JsonNode dataNode = root.get("data");
+            if (dataNode == null) {
+                return null;
+            }
+            JsonNode candidate = dataNode.isArray() && dataNode.size() > 0 ? dataNode.get(0) : dataNode;
+            if (candidate != null && candidate.has("task_id")) {
+                return candidate.get("task_id").asText(null);
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private String pollTaskUntilDone(String taskId, GatewayConfigService.ResolvedGatewayConfig configInfo) {
+        HttpHeaders headers = new HttpHeaders();
+        String apiKey = configInfo.apiKey();
+        if (!apiKey.isBlank()) {
+            headers.setBearerAuth(apiKey);
+        }
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+        String pollUrl = configInfo.baseUrl() + "/v1/tasks/" + taskId;
+        long deadline = System.currentTimeMillis() + TASK_POLL_TIMEOUT_MS;
+
+        while (System.currentTimeMillis() < deadline) {
+            ResponseEntity<String> response = restTemplate.exchange(pollUrl, HttpMethod.GET, request, String.class);
+            String body = response.getBody();
+            if (body == null || body.isBlank()) {
+                sleep(TASK_POLL_INTERVAL_MS);
+                continue;
+            }
+            try {
+                JsonNode root = JSON.readTree(body);
+                JsonNode data = root.get("data");
+                String status = data != null && data.has("status") ? data.get("status").asText("") : "";
+
+                if ("completed".equals(status)) {
+                    return convertTaskResultToOpenAIFormat(data);
+                }
+                if ("failed".equals(status) || "cancelled".equals(status)) {
+                    String message = "task " + status;
+                    if (data.has("error") && data.get("error").has("message")) {
+                        message = data.get("error").get("message").asText(message);
+                    }
+                    throw new RuntimeException("Image task " + status + ": " + message);
+                }
+            } catch (RuntimeException re) {
+                throw re;
+            } catch (Exception parseEx) {
+                throw new RuntimeException("Failed to parse task status: " + parseEx.getMessage());
+            }
+            sleep(TASK_POLL_INTERVAL_MS);
+        }
+        throw new RuntimeException("Image task " + taskId + " timed out after " + (TASK_POLL_TIMEOUT_MS / 1000) + "s");
+    }
+
+    private String convertTaskResultToOpenAIFormat(JsonNode data) {
+        JsonNode result = data.get("result");
+        ObjectNode envelope = JSON.createObjectNode();
+        envelope.put("created", System.currentTimeMillis() / 1000);
+        ArrayNode dataArr = envelope.putArray("data");
+
+        if (result != null && result.has("images") && result.get("images").isArray()) {
+            for (JsonNode imageNode : result.get("images")) {
+                JsonNode urls = imageNode.get("url");
+                if (urls == null) {
+                    continue;
+                }
+                if (urls.isArray()) {
+                    for (JsonNode urlNode : urls) {
+                        if (urlNode.isTextual()) {
+                            dataArr.addObject().put("url", urlNode.asText());
+                        }
+                    }
+                } else if (urls.isTextual()) {
+                    dataArr.addObject().put("url", urls.asText());
+                }
+            }
+        }
+
+        if (dataArr.size() == 0) {
+            throw new RuntimeException("Image task completed but result contained no image URLs");
+        }
+        return envelope.toString();
+    }
+
+    private void sleep(long ms) {
+        try {
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Image task polling interrupted");
+        }
     }
 }

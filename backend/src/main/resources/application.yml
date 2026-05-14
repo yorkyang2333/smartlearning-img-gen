@@ -25,3 +25,4 @@ jwt:
 gateway:
   base-url: ${NEWAPI_BASE_URL:http://localhost:4000}
   api-key: ${NEWAPI_API_KEY:sk-ieu1YGBX7s5Us7moCyvOEHRFG7T2pUv83kTwn2uCffuhLn5w}
+  override-from-env: ${NEWAPI_OVERRIDE:false}

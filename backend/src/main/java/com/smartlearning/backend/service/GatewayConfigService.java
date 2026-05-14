@@ -44,6 +44,13 @@ public class GatewayConfigService {
     }
 
     public ResolvedGatewayConfig getResolvedConfig() {
+        if (gatewayProperties.isOverrideFromEnv()) {
+            String envBase = gatewayProperties.getBaseUrl();
+            String envKey = gatewayProperties.getApiKey();
+            if (envBase != null && !envBase.isBlank()) {
+                return new ResolvedGatewayConfig(true, normalizeUrl(envBase), envKey == null ? "" : envKey);
+            }
+        }
         GatewayConfig config = getOrCreate();
         String baseUrl = config.getBaseUrl() != null && !config.getBaseUrl().isBlank()
             ? normalizeUrl(config.getBaseUrl())

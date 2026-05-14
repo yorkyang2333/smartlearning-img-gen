@@ -99,5 +99,23 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         } catch (Exception e) {
             System.err.println("AI Gateway config bootstrap warning: " + e.getMessage());
         }
+
+        try {
+            if (modelRepository.findByModelId("gpt-image-2").isEmpty()) {
+                Model gptImage2 = new Model();
+                gptImage2.setName("GPT Image 2");
+                gptImage2.setModelId("gpt-image-2");
+                gptImage2.setType("BOTH");
+                gptImage2.setProvider("openai");
+                gptImage2.setDescription("优质AI图像生成与编辑（经 APIMart 路由）");
+                gptImage2.setApiFormat("openai");
+                gptImage2.setConfig(ModelConfigUtil.buildImageConfigJson("gpt-image-2", "openai"));
+                gptImage2.setApiEndpointId(null);
+                modelRepository.save(gptImage2);
+                System.out.println("Successfully seeded gpt-image-2 model.");
+            }
+        } catch (Exception e) {
+            System.err.println("gpt-image-2 seeding warning: " + e.getMessage());
+        }
     }
 }
