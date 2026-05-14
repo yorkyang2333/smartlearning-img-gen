@@ -4,7 +4,7 @@ import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
 
-const activeTab = ref<'OVERVIEW' | 'MONITOR'>('OVERVIEW')
+const activeTab = ref<'LIVE' | 'OVERVIEW' | 'MONITOR'>('OVERVIEW')
 const selectedStudentId = ref<string | null>(null)
 
 const stats = ref<any>(null)
@@ -86,20 +86,25 @@ const maxTrend = computed(() => {
   if (!stats.value?.dailyTrend) return 1
   return Math.max(...stats.value.dailyTrend.map((t: any) => t.count), 1)
 })
+
+import LiveFeed from './Live.vue'
 </script>
 
 <template>
-  <div :style="{ maxWidth: activeTab === 'OVERVIEW' ? '1200px' : '100%', margin: '0 auto', paddingBottom: '64px', height: activeTab === 'MONITOR' ? 'calc(100vh - 64px)' : 'auto' }">
-    <div class="page-header">
+  <div :style="{ maxWidth: activeTab === 'OVERVIEW' ? '1200px' : '100%', margin: '0 auto', paddingBottom: activeTab === 'OVERVIEW' ? '64px' : '0', height: activeTab === 'OVERVIEW' ? 'auto' : 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column', overflow: activeTab === 'OVERVIEW' ? 'visible' : 'hidden' }">
+    <div class="page-header" :style="{ flexShrink: 0 }">
       <div>
         <h1 class="editorial-title">工作台</h1>
         <p class="editorial-subtitle">全班数据与最新创作概览</p>
       </div>
       <div style="display: flex; gap: 16px; align-items: center;">
-        <router-link to="/teacher/live" target="_blank" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px;">
-          📺 课堂大屏
-        </router-link>
         <div style="display: flex; background: var(--surface-card); padding: 4px; border-radius: var(--radius-md); border: 1px solid var(--hairline);">
+          <button 
+            @click="activeTab = 'LIVE'"
+            :style="{ padding: '6px 16px', border: 'none', background: activeTab === 'LIVE' ? 'var(--canvas)' : 'transparent', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, color: activeTab === 'LIVE' ? 'var(--ink)' : 'var(--muted)', boxShadow: activeTab === 'LIVE' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none', display: 'flex', alignItems: 'center', gap: '6px' }"
+          >
+            课堂大屏
+          </button>
           <button 
             @click="activeTab = 'OVERVIEW'"
             :style="{ padding: '6px 16px', border: 'none', background: activeTab === 'OVERVIEW' ? 'var(--canvas)' : 'transparent', borderRadius: '4px', cursor: 'pointer', fontWeight: 500, color: activeTab === 'OVERVIEW' ? 'var(--ink)' : 'var(--muted)', boxShadow: activeTab === 'OVERVIEW' ? '0 1px 2px rgba(0,0,0,0.06)' : 'none' }"
@@ -115,6 +120,11 @@ const maxTrend = computed(() => {
     <div v-if="loadingAnalytics || loadingHistory" style="padding: 48px; color: var(--muted);">加载中...</div>
     <div v-else-if="!stats" style="padding: 48px; color: var(--error);">无法加载数据</div>
     
+    <template v-else-if="activeTab === 'LIVE'">
+      <div style="flex: 1; overflow: hidden; border-top: 1px solid var(--hairline);">
+        <LiveFeed />
+      </div>
+    </template>
     <template v-else-if="activeTab === 'OVERVIEW'">
       <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; margin-bottom: 2rem;">
         <div class="glass-panel" style="padding: 1.5rem;">
@@ -288,7 +298,7 @@ const maxTrend = computed(() => {
 }
 .chart-bar-container:hover .tooltip { opacity: 1; }
 
-.dual-pane-layout { display: flex; height: calc(100vh - 180px); gap: 24px; }
+.dual-pane-layout { display: flex; flex: 1; overflow: hidden; gap: 24px; }
 .students-list-pane { width: 280px; background: var(--surface-card); border-radius: var(--radius-lg); padding: 24px 16px; display: flex; flex-direction: column; flex-shrink: 0; }
 .pane-title { font-family: 'Cormorant Garamond', serif; font-size: 24px; color: var(--ink); margin-bottom: 24px; padding: 0 8px; }
 .empty-text { color: var(--muted); padding: 0 8px; font-size: 14px; }

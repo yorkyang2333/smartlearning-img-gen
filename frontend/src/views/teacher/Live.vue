@@ -38,27 +38,57 @@ const getValidImageUrl = (url: string) => {
   if (url.startsWith('http') || url.startsWith('data:')) return url;
   return `data:image/png;base64,${url}`;
 }
+
+const isFullscreen = ref(false)
+const containerRef = ref<HTMLElement | null>(null)
+
+const toggleFullscreen = () => {
+  if (!document.fullscreenElement) {
+    containerRef.value?.requestFullscreen().catch(err => {
+      console.log(`Error attempting to enable fullscreen: ${err.message}`);
+    });
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    }
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('fullscreenchange', () => {
+    isFullscreen.value = !!document.fullscreenElement;
+  });
+})
 </script>
 
 <template>
-  <div class="container">
-    <header class="page-header" style="align-items: center; border: none; padding-bottom: 0;">
-      <h1 class="editorial-title" style="margin: 0; display: flex; align-items: center; gap: 12px;">
-        📺 课堂大屏直播 <span class="liveBadge">LIVE</span>
-      </h1>
-      <div class="stats">
-        <div class="statItem">
-          <span class="statLabel">全班已生成</span>
-          <span class="statValue">{{ totalCount }} 张</span>
+  <div class="container" ref="containerRef">
+    <header class="live-header">
+      <div class="header-left">
+        <h1 class="live-title">
+          课堂大屏直播 <span class="badge-coral">LIVE</span>
+        </h1>
+      </div>
+      <div class="header-right">
+        <div class="stats-card">
+          <div class="stat-item">
+            <span class="stat-label">全班已生成</span>
+            <span class="stat-value">{{ totalCount }}</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+             <span class="stat-label">展示中</span>
+             <span class="stat-value">{{ generations.length }}</span>
+          </div>
         </div>
-        <div class="statItem">
-           <span class="statLabel">展示中</span>
-           <span class="statValue">{{ generations.length }} 张</span>
-        </div>
+        <button @click="toggleFullscreen" class="btn-fullscreen" title="全屏展示">
+          <svg v-if="!isFullscreen" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+          <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>
+        </button>
       </div>
     </header>
 
-    <div class="grid">
+    <div class="grid" v-if="generations.length > 0">
       <div v-for="gen in generations" :key="gen.id" class="card">
         <div class="imageWrapper">
            <img :src="getValidImageUrl(gen.outputImageUrl)" :alt="gen.prompt" class="image" />
@@ -66,11 +96,18 @@ const getValidImageUrl = (url: string) => {
         <div class="cardInfo">
            <p class="prompt">{{ gen.prompt }}</p>
            <div class="meta">
-              <span class="author">👤 {{ gen.user?.displayName || '未知' }}</span>
-              <span class="time">{{ new Date(gen.createdAt).toLocaleTimeString() }}</span>
+              <span class="author" style="display: flex; align-items: center; gap: 4px;">
+                {{ gen.user?.displayName || '未知' }}
+              </span>
+              <span class="time">{{ new Date(gen.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</span>
            </div>
         </div>
       </div>
+    </div>
+    <div v-else class="empty-state">
+      <div class="empty-icon">
+      </div>
+      <p>等待学生创作中...</p>
     </div>
   </div>
 </template>
@@ -78,83 +115,161 @@ const getValidImageUrl = (url: string) => {
 <style scoped>
 .container {
   padding: 2rem;
-  height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
+  background: var(--canvas);
+  color: var(--ink);
   overflow: hidden;
-  background: var(--canvas, #faf9f5);
+  box-sizing: border-box;
 }
 
-.liveBadge {
-  background-color: var(--color-coral, #ff6b6b);
-  color: white;
-  font-size: 0.8rem;
-  font-weight: 600;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
+.live-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-shrink: 0;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.live-title {
+  font-family: 'Cormorant Garamond', 'Copernicus', 'Tiempos Headline', serif;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.3px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--ink);
+}
+
+.badge-coral {
+  background-color: var(--primary);
+  color: var(--on-primary);
+  font-family: 'StyreneB', 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  text-transform: uppercase;
   animation: pulse 2s infinite;
-  letter-spacing: 1px;
 }
 
-.stats {
+.header-right {
   display: flex;
-  gap: 2rem;
-  background: white;
-  padding: 0.8rem 1.5rem;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  border: 1px solid var(--color-sand, #e8e6df);
+  align-items: center;
+  gap: 16px;
 }
 
-.statItem {
+.stats-card {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  background: var(--surface-card);
+  padding: 8px 24px;
+  border-radius: var(--radius-full, 9999px);
+  gap: 24px;
 }
 
-.statLabel {
-  font-size: 0.8rem;
-  color: var(--color-stone, #5a5a55);
+.stat-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
-.statValue {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--color-ink, #141413);
+.stat-label {
+  font-family: 'StyreneB', 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-family: 'Copernicus', 'Tiempos Headline', serif;
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.stat-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--hairline);
+}
+
+.btn-fullscreen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--hairline);
+  background: var(--canvas);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-fullscreen:hover {
+  background: var(--surface-card);
 }
 
 .grid {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-auto-rows: max-content;
+  align-items: start;
+  gap: 24px;
   overflow-y: auto;
   padding-bottom: 2rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-soft) var(--canvas);
+}
+
+.grid::-webkit-scrollbar {
+  width: 6px;
+}
+.grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+.grid::-webkit-scrollbar-thumb {
+  background-color: var(--muted-soft);
+  border-radius: 10px;
 }
 
 .card {
-  background: white;
-  border-radius: 16px;
+  background: var(--surface-card);
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-  border: 1px solid var(--color-sand, #e8e6df);
+  display: flex;
+  flex-direction: column;
   animation: flyIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
   opacity: 0;
   transform: translateY(40px) scale(0.95);
-  display: flex;
-  flex-direction: column;
 }
 
 .imageWrapper {
   aspect-ratio: 1;
+  width: 100%;
+  flex-shrink: 0;
+  background: var(--surface-dark-soft, #1f1e1b);
+  overflow: hidden;
   position: relative;
-  background: var(--color-canvas, #faf9f5);
 }
 
 .image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.3s ease;
+  transition: transform 0.5s ease;
 }
 
 .card:hover .image {
@@ -162,43 +277,63 @@ const getValidImageUrl = (url: string) => {
 }
 
 .cardInfo {
-  padding: 1rem;
-  background: white;
-  z-index: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .prompt {
-  font-size: 0.95rem;
-  color: var(--color-ink, #141413);
-  margin-bottom: 0.8rem;
-  margin-top: 0;
+  font-family: 'StyreneB', 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  line-height: 1.4;
+  text-overflow: ellipsis;
 }
 
 .meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.85rem;
-  color: var(--color-stone, #5a5a55);
+  font-family: 'StyreneB', 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .author {
-  font-weight: 500;
-  color: var(--color-coral, #ff6b6b);
+  color: var(--primary);
 }
 
 .time {
-  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-family: 'StyreneB', 'Inter', sans-serif;
+  font-size: 16px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
 }
 
 @keyframes pulse {
   0% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.5; }
   100% { opacity: 1; }
 }
 
