@@ -62,7 +62,6 @@ public class DemoSeeder implements CommandLineRunner {
     };
 
     @Override
-    @Transactional
     public void run(String... args) {
         wipeDemoData();
 
@@ -82,7 +81,8 @@ public class DemoSeeder implements CommandLineRunner {
 
     // 每次启动先清掉旧的演示数据（仅 ROSTER 学生 + teacher 名下的作业 + [演示] 模板），
     // 不影响默认 student 账号或非演示数据。
-    private void wipeDemoData() {
+    @Transactional
+    public void wipeDemoData() {
         java.util.Optional<User> teacherOpt = userRepository.findByUsername("teacher");
 
         teacherOpt.ifPresent(t -> {
@@ -451,28 +451,49 @@ public class DemoSeeder implements CommandLineRunner {
                 "中国传统园林的雨后，青苔与红枫，水彩画风",
                 "神秘的悬浮岛屿，瀑布从底部坠入云海，奇幻风格",
                 "白色机械鲸鱼漂浮在云端，巨型机械结构，史诗感",
-                "云之上的茶馆，木结构悬空，柔和阳光，禅意"
+                "云之上的茶馆，木结构悬空，柔和阳光，禅意",
+                "黄昏地铁站台上的旅人，胶片颗粒，温暖逆光",
+                "未来集市里的机械商人，琳琅满目的发光小玩意，奇幻插画",
+                "竹林深处的茶人，雨后云雾缭绕，水墨长卷",
+                "霓虹江南：未来水乡的灯笼夜市，倒影丰富",
+                "极地冰川下的发光城市，蓝紫色调，科幻插画",
+                "夜晚故宫角楼上空的赛博风筝群，金红色调",
+                "森林里的飞行汽车广告，干净商业摄影风",
+                "海边老灯塔的晨曦，暖橙天色与冷蓝海面对比",
+                "城市天台的孤独诗人，雨后水洼倒映霓虹",
+                "童话森林里的夜行马戏团，灯笼与星空"
         };
 
-        int promptIdx = 0;
-        for (int s = 0; s < students.size(); s++) {
-            // 前 30 名学生有 2-5 条自由创作；后 10 名暂无活动，留出真实班级的差异
-            int count = (s < 30) ? (2 + (s % 4)) : 0;
-            if (count == 0) continue;
-            User stu = students.get(s);
-
+        // 给每个学生开一个对话，撑起 Workspace 列表
+        java.util.Map<String, String> convByStudent = new java.util.HashMap<>();
+        for (User stu : students) {
             Conversation conv = new Conversation();
             conv.setUserId(stu.getId());
             conv.setTitle("自由创作 · " + stu.getDisplayName());
-            Conversation savedConv = conversationRepository.save(conv);
+            convByStudent.put(stu.getId(), conversationRepository.save(conv).getId());
+        }
 
-            for (int j = 0; j < count; j++) {
-                String modelId = models[(s + j) % models.length];
-                String prompt = prompts[promptIdx % prompts.length] + (j == 0 ? "" : "，更柔和的色调，更克制的对比");
-                String url = seedFor("free-" + s + "-" + j);
-                int dayBack = pickDayBack(s, j);
-                int hourBack = (s * 3 + j * 5) % 18;
-                LocalDateTime when = LocalDateTime.now().minusDays(dayBack).minusHours(hourBack);
+        // 6 天前 -> 今天 每天创作量（撑起仪表盘趋势图）
+        int[] perDay = {32, 44, 52, 60, 56, 48, 38};
+        LocalDateTime now = LocalDateTime.now();
+        int genCounter = 0;
+        int promptIdx = 0;
+
+        for (int dayBack = 6; dayBack >= 0; dayBack--) {
+            int count = perDay[6 - dayBack];
+            for (int k = 0; k < count; k++) {
+                User stu = students.get((genCounter * 7 + dayBack) % students.size());
+                String modelId = models[(genCounter + dayBack) % models.length];
+                String basePrompt = prompts[promptIdx % prompts.length];
+                String prompt = basePrompt + (k % 3 == 0 ? "" : "，更柔和的色调，更克制的对比");
+                String url = seedFor("free-" + dayBack + "-" + k);
+                int hour = 8 + (k * 13) % 14;
+                int minute = (k * 17) % 60;
+                LocalDateTime when = now.minusDays(dayBack)
+                        .withHour(hour).withMinute(minute).withSecond(0).withNano(0);
+                if (dayBack == 0 && when.isAfter(now)) {
+                    when = now.minusMinutes(5L + k);
+                }
 
                 Generation g = new Generation();
                 g.setUserId(stu.getId());
@@ -482,19 +503,15 @@ public class DemoSeeder implements CommandLineRunner {
                 g.setOutputImageUrl(url);
                 g.setSize("1024x1024");
                 g.setQuality("standard");
-                g.setDurationMs(7000 + j * 1500);
-                g.setConversationId(savedConv.getId());
+                g.setDurationMs(7000 + (k % 8) * 600);
+                g.setConversationId(convByStudent.get(stu.getId()));
                 Generation saved = generationRepository.save(g);
-                jdbcTemplate.update("UPDATE generations SET created_at = ? WHERE id = ?", when, saved.getId());
+                jdbcTemplate.update("UPDATE generations SET created_at = ? WHERE id = ?",
+                        when, saved.getId());
+                genCounter++;
                 promptIdx++;
             }
         }
-    }
-
-    // 偏向最近几天的日期分布
-    private int pickDayBack(int s, int j) {
-        int[] dist = {0, 0, 0, 1, 1, 2, 2, 3, 4, 5, 6};
-        return dist[(s + j * 3) % dist.length];
     }
 
     private String studentPrompt(int idx, String topic) {
