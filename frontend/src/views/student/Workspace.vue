@@ -79,6 +79,15 @@ const fetchHistory = async () => {
       const data = await res.json()
       if (data.success && data.data && data.data.messages) {
         messages.value = data.data.messages
+        if (!promptText.value) {
+          const am = activeMsg.value
+          if (am) {
+            const idx = messages.value.findIndex(m => m.id === am.id)
+            if (idx > 0 && messages.value[idx - 1].role === 'user') {
+              promptText.value = messages.value[idx - 1].content || ''
+            }
+          }
+        }
       }
     } catch (e) {}
   } else {
@@ -394,6 +403,14 @@ const activeMsg = computed(() => {
   const am = agentMessages.value
   return am.find(m => m.id === activeMsgId.value) || am[am.length - 1]
 })
+
+const handleHistoryClick = (msgId: string) => {
+  activeMsgId.value = msgId
+  const idx = messages.value.findIndex(m => m.id === msgId)
+  if (idx > 0 && messages.value[idx - 1].role === 'user') {
+    promptText.value = messages.value[idx - 1].content || ''
+  }
+}
 </script>
 
 <template>
@@ -459,7 +476,7 @@ const activeMsg = computed(() => {
         <div 
           v-for="msg in agentMessages" 
           :key="msg.id" 
-          @click="activeMsgId = msg.id"
+          @click="handleHistoryClick(msg.id)"
           class="history-item"
           :class="{ active: activeMsgId === msg.id || (!activeMsgId && msg === agentMessages[agentMessages.length-1]) }"
         >

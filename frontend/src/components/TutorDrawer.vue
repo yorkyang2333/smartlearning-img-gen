@@ -88,9 +88,6 @@ watch(() => props.generationId, (newId) => {
   loadOpt(newId)
   if (newId && props.hasImage) {
     activeTab.value = 'review'
-    if (Object.keys(reviews.value).length === 0) {
-      nextTick(() => handleReview())
-    }
   }
 })
 
