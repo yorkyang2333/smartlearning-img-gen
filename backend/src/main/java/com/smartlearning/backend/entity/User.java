@@ -37,6 +37,7 @@ public class User {
     @Column(name = "teacher_id")
     private String teacherId;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "teacher_id", insertable = false, updatable = false)
     private User teacher;

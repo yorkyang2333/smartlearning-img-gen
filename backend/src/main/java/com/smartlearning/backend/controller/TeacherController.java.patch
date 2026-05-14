@@ -1,0 +1,10 @@
+--- backend/src/main/java/com/smartlearning/backend/controller/TeacherController.java
++++ backend/src/main/java/com/smartlearning/backend/controller/TeacherController.java
+@@ -402,6 +402,7 @@
+     public ResponseEntity<?> updateStudent(@PathVariable String studentId, @RequestBody Map<String, Object> body) {
++        System.out.println("DEBUG: inside updateStudent");
+         User student = userRepository.findById(studentId).orElseThrow();
+         if (!student.getTeacherId().equals(getTeacherId())) {
++            System.out.println("DEBUG: 403 returned");
+             return ResponseEntity.status(403).build();
+         }
