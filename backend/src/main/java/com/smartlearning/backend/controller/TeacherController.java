@@ -113,7 +113,7 @@ public class TeacherController {
             List<Map<String, Object>> modelUsage = modelCounts.entrySet().stream()
                 .map(entry -> {
                     String modelName = models.stream()
-                        .filter(m -> m.getId().equals(entry.getKey()))
+                        .filter(m -> m.getModelId().equals(entry.getKey()))
                         .findFirst()
                         .map(Model::getName)
                         .orElse("Unknown");
@@ -143,7 +143,7 @@ public class TeacherController {
             List<Model> models = modelRepository.findAll();
 
             Map<String, User> userMap = users.stream().collect(Collectors.toMap(User::getId, u -> u));
-            Map<String, Model> modelMap = models.stream().collect(Collectors.toMap(Model::getId, m -> m));
+            Map<String, Model> modelMap = models.stream().collect(Collectors.toMap(Model::getModelId, m -> m));
 
             List<Map<String, Object>> enrichedGens = generations.stream()
                 .limit(100) // Limit to top 100 to avoid huge payload
@@ -361,6 +361,76 @@ public class TeacherController {
         // Clean password hash before sending to frontend
         students.forEach(s -> s.setPasswordHash(null));
         return ResponseEntity.ok(students);
+    }
+
+    @PostMapping("/students")
+    public ResponseEntity<?> createStudent(@RequestBody Map<String, String> body) {
+        if (userRepository.findByUsername(body.get("username")).isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "账号已存在"));
+        }
+        User student = new User();
+        student.setUsername(body.get("username"));
+        student.setDisplayName(body.get("displayName"));
+        student.setPasswordHash(passwordEncoder.encode(body.get("password")));
+        student.setRole("STUDENT");
+        student.setTeacherId(getTeacherId());
+        User saved = userRepository.save(student);
+        saved.setPasswordHash(null);
+        return ResponseEntity.ok(saved);
+    }
+
+    @PostMapping("/students/batch")
+    public ResponseEntity<?> batchCreateStudents(@RequestBody Map<String, List<Map<String, String>>> body) {
+        List<Map<String, String>> studentsList = body.get("students");
+        if (studentsList == null || studentsList.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "列表为空"));
+        }
+        List<User> savedList = new ArrayList<>();
+        for (Map<String, String> s : studentsList) {
+            if (userRepository.findByUsername(s.get("username")).isEmpty()) {
+                User student = new User();
+                student.setUsername(s.get("username"));
+                student.setDisplayName(s.get("displayName"));
+                student.setPasswordHash(passwordEncoder.encode(s.get("password")));
+                student.setRole("STUDENT");
+                student.setTeacherId(getTeacherId());
+                savedList.add(userRepository.save(student));
+            }
+        }
+        return ResponseEntity.ok(Map.of("success", true, "count", savedList.size()));
+    }
+
+    @PutMapping("/students/{studentId}")
+    public ResponseEntity<?> updateStudent(@PathVariable String studentId, @RequestBody Map<String, Object> body) {
+        User student = userRepository.findById(studentId).orElseThrow();
+        if (!student.getTeacherId().equals(getTeacherId())) {
+            return ResponseEntity.status(403).build();
+        }
+        if (body.containsKey("displayName")) {
+            student.setDisplayName((String) body.get("displayName"));
+        }
+        if (body.containsKey("isActive") && body.get("isActive") != null) {
+            student.setIsActive((Boolean) body.get("isActive"));
+        }
+        if (body.containsKey("password") && body.get("password") != null) {
+            String pwd = (String) body.get("password");
+            if (!pwd.trim().isEmpty()) {
+                student.setPasswordHash(passwordEncoder.encode(pwd));
+            }
+        }
+        User saved = userRepository.save(student);
+        saved.setPasswordHash(null);
+        return ResponseEntity.ok(saved);
+    }
+
+    @DeleteMapping("/students/{studentId}")
+    public ResponseEntity<?> deleteStudent(@PathVariable String studentId) {
+        User student = userRepository.findById(studentId).orElseThrow();
+        if (!student.getTeacherId().equals(getTeacherId())) {
+            return ResponseEntity.status(403).build();
+        }
+        userRepository.delete(student);
+        return ResponseEntity.ok().build();
     }
 
     @PutMapping("/students/{studentId}/quota")
