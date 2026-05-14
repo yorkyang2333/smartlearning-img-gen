@@ -115,6 +115,10 @@ const clearSelection = () => {
   margin-bottom: 16px;
   animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 4px 12px rgba(204, 120, 92, 0.08);
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 @keyframes slideDown {
@@ -174,11 +178,12 @@ const clearSelection = () => {
 
 .pb-content {
   padding: 16px;
-  max-height: 300px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  flex: 1;
+  min-height: 0;
 }
 
 .pb-category-title {

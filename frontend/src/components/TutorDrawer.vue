@@ -5,20 +5,18 @@ import { marked } from 'marked'
 
 const props = defineProps<{
   generationId?: string | null
-  prompt?: string
   initialReviews?: Record<string, any>
   hasImage: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'applySuggestion', suggestion: string): void
-  (e: 'applyOptimized', prompt: string): void
 }>()
 
 const authStore = useAuthStore()
 
 // Tabs
-const activeTab = ref<'review' | 'chat' | 'optimize'>('review')
+const activeTab = ref<'review' | 'chat'>('review')
 
 // Review state
 const activePerspectives = ref<string[]>(['composition', 'style', 'completeness'])
@@ -85,7 +83,6 @@ const handleReview = async () => {
 watch(() => props.generationId, (newId) => {
   reviews.value = props.initialReviews || {}
   loadChat(newId)
-  loadOpt(newId)
   if (newId && props.hasImage) {
     activeTab.value = 'review'
   }
@@ -214,90 +211,6 @@ const sendChat = async () => {
   }
 }
 
-// Optimize state
-const isOptimizing = ref(false)
-const isAnalyzing = ref(false)
-const optimizedResult = ref<string | null>(null)
-const suggestions = ref<any[] | null>(null)
-const optError = ref<string | null>(null)
-
-const getOptStorageKey = (id: string | null | undefined) => `tutor_opt_${id || 'default'}`
-const loadOpt = (id: string | null | undefined) => {
-  try {
-    const saved = localStorage.getItem(getOptStorageKey(id))
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      optimizedResult.value = parsed.optimizedResult || null
-      suggestions.value = parsed.suggestions || null
-    } else {
-      optimizedResult.value = null
-      suggestions.value = null
-    }
-  } catch {
-    optimizedResult.value = null
-    suggestions.value = null
-  }
-}
-loadOpt(props.generationId)
-
-watch([optimizedResult, suggestions], () => {
-  localStorage.setItem(getOptStorageKey(props.generationId), JSON.stringify({
-    optimizedResult: optimizedResult.value,
-    suggestions: suggestions.value
-  }))
-}, { deep: true })
-
-const handleOptimize = async () => {
-  if (!props.prompt?.trim()) return
-  isOptimizing.value = true
-  optError.value = null
-  optimizedResult.value = null
-  suggestions.value = null
-  try {
-    const res = await fetch('http://localhost:8080/api/generate/optimize-prompt', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
-      },
-      body: JSON.stringify({ prompt: props.prompt })
-    })
-    const data = await res.json()
-    if (data.success) optimizedResult.value = data.optimized
-    else optError.value = data.error || '优化失败'
-  } catch { optError.value = '网络请求失败' }
-  finally { isOptimizing.value = false }
-}
-
-const handleAnalyze = async () => {
-  if (!props.prompt?.trim()) return
-  isAnalyzing.value = true
-  optError.value = null
-  optimizedResult.value = null
-  suggestions.value = null
-  try {
-    const res = await fetch('http://localhost:8080/api/generate/analyze-prompt', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authStore.token}`
-      },
-      body: JSON.stringify({ prompt: props.prompt })
-    })
-    const data = await res.json()
-    if (data.success && data.data) suggestions.value = data.data.suggestions
-    else optError.value = data.error || '分析失败'
-  } catch { optError.value = '网络请求失败' }
-  finally { isAnalyzing.value = false }
-}
-
-const applyOptimization = () => {
-  if (optimizedResult.value) {
-    emit('applyOptimized', optimizedResult.value)
-    optimizedResult.value = null
-  }
-}
-
 const handleChatKey = (e: KeyboardEvent) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
@@ -327,10 +240,6 @@ const handleChatKey = (e: KeyboardEvent) => {
           <button class="tab-btn" :class="{ active: activeTab === 'chat' }" @click="activeTab = 'chat'">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             导师对话
-          </button>
-          <button class="tab-btn" :class="{ active: activeTab === 'optimize' }" @click="activeTab = 'optimize'">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            智能优化
           </button>
       </div>
     </div>
@@ -470,49 +379,6 @@ const handleChatKey = (e: KeyboardEvent) => {
             </button>
           </div>
         </div>
-
-        <!-- ========= OPTIMIZE TAB ========= -->
-        <div v-if="activeTab === 'optimize'" class="tab-content">
-          <div class="opt-section">
-            <p class="opt-hint">基于你当前的提示词，AI 导师可以帮你优化或分析改进方向。</p>
-            <div class="opt-actions">
-              <button class="opt-btn" @click="handleOptimize" :disabled="isOptimizing || !prompt?.trim()">
-                <span v-if="isOptimizing" class="spinner"></span>
-                <span v-else>✨ 一键优化提示词</span>
-              </button>
-              <button class="opt-btn" @click="handleAnalyze" :disabled="isAnalyzing || !prompt?.trim()">
-                <span v-if="isAnalyzing" class="spinner"></span>
-                <span v-else>🔍 维度分析建议</span>
-              </button>
-            </div>
-            <div v-if="optError" class="error-msg">{{ optError }}</div>
-            <div v-if="optimizedResult" class="opt-result">
-              <div class="opt-result-header">
-                <span>优化结果</span>
-                <button class="close-sm" @click="optimizedResult = null">✕</button>
-              </div>
-              <div class="opt-compare">
-                <div class="compare-box original"><label>原文</label><p>{{ prompt }}</p></div>
-                <div class="compare-arrow">→</div>
-                <div class="compare-box improved"><label>优化后</label><p>{{ optimizedResult }}</p></div>
-              </div>
-              <button class="btn btn-primary apply-btn" @click="applyOptimization">应用优化结果</button>
-            </div>
-            <div v-if="suggestions" class="opt-suggestions">
-              <div class="opt-result-header">
-                <span>维度分析</span>
-                <button class="close-sm" @click="suggestions = null">✕</button>
-              </div>
-              <div v-for="(s, i) in suggestions" :key="i" class="sug-item">
-                <span class="sug-dim">{{ s.dimension }}</span>
-                <div class="sug-body">
-                  <div class="sug-status">{{ s.currentStatus }}</div>
-                  <div class="sug-advice">{{ s.suggestion }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-      </div>
     </div>
   </div>
 </template>
@@ -798,75 +664,6 @@ const handleChatKey = (e: KeyboardEvent) => {
 }
 .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .send-btn:hover:not(:disabled) { background: var(--primary-active); }
-
-/* ===== OPTIMIZE TAB ===== */
-.opt-section { display: flex; flex-direction: column; gap: 16px; }
-.opt-hint { font-size: 14px; color: var(--muted); line-height: 1.5; margin: 0; }
-.opt-actions { display: flex; gap: 8px; }
-.opt-btn {
-  flex: 1; padding: 10px 14px; border-radius: 8px; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  border: 1px solid var(--hairline); background: white;
-  font-size: 13px; font-weight: 500; color: var(--muted);
-  transition: all 0.2s;
-}
-.opt-btn:hover:not(:disabled) {
-  border-color: var(--primary); color: var(--primary);
-  background: rgba(204,120,92,0.04);
-}
-.opt-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(204, 120, 92, 0.2);
-  border-top-color: var(--primary);
-  border-radius: 50%;
-  animation: spinnerSpin 0.8s linear infinite;
-  display: inline-block;
-}
-@keyframes spinnerSpin {
-  to { transform: rotate(360deg); }
-}
-
-.opt-result, .opt-suggestions {
-  background: white; border: 1px solid var(--primary);
-  border-radius: 12px; padding: 16px;
-  box-shadow: 0 4px 12px rgba(204,120,92,0.08);
-  animation: cardIn 0.3s ease-out;
-}
-.opt-result-header {
-  display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 12px; font-size: 13px; font-weight: 600; color: var(--primary);
-}
-.close-sm {
-  background: none; border: none; color: var(--muted);
-  cursor: pointer; font-size: 14px;
-}
-.opt-compare { display: flex; gap: 10px; align-items: center; margin-bottom: 12px; }
-.compare-box {
-  flex: 1; background: var(--surface-soft); padding: 10px;
-  border-radius: 8px; font-size: 12px;
-}
-.compare-box label {
-  display: block; font-size: 10px; color: var(--muted);
-  margin-bottom: 4px; text-transform: uppercase;
-}
-.compare-box p { margin: 0; color: var(--ink); line-height: 1.4; }
-.compare-arrow { color: var(--primary); font-weight: bold; font-size: 16px; }
-.sug-item {
-  display: flex; gap: 10px; padding: 10px 0;
-  border-bottom: 1px solid var(--hairline-soft);
-}
-.sug-item:last-child { border-bottom: none; }
-.sug-dim {
-  font-size: 11px; background: var(--surface-cream-strong);
-  color: var(--primary); padding: 2px 8px; border-radius: 4px;
-  height: fit-content; white-space: nowrap; font-weight: 500;
-}
-.sug-body { flex: 1; }
-.sug-status { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
-.sug-advice { font-size: 13px; color: var(--ink); line-height: 1.5; }
 
 /* Spinner */
 .spinner {

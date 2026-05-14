@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import PromptBuilder from '../../components/PromptBuilder.vue'
 import PromptHelper from '../../components/PromptHelper.vue'
+import PromptOptimizerPopover from '../../components/PromptOptimizerPopover.vue'
 import TutorDrawer from '../../components/TutorDrawer.vue'
 
 const route = useRoute()
@@ -41,6 +42,7 @@ const sizeMenuOpen = ref(false)
 const isBuilderOpen = ref(false)
 const isHelperOpen = ref(false)
 const isParamsCollapsed = ref(false)
+const isOptimizerOpen = ref(false)
 
 const collapseSidebar = inject<(() => void) | null>('collapseSidebar', null)
 
@@ -494,7 +496,7 @@ const handleHistoryClick = (msgId: string) => {
     <!-- 左侧参数控制台 -->
     <div class="workspace-sidebar" :class="{ 'collapsed': isParamsCollapsed }">
       <div class="sidebar-inner">
-        <div class="panel prompt-panel" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="panel prompt-panel" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
           <div class="prompt-header" style="justify-content: space-between; margin-bottom: 12px; display: flex;">
             <h3 class="panel-title serif-display">创作参数</h3>
             <button class="collapse-trigger-btn" @click="isParamsCollapsed = true" title="收起参数面板" style="background: none; border: none; cursor: pointer; color: var(--muted); padding: 4px; display: flex; align-items: center; justify-content: center; transition: color 0.2s;">
@@ -526,21 +528,37 @@ const handleHistoryClick = (msgId: string) => {
             </button>
           </div>
 
-          <PromptBuilder 
+          <PromptBuilder
             v-if="isBuilderOpen"
-            :currentPrompt="promptText" 
-            @updatePrompt="p => promptText = p" 
-            @close="isBuilderOpen = false" 
+            :currentPrompt="promptText"
+            @updatePrompt="p => promptText = p"
+            @close="isBuilderOpen = false"
           />
 
-          <textarea
-            v-if="!isBuilderOpen"
-            class="prompt-textarea"
-            style="flex: 1; min-height: 120px;"
-            v-model="promptText"
-            placeholder="描述您想要的画面细节，或者点击上方按钮使用辅助工具..."
-            rows="4"
-          ></textarea>
+          <div v-if="!isBuilderOpen" class="prompt-textarea-wrap">
+            <button
+              class="optimizer-trigger-btn"
+              :class="{ active: isOptimizerOpen }"
+              @click="isOptimizerOpen = !isOptimizerOpen"
+              title="AI 优化提示词"
+              type="button"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.8L20.5 10l-6.7 1.6L12 18l-1.8-6.4L3.5 10l6.7-1.2zM19 3l.7 2.3L22 6l-2.3.7L19 9l-.7-2.3L16 6l2.3-.7zM5 14l.7 2.3L8 17l-2.3.7L5 20l-.7-2.3L2 17l2.3-.7z"/></svg>
+            </button>
+            <textarea
+              class="prompt-textarea"
+              style="flex: 1; min-height: 120px;"
+              v-model="promptText"
+              placeholder="描述您想要的画面细节，或者点击上方按钮使用辅助工具..."
+              rows="4"
+            ></textarea>
+            <PromptOptimizerPopover
+              v-if="isOptimizerOpen"
+              :prompt="promptText"
+              @apply="p => { promptText = p }"
+              @close="isOptimizerOpen = false"
+            />
+          </div>
 
           <div class="controls-grid" ref="dropdownRef">
             <div class="control-group">
@@ -659,11 +677,9 @@ const handleHistoryClick = (msgId: string) => {
     <div class="tutor-column">
       <TutorDrawer
         :generationId="activeMsg?.generationId || activeMsg?.id"
-        :prompt="promptText"
         :hasImage="!!activeMsg?.image"
         :initialReviews="activeMsg?.analysis?.reviews"
         @applySuggestion="s => promptText = s"
-        @applyOptimized="p => promptText = p"
       />
     </div>
   </div>
@@ -991,12 +1007,46 @@ const handleHistoryClick = (msgId: string) => {
   gap: 8px;
 }
 
+.prompt-textarea-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.optimizer-trigger-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(238, 233, 255, 0.7);
+  color: #6f5fd0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s, transform 0.18s, color 0.18s;
+}
+.optimizer-trigger-btn:hover {
+  background: #eee9ff;
+  transform: scale(1.05);
+}
+.optimizer-trigger-btn.active {
+  background: #6f5fd0;
+  color: #fff;
+}
+
 .prompt-textarea {
   width: 100%;
   background: var(--surface-cream);
   border: 1px solid var(--hairline);
   border-radius: 8px;
-  padding: 12px;
+  padding: 12px 12px 12px 46px;
   font-family: var(--font-inter);
   font-size: 14px;
   resize: none;
