@@ -1126,22 +1126,35 @@ const handleHistoryClick = (msgId: string) => {
 
 .custom-dropdown-menu {
   position: absolute;
-  top: calc(100% + 6px);
+  bottom: calc(100% + 6px);
+  top: auto;
   left: 0;
-  width: 280px;
+  right: auto;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 32px));
   background: white;
   border: 1px solid var(--hairline);
   border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-  z-index: 100;
+  z-index: 1000;
   overflow: hidden;
-  animation: menuSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: menuSlideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   max-height: 250px;
   overflow-y: auto;
 }
 
+.models-menu {
+  min-width: 220px;
+}
+
 .sizes-menu { 
   width: 200px; 
+}
+
+@keyframes menuSlideUp {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes menuSlideDown {
