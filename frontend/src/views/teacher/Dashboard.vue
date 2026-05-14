@@ -283,8 +283,8 @@ const maxTrend = computed(() => {
 .chart-bar-container { cursor: pointer; }
 .chart-bar-container:hover .chart-bar { opacity: 0.8; }
 .tooltip {
-   position: absolute; top: -30px; background: var(--surface-dark); color: var(--on-dark);
-   padding: 4px 8px; border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap;
+   position: absolute; top: -30px; background: white; color: var(--ink); border: 1px solid var(--hairline);
+   padding: 4px 8px; border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity 0.2s; pointer-events: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 .chart-bar-container:hover .tooltip { opacity: 1; }
 
@@ -317,7 +317,7 @@ const maxTrend = computed(() => {
 .bubble { font-size: 15px; line-height: 1.6; color: var(--ink); }
 .bubble-user { background: var(--surface-card); padding: 12px 16px; border-radius: var(--radius-lg); border-top-left-radius: 4px; display: inline-block; max-width: fit-content; }
 .bubble-meta { font-size: 11px; color: var(--muted); margin-top: 8px; border-top: 1px solid var(--hairline); padding-top: 6px; }
-.image-result-card { margin-top: 4px; background: var(--surface-dark); padding: 16px; border-radius: var(--radius-lg); display: inline-block; max-width: fit-content; }
+.image-result-card { margin-top: 4px; background: var(--surface-card); padding: 16px; border-radius: var(--radius-lg); display: inline-block; max-width: fit-content; border: 1px solid var(--hairline); }
 .generated-image { max-width: 100%; border-radius: var(--radius-md); }
 .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }

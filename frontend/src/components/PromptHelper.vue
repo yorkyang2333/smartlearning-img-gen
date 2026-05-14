@@ -81,12 +81,12 @@ const handleConfirm = () => {
 
           <div class="ph-vars-form" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px;">
             <div v-for="(_val, vKey) in variables" :key="vKey" style="display: flex; flex-direction: column; gap: 4px;">
-              <label style="font-size: 14px; font-weight: 500; color: var(--on-dark);">{{ vKey.replace(/[{}]/g, '') }}</label>
+              <label style="font-size: 14px; font-weight: 500; color: var(--ink);">{{ vKey.replace(/[{}]/g, '') }}</label>
               <input 
                 type="text"
                 v-model="variables[vKey]"
                 :placeholder="`请输入 ${vKey.replace(/[{}]/g, '')}`"
-                style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--surface-dark-elevated); background: var(--surface-dark-soft); color: var(--on-dark);"
+                style="padding: 8px 12px; border-radius: 6px; border: 1px solid var(--hairline); background: white; color: var(--ink);"
               />
             </div>
           </div>
@@ -139,13 +139,13 @@ const handleConfirm = () => {
 }
 
 .ph-modal {
-  background: #1e1e1e;
+  background: var(--canvas);
   border-radius: 16px;
   width: 100%;
   max-width: 600px;
   overflow: hidden;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-  border: 1px solid #2d2d2d;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--hairline);
   animation: slideDown 0.3s ease-out;
 }
 
@@ -154,11 +154,11 @@ const handleConfirm = () => {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid #2d2d2d;
+  border-bottom: 1px solid var(--hairline);
 }
 
 .ph-title {
-  color: #fff;
+  color: var(--ink);
   font-size: 1.25rem;
   font-weight: 600;
   display: flex;
@@ -168,7 +168,7 @@ const handleConfirm = () => {
 }
 
 .ph-close {
-  color: #a0a0a0;
+  color: var(--muted);
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
@@ -177,7 +177,7 @@ const handleConfirm = () => {
 }
 
 .ph-close:hover {
-  color: #fff;
+  color: var(--ink);
 }
 
 .ph-content {
@@ -188,7 +188,7 @@ const handleConfirm = () => {
 
 .ph-empty {
   text-align: center;
-  color: #a0a0a0;
+  color: var(--muted);
   padding: 2rem 0;
 }
 
@@ -199,8 +199,8 @@ const handleConfirm = () => {
 }
 
 .ph-card {
-  background: #252525;
-  border: 1px solid #2d2d2d;
+  background: var(--surface-card);
+  border: 1px solid var(--hairline);
   padding: 1.25rem;
   border-radius: 12px;
   transition: all 0.2s;
@@ -210,6 +210,7 @@ const handleConfirm = () => {
 
 .ph-card:hover {
   border-color: rgba(93, 184, 166, 0.5);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
 }
 
 .ph-card-header {
@@ -221,14 +222,14 @@ const handleConfirm = () => {
 
 .ph-card-title {
   font-weight: 600;
-  color: #fff;
+  color: var(--ink);
   margin: 0;
   font-size: 1rem;
 }
 
 .ph-badge {
-  background: #1e1e1e;
-  color: #a0a0a0;
+  background: var(--surface-soft);
+  color: var(--muted);
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
@@ -236,19 +237,19 @@ const handleConfirm = () => {
 
 .ph-desc {
   font-size: 0.875rem;
-  color: #a0a0a0;
+  color: var(--muted);
   margin-bottom: 1rem;
   min-height: 2.5rem;
 }
 
 .ph-template {
-  background: #1e1e1e;
+  background: white;
   padding: 0.75rem;
   border-radius: 6px;
-  border: 1px solid #2d2d2d;
+  border: 1px solid var(--hairline-soft);
   font-family: monospace;
   font-size: 0.75rem;
-  color: #a0a0a0;
+  color: var(--muted);
   margin-bottom: 1rem;
   display: -webkit-box;
   -webkit-line-clamp: 3;

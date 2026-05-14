@@ -274,30 +274,30 @@ onMounted(async () => {
 
       <div class="gateway-grid">
         <!-- Left: config form (DARK MOCKUP) -->
-        <form class="product-mockup-card-dark" @submit="handleGatewaySubmit">
-          <div class="dark-card-top">
-            <h3 class="dark-card-label">网关直连配置</h3>
+        <form class="card-light" @submit="handleGatewaySubmit">
+          <div class="card-top">
+            <h3 class="card-label">网关直连配置</h3>
             <label class="switch-wrap">
-              <input v-model="gatewayFormData.enabled" type="checkbox" class="switch-input switch-input-dark" />
-              <span class="switch-track switch-track-dark"></span>
+              <input v-model="gatewayFormData.enabled" type="checkbox" class="switch-input" />
+              <span class="switch-track"></span>
             </label>
           </div>
-          <div class="dark-card-inner">
+          <div class="card-inner">
             <div class="field">
-              <label class="field-label-dark">Base URL</label>
-              <input type="url" class="field-input-dark" v-model="gatewayFormData.baseUrl" placeholder="http://localhost:4000" />
+              <label class="field-label">Base URL</label>
+              <input type="url" class="field-input" v-model="gatewayFormData.baseUrl" placeholder="http://localhost:4000" />
             </div>
             <div class="field">
-              <label class="field-label-dark">API Key</label>
-              <input type="password" class="field-input-dark" v-model="gatewayFormData.apiKey" placeholder="留空表示网关无需鉴权" />
+              <label class="field-label">API Key</label>
+              <input type="password" class="field-input" v-model="gatewayFormData.apiKey" placeholder="留空表示网关无需鉴权" />
             </div>
             <div class="gateway-meta">
               <span>ACTIVE: <span class="cell-mono-light">{{ gatewayResolvedBaseUrl }}</span></span>
               <span v-if="gatewayUpdatedAt">SYNC: {{ new Date(gatewayUpdatedAt).toLocaleString() }}</span>
             </div>
             <div class="card-actions">
-              <span v-if="gatewayMessage" :class="gatewayMessage.includes('失败') ? 'msg-error' : 'msg-success-dark'">{{ gatewayMessage }}</span>
-              <button type="submit" class="btn-dark btn-sm" :disabled="isSavingGateway">{{ isSavingGateway ? 'Saving...' : '保存参数配置' }}</button>
+              <span v-if="gatewayMessage" :class="gatewayMessage.includes('失败') ? 'msg-error' : 'msg-success'">{{ gatewayMessage }}</span>
+              <button type="submit" class="btn-secondary btn-sm" :disabled="isSavingGateway">{{ isSavingGateway ? 'Saving...' : '保存参数配置' }}</button>
             </div>
           </div>
         </form>
@@ -510,21 +510,19 @@ onMounted(async () => {
 .page-root { max-width:1120px; margin:0 auto; padding-bottom:120px; }
 
 /* ===== SECTION 1: HERO BAND ===== */
-.hero-band { display:flex; justify-content:space-between; align-items:center; padding:96px 0; }
+.hero-band { display:flex; justify-content:space-between; align-items:center; padding:0 0 64px 0; }
 .hero-text-col { flex:1; }
 .hero-title { font-family:var(--font-serif); font-size:48px; font-weight:400; line-height:1.1; letter-spacing:-1px; color:var(--ink); margin:0 0 16px 0; }
 .hero-sub { font-family:var(--font-inter); font-size:18px; color:var(--muted); line-height:1.6; margin:0; max-width:600px; font-weight:400; }
 .hero-actions-col { display:flex; gap:16px; flex-shrink:0; align-items:center; }
 
 /* ===== BUTTONS ===== */
-.btn-primary, .btn-secondary, .btn-dark, .btn-coral-invert { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 20px; height:40px; border-radius:var(--radius-md); font-weight:500; font-size:14px; cursor:pointer; border:none; transition:background 0.15s, opacity 0.15s, box-shadow 0.15s; font-family:var(--font-inter); }
+.btn-primary, .btn-secondary, .btn-coral-invert { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 20px; height:40px; border-radius:var(--radius-md); font-weight:500; font-size:14px; cursor:pointer; border:none; transition:background 0.15s, opacity 0.15s, box-shadow 0.15s; font-family:var(--font-inter); }
 .btn-primary { background:var(--primary); color:var(--on-primary); }
 .btn-primary:hover:not(:disabled) { background:var(--primary-active); }
 .btn-primary:disabled { background:var(--primary-disabled); color:var(--muted); cursor:not-allowed; }
-.btn-secondary { background:var(--canvas); color:var(--ink); border:1px solid var(--hairline); }
-.btn-secondary:hover:not(:disabled) { background:var(--surface-card); }
-.btn-dark { background:var(--surface-dark-elevated); color:var(--on-dark); }
-.btn-dark:hover:not(:disabled) { background:#2f2d2a; }
+.btn-secondary { background:var(--surface-card); color:var(--ink); border:1px solid var(--hairline); }
+.btn-secondary:hover:not(:disabled) { background:white; }
 .btn-coral-invert { background:white; color:var(--primary); }
 .btn-coral-invert:hover:not(:disabled) { opacity:0.9; }
 .btn-sm { padding:0 16px; height:36px; font-size:13px; }
@@ -557,13 +555,13 @@ onMounted(async () => {
 /* ===== GATEWAY GRID (INFRASTRUCTURE) ===== */
 .gateway-grid { display:grid; grid-template-columns:1fr 1fr; gap:32px; align-items:start; }
 
-/* ===== DARK MOCKUP CARD (GATEWAY) ===== */
-.product-mockup-card-dark { background:var(--surface-dark); border-radius:var(--radius-lg); padding:32px; color:var(--on-dark); }
-.dark-card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; }
-.dark-card-label { margin:0; font-size:18px; font-weight:500; font-family:var(--font-inter); color:var(--on-dark); }
-.dark-card-inner { display:flex; flex-direction:column; gap:16px; }
+/* ===== LIGHT CARD (GATEWAY) ===== */
+.card-light { background:var(--surface-card); border-radius:var(--radius-lg); padding:32px; color:var(--ink); border:1px solid var(--hairline); }
+.card-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:32px; }
+.card-label { margin:0; font-size:18px; font-weight:500; font-family:var(--font-inter); color:var(--ink); }
+.card-inner { display:flex; flex-direction:column; gap:16px; }
 
-.gateway-meta { display:flex; justify-content:space-between; gap:16px; margin-top:8px; font-size:12px; color:var(--on-dark-soft); font-family:var(--font-mono); }
+.gateway-meta { display:flex; justify-content:space-between; gap:16px; margin-top:8px; font-size:12px; color:var(--muted); font-family:var(--font-mono); }
 .cell-mono-light { color:var(--accent-teal); }
 
 /* ===== CONNECTOR TILES (CHANNELS) ===== */
@@ -585,9 +583,6 @@ onMounted(async () => {
 .switch-input:checked + .switch-track { background:var(--primary); }
 .switch-input:checked + .switch-track::before { transform:translateX(20px); }
 
-.switch-track-dark { background:var(--surface-dark-elevated); }
-.switch-input-dark:checked + .switch-track-dark { background:var(--primary); }
-
 .switch-track-coral { background:rgba(0,0,0,0.2); }
 .switch-input-coral:checked + .switch-track-coral { background:white; }
 .switch-input-coral:checked + .switch-track-coral::before { background:var(--primary); box-shadow:none; }
@@ -600,15 +595,10 @@ onMounted(async () => {
 /* ===== FIELDS ===== */
 .field { display:flex; flex-direction:column; gap:8px; }
 .field-label { font-size:13px; font-weight:500; color:var(--body-strong); }
-.field-label-dark { font-size:13px; font-weight:500; color:var(--on-dark-soft); }
 .field-label-coral { font-size:14px; font-weight:500; color:rgba(255,255,255,0.9); }
 .field-label-row { display:flex; justify-content:space-between; align-items:flex-end; }
-
 .field-input { width:100%; height:40px; padding:0 14px; border:1px solid var(--hairline); border-radius:var(--radius-md); background:white; font-size:14px; color:var(--ink); font-family:var(--font-inter); transition:border-color 0.15s, box-shadow 0.15s; }
 .field-input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(204,120,92,0.15); }
-
-.field-input-dark { width:100%; height:40px; padding:0 14px; border:1px solid var(--surface-dark-elevated); border-radius:var(--radius-md); background:var(--surface-dark-soft); font-size:14px; color:var(--on-dark); font-family:var(--font-inter); transition:border-color 0.15s; }
-.field-input-dark:focus { outline:none; border-color:var(--primary); }
 
 .field-input-coral { width:100%; height:40px; padding:0 14px; border:1px solid rgba(255,255,255,0.3); border-radius:var(--radius-md); background:rgba(255,255,255,0.1); font-size:14px; color:white; font-family:var(--font-inter); transition:border-color 0.15s; }
 .field-input-coral:focus { outline:none; border-color:white; }
@@ -688,7 +678,6 @@ onMounted(async () => {
 
 /* ===== MESSAGES ===== */
 .msg-success { color:var(--success); font-size:13px; font-weight:500; }
-.msg-success-dark { color:var(--accent-teal); font-size:13px; font-weight:500; }
 .msg-success-coral { color:white; font-size:14px; font-weight:500; }
 .msg-error { color:var(--error); font-size:13px; font-weight:500; }
 .msg-error-coral { color:#ffd0d0; font-size:14px; font-weight:500; }

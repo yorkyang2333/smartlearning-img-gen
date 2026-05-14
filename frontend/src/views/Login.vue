@@ -110,23 +110,23 @@ const handleLogin = async () => {
     </div>
 
     <!-- Right Side: Classic Art Background (50%) -->
-    <div class="hidden lg:flex lg:w-1/2 relative bg-surface-dark items-center justify-center overflow-hidden">
+    <div class="hidden lg:flex lg:w-1/2 relative bg-surface-card items-center justify-center overflow-hidden">
       <!-- High-res classical painting image -->
       <img 
         src="https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?q=80&w=2000&auto=format&fit=crop" 
-        class="absolute inset-0 w-full h-full object-cover"
+        class="absolute inset-0 w-full h-full object-cover opacity-80"
         alt="Classic Art Background"
       />
       
-      <!-- Subtle dark gradient overlay to protect text readability -->
-      <div class="absolute inset-0 bg-gradient-to-t from-surface-dark/90 via-surface-dark/20 to-transparent z-10"></div>
+      <!-- Subtle light gradient overlay to protect text readability -->
+      <div class="absolute inset-0 bg-gradient-to-t from-white/95 via-white/50 to-transparent z-10"></div>
       
       <!-- Inspirational Quote Overlay -->
       <div class="absolute bottom-24 z-20 text-center max-w-lg px-12">
-        <h2 class="font-display-force text-4xl text-on-dark mb-4 leading-relaxed font-medium tracking-wide">
+        <h2 class="font-display-force text-4xl text-ink mb-4 leading-relaxed font-medium tracking-wide">
           “创造力需要无所畏惧的勇气。”
         </h2>
-        <p class="text-on-dark-soft text-body-md font-body tracking-widest mt-6">亨利·马蒂斯 (Henri Matisse)</p>
+        <p class="text-muted text-body-md font-body tracking-widest mt-6">亨利·马蒂斯 (Henri Matisse)</p>
       </div>
     </div>
   </div>
