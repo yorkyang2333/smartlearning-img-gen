@@ -123,7 +123,7 @@ onBeforeUnmount(() => {
     <div v-if="tab === 'auto'" class="op-pane">
       <div class="op-tabs">
         <button class="op-pill active" @click="goAuto">自动优化</button>
-        <button class="op-pill" @click="goFeedback">根据调试结果优化</button>
+        <button class="op-pill" @click="goFeedback">根据生图结果优化</button>
       </div>
       <div class="op-input-row">
         <span class="op-prefix-icon">
@@ -145,19 +145,19 @@ onBeforeUnmount(() => {
       <div v-if="errorMsg" class="op-error">{{ errorMsg }}</div>
     </div>
 
-    <!-- Tab B: 根据调试结果优化 -->
+    <!-- Tab B: 根据生图结果优化 -->
     <div v-else class="op-pane">
       <div class="op-back" @click="goAuto">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        <span>根据调试结果优化</span>
+        <span>根据生图结果优化</span>
       </div>
 
       <div class="op-field">
-        <label>哪里不符合预期? <span class="op-req">*</span></label>
+        <label>生成的图片哪里不满意? <span class="op-req">*</span></label>
         <input
           v-model="actual"
           type="text"
-          placeholder="说说智能体表现哪里不符合预期"
+          placeholder="例如：颜色偏暗、构图不对、风格不符…"
           class="op-text-input op-text-input--accent"
           @keydown="onFieldKey"
           :disabled="isLoading"
@@ -165,11 +165,11 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="op-field">
-        <label>你的预期是什么? <span class="op-req">*</span></label>
+        <label>你期望的效果是什么? <span class="op-req">*</span></label>
         <input
           v-model="expected"
           type="text"
-          placeholder="说说你的预期是什么，我来帮你优化"
+          placeholder="描述你想要的画面效果，我来帮你优化提示词"
           class="op-text-input"
           @keydown="onFieldKey"
           :disabled="isLoading"
