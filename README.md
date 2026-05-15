@@ -114,8 +114,6 @@ Vue 前端 (5173)  ──JWT──▶  Spring Boot (8080)  ──标准兼容格
 
 ## 文档索引
 
-- [AI Gateway 接入说明](docs/gateway.md)
+- [创作说明（项目文档）](docs/创作说明（项目文档）.md)
 - [系统架构与模型说明](docs/系统架构说明.md)
-- [测试说明](docs/测试说明.md)
 - [用户手册](docs/用户手册.md)
-- [创作说明](docs/创作说明.md)
