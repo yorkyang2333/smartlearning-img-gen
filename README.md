@@ -1,64 +1,121 @@
 # 晋彩智绘 AI 图像生成平台
 
-专为教育环境打造的综合性全栈 AI 图像生成平台。本平台提供了一套精致的“暖色编辑 (Warm Editorial)”风格界面，让学生们能够在一个充满艺术感的环境中探索 AI 创意；同时为教师提供了一个强大的控制台，用于管理 AI 模型、学生权限并监控生成历史。
+专为美术教学场景设计的全栈 AI 图像生成平台。教师管理 AI 模型与学生权限、布置创作作业并批改；学生通过对话式界面进行 AI 图像创作，并可获得 AI 学伴的即时辅导反馈。
 
-## ✨ 核心功能
+## 核心功能
 
-- **基于角色的权限控制**：为教师（教学管理）和学生（创意生成）提供独立且专属的界面与功能。
-- **强大的 AI 生成能力**：通过集成标准大模型 API 接口，全面支持文生图 (T2I) 和 图生图 (I2I) 工作流。
-- **对话式智能交互界面**：提供直观的对话式 UI，让提示词输入和视觉探索无缝衔接，带来自然流畅的交互体验。
-- **网关统一路由 (AI Gateway)**：借助 New API 网关统一管理多模型渠道，实现文本模型自动路由与图片兜底，彻底解耦应用层与渠道逻辑。
-- **模型管理**：教师可以轻松配置并控制不同 AI 模型的访问权限，定义 API 参数，以及管理支持的生成尺寸。
-- **画廊与历史记录**：所有生成的作品都会被永久保存，支持历史记录追踪，方便课堂管理与学生回顾。
-- **暖色编辑设计语言**：使用精心挑选的色板和排版，打造一个高端、极具视觉吸引力的界面。
+- **角色分离**：教师端（模型管理、学生管理、作业批改、实时监控）与学生端（AI 创作、AI 学伴、班级画廊、作业提交）完全独立
+- **AI 图像生成**：支持文生图 (Text-to-Image) 和图生图 (Image-to-Image) 两种工作流
+- **AI 学伴**：基于多模态大语言模型的对话式辅导，支持 SSE 流式输出
+- **提示词工具**：提示词构建器 + AI 提示词优化，辅助学生表达创意
+- **统一网关路由**：通过 New API Gateway 统一管理多家 AI 服务商，后端不直接对接任何上游 API
+- **作业系统**：教师创建作业 → 学生创作提交 → 教师评分反馈，完整闭环
 
-## 🛠️ 技术栈
+## 技术栈
 
-- **前端**：Vue 3 + TypeScript + Vite + Tailwind CSS + Pinia
-- **后端**：Java 17 + Spring Boot 3 + Spring Security + JPA
-- **数据库**：MySQL 8（后端业务数据）；AI Gateway 内嵌 SQLite
-- **AI 路由层**：AI Gateway (基于 New API Docker 服务)
+| 层级 | 技术 |
+|------|------|
+| 前端 | Vue 3.5 + TypeScript 6 + Vite 8 + Tailwind CSS 3.4 + Pinia 3 + Vue Router 5 |
+| 后端 | Java 17 + Spring Boot 3.2.5 + Spring Security + Spring Data JPA + Lombok |
+| 数据库 | MySQL 8（业务数据，schema: `jincai_zhihui`） |
+| AI 路由 | New API Gateway (Docker 单容器，内嵌 SQLite) |
+| 认证 | JWT (jjwt 0.12.5)，无状态，24 小时过期 |
 
-## 🚀 快速开始
+## 快速开始
 
-本项目经过重构，移除了过去复杂的运行环境依赖。您只需安装 Node、Java 和 MySQL 环境即可一键启动。
+### 环境依赖
 
-### 1. 环境依赖
-- **Node.js** (推荐 v20 或更高版本)
-- **Java JDK** (v17 或更高版本，例如 Eclipse Temurin 17)
-- **Maven** (部分系统可能需要，项目自带 `mvnw` wrapper 可选)
-- **MySQL 8** (默认连接 localhost:3306，schema 名 `jincai_zhihui`，root 用户空密码)
-- **Docker** (需要 Docker 运行 New API 网关，推荐安装 Colima 或 Docker Desktop)
+- Node.js 20+
+- Java JDK 17+
+- Maven 3.8+
+- MySQL 8（localhost:3306，root 用户空密码）
+- Docker（运行 AI Gateway 容器）
 
-### 2. 一键启动
-在项目根目录下直接运行：
+### 数据库初始化
+
+```bash
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS jincai_zhihui CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+### 一键启动
 
 ```bash
 sh start.sh
 ```
 
-该脚本将自动执行以下操作：
-1. **启动 AI Gateway**：通过 Docker 启动 New API 单容器 (端口 4000)。
-2. **启动 Spring Boot 后端**：编译并在端口 8080 启动。
-3. **启动 Vue 前端**：在端口 5173 启动，并打开浏览器。
+脚本按顺序启动：
+1. AI Gateway (Docker, 端口 4000)
+2. Spring Boot 后端 (端口 8080)
+3. Vue 前端 (Vite, 端口 5173)
 
-关闭时，只需按下 `Ctrl + C`，脚本会自动安全停止前后端进程和网关守护进程。
+按 `Ctrl+C` 安全关闭所有服务。
 
-### 3. 访问入口
-- **应用前端**：[http://localhost:5173](http://localhost:5173)
-  - 教师账号：`teacher` / 密码：`123456`
-  - 学生账号：`student` / 密码：`123456`
-- **后端接口**：[http://localhost:8080](http://localhost:8080)
-- **AI 网关面板**：[http://localhost:4000](http://localhost:4000) (默认账号：`root` / 密码：`12345678`)
+### 单独启动各组件
 
-## 📁 项目结构概览
+```bash
+# AI Gateway
+./scripts/gateway/start_gateway.sh
+./scripts/gateway/stop_gateway.sh
 
-- `backend/` - Spring Boot 后端项目源码，处理核心业务逻辑、数据库读写。
-- `frontend/` - Vue 前端项目源码，包含 Teacher 和 Student 端专属视图。
-- `scripts/` - 运维部署与网关脚本，包含 AI Gateway 的下载、启停控制等。
-- `docs/` - 进阶开发与环境配置说明文档。
-- `start.sh` - 一键启动脚本，聚合了完整的生命周期管理。
+# 后端
+cd backend
+mvn spring-boot:run -Dspring-boot.run.profiles=dev -DskipTests
 
-## 🤝 参与贡献
+# 前端
+cd frontend
+npm install
+npm run dev
+```
 
-欢迎提出建议、提交问题或功能请求！请随时访问 Issues 页面。
+### 访问入口
+
+| 服务 | 地址 | 账号 / 密码 |
+|------|------|-------------|
+| 应用前端 | http://localhost:5173 | teacher / 123456 或 student / 123456 |
+| 后端 API | http://localhost:8080 | — |
+| AI 网关面板 | http://localhost:4000 | root / 12345678 |
+
+测试账号由 `DataSeeder` 在首次启动（users 表为空时）自动创建。
+
+## 项目结构
+
+```
+├── backend/          Spring Boot 后端
+│   └── src/main/java/com/smartlearning/backend/
+│       ├── config/       DataSeeder, SecurityConfig, GatewayProperties 等
+│       ├── controller/   AuthController, TeacherController, StudentController, GenerationController, GalleryController, LiveController
+│       ├── entity/       User, Model, Generation, Conversation, Assignment, Submission, Template, TutorConfig, GatewayConfig
+│       ├── repository/   Spring Data JPA Repositories
+│       ├── security/     JwtUtil, JwtRequestFilter, CustomUserDetailsService
+│       ├── service/      GatewayAiClient, NewApiGatewayClient, GatewayConfigService, GatewayModelSyncService, AssignmentService
+│       └── util/         ModelConfigUtil, GatewayResponseUtil
+├── frontend/         Vue 3 前端
+│   └── src/
+│       ├── components/   PromptBuilder, PromptOptimizer, PromptOptimizerPopover, PromptHelper, TutorDrawer, TutorReview
+│       ├── router/       路由定义与导航守卫
+│       ├── stores/       auth.ts, chat.ts, assignments.ts
+│       └── views/
+│           ├── teacher/  Dashboard, Models, Students, Assignments, Templates, Live, Settings
+│           └── student/  Workspace, ClassGallery, StudentAssignments, AssignmentDetail, AssignmentPlay
+├── scripts/gateway/  AI Gateway 启停脚本
+├── docs/             详细文档
+├── start.sh          一键启动脚本
+├── CLAUDE.md         AI 辅助开发指引
+└── DESIGN.md         设计系统规范
+```
+
+## 架构概览
+
+```
+Vue 前端 (5173)  ──JWT──▶  Spring Boot (8080)  ──OpenAI 兼容格式──▶  New API Gateway (4000)  ──▶  上游服务商
+```
+
+后端所有 AI 调用统一走网关的 OpenAI 兼容接口（`/v1/chat/completions`、`/v1/images/generations`），不直接对接任何服务商。网关负责 API Key 管理、渠道路由和重试。
+
+## 文档索引
+
+- [AI Gateway 接入说明](docs/gateway.md)
+- [系统架构与模型说明](docs/系统架构说明.md)
+- [测试说明](docs/测试说明.md)
+- [用户手册](docs/用户手册.md)
+- [创作说明](docs/创作说明.md)
