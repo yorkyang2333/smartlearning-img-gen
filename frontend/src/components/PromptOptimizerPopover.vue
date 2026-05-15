@@ -157,7 +157,7 @@ onBeforeUnmount(() => {
         <input
           v-model="actual"
           type="text"
-          placeholder="例如：颜色偏暗、构图不对、风格不符…"
+          placeholder="如：颜色偏暗、构图不对…"
           class="op-text-input op-text-input--accent"
           @keydown="onFieldKey"
           :disabled="isLoading"
@@ -169,7 +169,7 @@ onBeforeUnmount(() => {
         <input
           v-model="expected"
           type="text"
-          placeholder="描述你想要的画面效果，我来帮你优化提示词"
+          placeholder="描述你想要的画面效果"
           class="op-text-input"
           @keydown="onFieldKey"
           :disabled="isLoading"
