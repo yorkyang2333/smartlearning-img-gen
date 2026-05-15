@@ -1430,11 +1430,9 @@ watch(() => activeMsg.value?.image, (newImg, oldImg) => {
 }
 
 /* Panel transition */
-.tutor-panel-enter-active {
-  transition: transform 280ms cubic-bezier(0.16,1,0.3,1), opacity 280ms cubic-bezier(0.16,1,0.3,1);
-}
+.tutor-panel-enter-active,
 .tutor-panel-leave-active {
-  transition: transform 200ms cubic-bezier(0.4,0,1,1), opacity 200ms cubic-bezier(0.4,0,1,1);
+  transition: transform 280ms cubic-bezier(0.16,1,0.3,1), opacity 280ms cubic-bezier(0.16,1,0.3,1);
 }
 .tutor-panel-enter-from,
 .tutor-panel-leave-to {
