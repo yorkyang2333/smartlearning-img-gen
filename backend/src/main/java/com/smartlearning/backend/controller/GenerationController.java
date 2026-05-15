@@ -211,14 +211,14 @@ public class GenerationController {
             if (!actual.isEmpty() && !expected.isEmpty()) {
                 systemPrompt = "你是一个文生图提示词专家。用户已基于现有提示词生成了图片，但结果与预期不符。" +
                     "请结合用户描述的【实际表现】与【预期效果】，对原始提示词进行针对性优化，" +
-                    "使其更可能产出用户期待的画面。仅返回优化后的提示词正文，不要任何解释、前缀或引号。";
+                    "使其更可能产出用户期待的画面。请用中文回答，仅返回优化后的提示词正文，不要任何解释、前缀或引号。";
                 userMessage = "原始提示词：" + prompt + "\n\n实际表现（哪里不符合预期）：" + actual + "\n\n预期效果：" + expected;
             } else if (!instruction.isEmpty()) {
                 systemPrompt = "你是一个文生图提示词专家。请按照用户给出的优化方向调整原始提示词，" +
-                    "在保留原意的前提下补充细节、艺术风格与画面元素。仅返回优化后的提示词正文，不要任何解释、前缀或引号。";
+                    "在保留原意的前提下补充细节、艺术风格与画面元素。请用中文回答，仅返回优化后的提示词正文，不要任何解释、前缀或引号。";
                 userMessage = "原始提示词：" + prompt + "\n\n用户的优化指示：" + instruction;
             } else {
-                systemPrompt = "你是一个文生图专家。请将用户提供的原始提示词优化为更具艺术感、细节更丰富、更容易生成高质量图片的专业提示词。仅返回优化后的提示词，不要有其他解释。";
+                systemPrompt = "你是一个文生图专家。请将用户提供的原始提示词优化为更具艺术感、细节更丰富、更容易生成高质量图片的专业提示词。请用中文回答，仅返回优化后的提示词，不要有其他解释。";
                 userMessage = "原始提示词：" + prompt;
             }
 
@@ -240,7 +240,7 @@ public class GenerationController {
                 return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
             }
             
-            String systemPrompt = "你是一个文生图专家。请分析用户提供的原始提示词，并从构图、细节、光影、材质等维度给出改进建议。请返回 JSON 格式，包含 suggestions 数组，每个元素包含 dimension、currentStatus、suggestion 字段。";
+            String systemPrompt = "你是一个文生图专家。请分析用户提供的原始提示词，并从构图、细节、光影、材质等维度给出改进建议。请用中文回答，返回 JSON 格式，包含 suggestions 数组，每个元素包含 dimension、currentStatus、suggestion 字段。";
             String userMessage = "原始提示词：" + prompt;
 
             String response = gatewayAiClient.generateChatResponse(systemPrompt, userMessage, tutorConfig.getModelName());
@@ -315,13 +315,13 @@ public class GenerationController {
     private String getSystemPromptForPerspective(String perspective) {
         switch (perspective) {
             case "composition":
-                return "你是一个美术导师。请根据提供的图片和原始提示词，从光影和构图的角度进行评审。请返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (针对光影构图的提示词优化建议)。";
+                return "你是一个美术导师。请根据提供的图片和原始提示词，从光影和构图的角度进行评审。请用中文回答，返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (针对光影构图的提示词优化建议)。";
             case "style":
-                return "你是一个美术导师。请根据提供的图片和原始提示词，从艺术风格的角度进行评审。请返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (针对风格一致性的提示词优化建议)。";
+                return "你是一个美术导师。请根据提供的图片和原始提示词，从艺术风格的角度进行评审。请用中文回答，返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (针对风格一致性的提示词优化建议)。";
             case "completeness":
-                return "你是一个美术导师。请根据提供的图片和原始提示词，从内容完整性和意图匹配度的角度进行评审。请返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (补全或修正内容的提示词优化建议)。";
+                return "你是一个美术导师。请根据提供的图片和原始提示词，从内容完整性和意图匹配度的角度进行评审。请用中文回答，返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (补全或修正内容的提示词优化建议)。";
             default:
-                return "你是一个美术导师。请评价这个作品。请返回 JSON 格式，包含 score, analysis, promptSuggestion。";
+                return "你是一个美术导师。请评价这个作品。请用中文回答，返回 JSON 格式，包含 score, analysis, promptSuggestion。";
         }
     }
 
@@ -336,7 +336,7 @@ public class GenerationController {
                 return ResponseEntity.badRequest().body(Map.of("error", "AI 导师未配置"));
             }
 
-            String systemPrompt = "你是一个友善的美术导师，正在辅导学生进行 AI 图片创作学习。请用简洁易懂的语言回答学生的问题，涉及构图、色彩、风格、光影等方面。回答应该有教育意义，帮助学生理解艺术原理。";
+            String systemPrompt = "你是一个友善的美术导师，正在辅导学生进行 AI 图片创作学习。请始终用中文、以简洁易懂的语言回答学生的问题，涉及构图、色彩、风格、光影等方面。回答应该有教育意义，帮助学生理解艺术原理。";
             String userMessage = message;
 
             // If generationId is provided, add context
@@ -373,7 +373,7 @@ public class GenerationController {
                 return emitter;
             }
 
-            String systemPrompt = "你是一个友善的美术导师，正在辅导学生进行 AI 图片创作学习。请用简洁易懂的语言回答学生的问题，涉及构图、色彩、风格、光影等方面。回答应该有教育意义，帮助学生理解艺术原理。";
+            String systemPrompt = "你是一个友善的美术导师，正在辅导学生进行 AI 图片创作学习。请始终用中文、以简洁易懂的语言回答学生的问题，涉及构图、色彩、风格、光影等方面。回答应该有教育意义，帮助学生理解艺术原理。";
             String userMessage = message;
 
             if (generationId != null && !generationId.isEmpty()) {

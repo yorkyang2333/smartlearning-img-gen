@@ -60,6 +60,7 @@ public class DataSeeder implements CommandLineRunner {
             modelRepository.save(createModel("GPT Image 2", "gpt-image-2", "BOTH", "openai", "优质AI图像生成与编辑"));
             modelRepository.save(createModel("Gemini 3.1 Flash Image", "gemini/gemini-3.1-flash-image-preview", "TEXT_TO_IMAGE", "google", "Google Gemini 的高速生图模型"));
             modelRepository.save(createModel("DeepSeek V4 Flash", "deepseek-v4-flash", "TEXT_GENERATION", "deepseek", "高速文本分析与导师对话"));
+            modelRepository.save(createModel("通义千问 3.5", "qwen3.5-plus", "TEXT_GENERATION", "alibaba", "高质量中文对话与导师辅导"));
             modelRepository.save(createModel("GPT-4o", "gpt-4o", "TEXT_GENERATION", "openai", "多模态分析与导师对话"));
             modelRepository.save(createModel("Claude 3.5 Sonnet", "claude-3-5-sonnet-latest", "TEXT_GENERATION", "anthropic", "长文本分析与教学反馈"));
 
@@ -67,9 +68,9 @@ public class DataSeeder implements CommandLineRunner {
             TutorConfig tutorConfig = new TutorConfig();
             tutorConfig.setTeacherId(teacher.getId());
             tutorConfig.setEnabled(true);
-            tutorConfig.setModelName("deepseek-v4-flash");
+            tutorConfig.setModelName("qwen3.5-plus");
             tutorConfig.setApiEndpointId(null);
-            tutorConfig.setSystemPrompt("你是一个专业、耐心、富有启发性的AI美术导师。请用温和、鼓励的语气指导学生进行艺术创作。");
+            tutorConfig.setSystemPrompt("你是一个专业、耐心、富有启发性的AI美术导师。请始终用中文、以温和鼓励的语气指导学生进行艺术创作。");
             tutorConfigRepository.save(tutorConfig);
 
             System.out.println("✅ 已自动配置默认模型目录和 AI 导师。");

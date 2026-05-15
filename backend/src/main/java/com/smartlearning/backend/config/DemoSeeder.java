@@ -121,6 +121,7 @@ public class DemoSeeder implements CommandLineRunner {
         upsertModel(MODEL_DALLE3, "创意画坊 3", "TEXT_TO_IMAGE", "openai", "经典生图模型");
         upsertModel(MODEL_GEMINI, "灵感闪绘", "TEXT_TO_IMAGE", "google", "高速生图模型");
         upsertModel("deepseek-v4-flash", "深度思考 V4", "TEXT_GENERATION", "deepseek", "高速文本分析与导师对话");
+        upsertModel("qwen3.5-plus", "通义千问 3.5", "TEXT_GENERATION", "alibaba", "高质量中文对话与导师辅导");
         upsertModel("gpt-4o", "智析多模态 4o", "TEXT_GENERATION", "openai", "多模态分析与导师对话");
         upsertModel("claude-3-5-sonnet-latest", "文思长文本", "TEXT_GENERATION", "anthropic", "长文本分析与教学反馈");
     }
