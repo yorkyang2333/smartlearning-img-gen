@@ -26,7 +26,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -235,11 +238,14 @@ public class StudentController {
     @GetMapping({"/analytics/student", "/../analytics/student"})
     public ResponseEntity<Map<String, Object>> getStudentAnalytics() {
         User student = getCurrentStudent();
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay();
+        LocalDateTime startOfWeek = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).atStartOfDay();
+
         Map<String, Object> stats = new HashMap<>();
-        stats.put("todayCount", 0);
+        stats.put("todayCount", generationRepository.countByUserIdAndCreatedAtAfter(student.getId(), startOfToday));
         stats.put("dailyLimit", student.getTokenQuota());
-        stats.put("thisWeekCount", 0);
-        stats.put("totalGenerations", generationRepository.findByUserIdOrderByCreatedAtDesc(student.getId()).size());
+        stats.put("thisWeekCount", generationRepository.countByUserIdAndCreatedAtAfter(student.getId(), startOfWeek));
+        stats.put("totalGenerations", generationRepository.countByUserId(student.getId()));
 
         return ResponseEntity.ok(Map.of("success", true, "data", stats));
     }

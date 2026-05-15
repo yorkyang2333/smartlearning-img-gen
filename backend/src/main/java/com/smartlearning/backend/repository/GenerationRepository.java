@@ -14,4 +14,6 @@ public interface GenerationRepository extends JpaRepository<Generation, String> 
     List<Generation> findByCreatedAtAfter(java.time.LocalDateTime date);
     List<Generation> findAllByOrderByCreatedAtDesc();
     List<Generation> findByConversationIdOrderByCreatedAtAsc(String conversationId);
+    long countByUserId(String userId);
+    long countByUserIdAndCreatedAtAfter(String userId, java.time.LocalDateTime date);
 }
