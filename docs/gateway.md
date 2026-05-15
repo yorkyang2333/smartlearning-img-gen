@@ -2,7 +2,7 @@
 
 ## 概述
 
-晋彩智绘通过 New API Gateway（Docker 单容器）统一管理所有上游 AI 服务商。后端不直接调用任何服务商 API，所有请求经网关的 OpenAI 兼容接口转发。
+晋彩智绘通过 New API Gateway（Docker 单容器）统一管理所有上游 AI 服务商。后端不直接调用任何服务商 API，所有请求经网关的标准兼容接口转发。
 
 ## 配置优先级
 
@@ -68,15 +68,12 @@ sh start.sh
 
 ## 网关渠道配置建议
 
-在 New API 管理面板中添加上游渠道（支持 OpenAI、Anthropic、Google、DeepSeek 等），推荐配置以下模型：
+在 New API 管理面板中添加上游渠道（支持国内外各类大模型服务商），推荐配置以下模型：
 
 | 模型 ID | 用途 |
 |---------|------|
-| `gpt-image-2` | 文生图 / 图生图 |
-| `dall-e-3` | 文生图 |
-| `gemini/gemini-3.1-flash-image-preview` | 文生图 |
-| `gpt-4o` | AI 学伴对话 / 多模态分析 |
 | `deepseek-v4-flash` | AI 学伴对话（高速） |
-| `claude-3-5-sonnet-latest` | AI 学伴对话 |
+| 文生图模型 | 文生图 / 图生图 |
+| 多模态文本模型 | AI 学伴对话 / 多模态分析 |
 
-以上为 DataSeeder 默认写入的模型 ID，与网关中的模型别名保持一致即可。
+以上为示例，实际模型 ID 以网关中配置的渠道和模型别名为准。DataSeeder 首次启动时会写入默认模型目录，教师可通过"同步 AI Gateway 模型"更新。

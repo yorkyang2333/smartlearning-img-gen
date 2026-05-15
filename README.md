@@ -107,10 +107,10 @@ npm run dev
 ## 架构概览
 
 ```
-Vue 前端 (5173)  ──JWT──▶  Spring Boot (8080)  ──OpenAI 兼容格式──▶  New API Gateway (4000)  ──▶  上游服务商
+Vue 前端 (5173)  ──JWT──▶  Spring Boot (8080)  ──标准兼容格式──▶  New API Gateway (4000)  ──▶  上游服务商
 ```
 
-后端所有 AI 调用统一走网关的 OpenAI 兼容接口（`/v1/chat/completions`、`/v1/images/generations`），不直接对接任何服务商。网关负责 API Key 管理、渠道路由和重试。
+后端所有 AI 调用统一走网关的标准兼容接口（`/v1/chat/completions`、`/v1/images/generations`），不直接对接任何服务商。网关负责 API Key 管理、渠道路由和重试。
 
 ## 文档索引
 
