@@ -48,3 +48,15 @@ backend/data/
 # Local secrets
 .env.apimart
 .env.local
+
+# AI dev tools
+CLAUDE.md
+DESIGN.md
+.claude/
+
+# Misc
+.github/
+.mvn/
+*.log
+start.log
+test2.log
