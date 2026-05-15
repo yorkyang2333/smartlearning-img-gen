@@ -43,6 +43,7 @@ const isBuilderOpen = ref(false)
 const isHelperOpen = ref(false)
 const isParamsCollapsed = ref(false)
 const isOptimizerOpen = ref(false)
+const isTutorOpen = ref(false)
 
 const collapseSidebar = inject<(() => void) | null>('collapseSidebar', null)
 
@@ -100,18 +101,20 @@ const fetchHistory = async () => {
 onMounted(() => {
   fetchModels()
   fetchHistory()
-  
+
   const draftKey = `draft_prompt_${chatId.value || 'new'}`
   const savedDraft = sessionStorage.getItem(draftKey)
   if (savedDraft) {
     promptText.value = savedDraft
   }
-  
+
   document.addEventListener('mousedown', handleClickOutside)
+  document.addEventListener('keydown', handleEscape)
 })
 
 onUnmounted(() => {
   document.removeEventListener('mousedown', handleClickOutside)
+  document.removeEventListener('keydown', handleEscape)
 })
 
 watch(chatId, () => {
@@ -138,6 +141,12 @@ const handleClickOutside = (e: MouseEvent) => {
   if (dropdownRef.value && !dropdownRef.value.contains(e.target as Node)) {
     modelMenuOpen.value = false
     sizeMenuOpen.value = false
+  }
+}
+
+const handleEscape = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && isTutorOpen.value) {
+    isTutorOpen.value = false
   }
 }
 
@@ -414,6 +423,12 @@ const handleHistoryClick = (msgId: string) => {
     promptText.value = messages.value[idx - 1].content || ''
   }
 }
+
+watch(() => activeMsg.value?.image, (newImg, oldImg) => {
+  if (newImg && !oldImg) {
+    isTutorOpen.value = true
+  }
+})
 </script>
 
 <template>
@@ -674,15 +689,35 @@ const handleHistoryClick = (msgId: string) => {
       </div>
     </div>
 
-    <!-- 右侧 AI 导师区 -->
-    <div class="tutor-column">
-      <TutorDrawer
-        :generationId="activeMsg?.generationId || activeMsg?.id"
-        :hasImage="!!activeMsg?.image"
-        :initialReviews="activeMsg?.analysis?.reviews"
-        @applySuggestion="s => promptText = s"
-      />
-    </div>
+    <!-- AI 导师 FAB -->
+    <button
+      class="tutor-fab"
+      :class="{ 'is-open': isTutorOpen }"
+      @click="isTutorOpen = !isTutorOpen"
+      :aria-expanded="isTutorOpen"
+      aria-label="AI 智能导师"
+    >
+      <svg v-if="!isTutorOpen" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+        <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+      </svg>
+      <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+
+    <!-- 浮动 AI 导师面板 -->
+    <Transition name="tutor-panel">
+      <div v-if="isTutorOpen" class="tutor-float-panel">
+        <TutorDrawer
+          :generationId="activeMsg?.generationId || activeMsg?.id"
+          :hasImage="!!activeMsg?.image"
+          :initialReviews="activeMsg?.analysis?.reviews"
+          @applySuggestion="s => promptText = s"
+        />
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -698,7 +733,7 @@ const handleHistoryClick = (msgId: string) => {
 /* Left Params Panel */
 .workspace-sidebar {
   order: 1;
-  width: 320px;
+  width: 380px;
   min-width: 0;
   flex-shrink: 1;
   display: flex;
@@ -1348,23 +1383,64 @@ const handleHistoryClick = (msgId: string) => {
 }
 .step-line.done { background: var(--primary); }
 
-/* Tutor Column (Third Column) */
-.tutor-column {
-  order: 3;
-  width: 320px;
-  min-width: 0;
-  flex-shrink: 1;
+/* Tutor FAB */
+.tutor-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-pill);
+  background: var(--primary);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(204,120,92,0.35), 0 2px 6px rgba(0,0,0,0.1);
+  transition: transform 0.2s cubic-bezier(0.2,0.8,0.2,1), box-shadow 0.2s ease, background 0.2s ease;
+}
+.tutor-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 24px rgba(204,120,92,0.45), 0 2px 8px rgba(0,0,0,0.12);
+}
+.tutor-fab:active { transform: scale(0.95); }
+.tutor-fab.is-open {
+  background: var(--ink);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Floating Tutor Panel */
+.tutor-float-panel {
+  position: fixed;
+  bottom: 92px;
+  right: 24px;
+  z-index: 999;
+  width: 380px;
+  height: min(600px, calc(100vh - 120px));
+  background: var(--canvas);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 2px 12px rgba(0,0,0,0.06);
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 20px 20px 20px 0;
 }
-.tutor-column > * {
-  flex: 1;
-  background: var(--canvas);
-  border-radius: 16px;
-  border: 1px solid var(--hairline);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.04);
-  overflow: hidden;
+
+/* Panel transition */
+.tutor-panel-enter-active {
+  transition: transform 280ms cubic-bezier(0.16,1,0.3,1), opacity 280ms cubic-bezier(0.16,1,0.3,1);
+}
+.tutor-panel-leave-active {
+  transition: transform 200ms cubic-bezier(0.4,0,1,1), opacity 200ms cubic-bezier(0.4,0,1,1);
+}
+.tutor-panel-enter-from,
+.tutor-panel-leave-to {
+  opacity: 0;
+  transform: scale(0.85) translateY(16px);
+  transform-origin: bottom right;
 }
 
 /* Quick Prompts */
