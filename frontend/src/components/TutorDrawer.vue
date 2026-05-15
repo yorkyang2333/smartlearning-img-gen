@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { marked } from 'marked'
 
@@ -31,15 +31,25 @@ const perspectives = [
 ]
 
 const getScoreClass = (score: number) => {
-  if (score >= 80) return 'score-high'
+  if (score >= 90) return 'score-high'
+  if (score >= 80) return 'score-good'
   if (score >= 60) return 'score-mid'
   return 'score-low'
 }
 
 const getScoreColor = (score: number) => {
+  if (score >= 90) return '#2e9e5a'
   if (score >= 80) return '#5db872'
   if (score >= 60) return '#d4a017'
   return '#c64545'
+}
+
+const getScoreLabel = (score: number) => {
+  if (score >= 90) return '优秀'
+  if (score >= 80) return '良好'
+  if (score >= 60) return '中等'
+  if (score >= 40) return '待改进'
+  return '需加强'
 }
 
 const togglePerspective = (id: string) => {
@@ -54,6 +64,14 @@ const handleReview = async () => {
   if (activePerspectives.value.length === 0 || !props.generationId) return
   isReviewing.value = true
   reviewError.value = null
+
+  // Persist reviewing state
+  sessionStorage.setItem('tutor_reviewing', JSON.stringify({
+    generationId: props.generationId,
+    perspectives: activePerspectives.value,
+    timestamp: Date.now()
+  }))
+
   try {
     const res = await fetch('http://localhost:8080/api/generate/review', {
       method: 'POST',
@@ -76,8 +94,28 @@ const handleReview = async () => {
     reviewError.value = '网络请求失败'
   } finally {
     isReviewing.value = false
+    sessionStorage.removeItem('tutor_reviewing')
   }
 }
+
+// Restore pending review after remount (tab switch / drawer reopen)
+onMounted(() => {
+  try {
+    const raw = sessionStorage.getItem('tutor_reviewing')
+    if (!raw) return
+    const pending = JSON.parse(raw)
+    if (Date.now() - pending.timestamp > 120000) {
+      sessionStorage.removeItem('tutor_reviewing')
+      return
+    }
+    if (pending.generationId === props.generationId) {
+      activePerspectives.value = pending.perspectives
+      handleReview()
+    } else {
+      sessionStorage.removeItem('tutor_reviewing')
+    }
+  } catch { sessionStorage.removeItem('tutor_reviewing') }
+})
 
 // Auto-review when generationId changes
 watch(() => props.generationId, (newId) => {
@@ -281,6 +319,7 @@ const handleChatKey = (e: KeyboardEvent) => {
                         <path class="ring-fg" :stroke="getScoreColor(reviews[p.id].score)" :stroke-dasharray="`${reviews[p.id].score}, 100`" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="3" stroke-linecap="round"/>
                       </svg>
                       <span class="score-num" :class="getScoreClass(reviews[p.id].score)">{{ reviews[p.id].score }}</span>
+                      <span class="score-label" :class="getScoreClass(reviews[p.id].score)">{{ getScoreLabel(reviews[p.id].score) }}</span>
                     </div>
                     <div class="review-meta">
                       <span class="perspective-name">
@@ -515,16 +554,24 @@ const handleChatKey = (e: KeyboardEvent) => {
 }
 .review-card-top { display: flex; gap: 12px; margin-bottom: 12px; }
 .score-ring-wrap {
-  width: 44px; height: 44px; position: relative; flex-shrink: 0;
+  width: 52px; height: 52px; position: relative; flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center;
+  width: 56px; height: auto;
 }
-.score-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.score-ring { width: 48px; height: 48px; transform: rotate(-90deg); }
 .ring-bg { stroke: var(--hairline); }
 .ring-fg { transition: stroke-dasharray 1s ease-out; }
 .score-num {
-  position: absolute; inset: 0; display: flex; align-items: center;
+  position: absolute; top: 0; left: 0; right: 0; height: 48px;
+  display: flex; align-items: center;
   justify-content: center; font-size: 13px; font-weight: 700;
 }
-.score-high { color: #5db872; }
+.score-label {
+  display: block; text-align: center;
+  font-size: 11px; font-weight: 600; margin-top: 2px;
+}
+.score-high { color: #2e9e5a; }
+.score-good { color: #5db872; }
 .score-mid { color: #d4a017; }
 .score-low { color: #c64545; }
 

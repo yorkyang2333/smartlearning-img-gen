@@ -47,6 +47,100 @@ const isTutorOpen = ref(false)
 
 const collapseSidebar = inject<(() => void) | null>('collapseSidebar', null)
 
+// --- Pending generation persistence ---
+const PENDING_KEY = 'pending_generation'
+
+interface PendingGeneration {
+  chatId: string | null
+  agentMsgId: string
+  userMsgId: string
+  prompt: string
+  modelId: string
+  timestamp: number
+}
+
+function savePendingState(state: PendingGeneration) {
+  sessionStorage.setItem(PENDING_KEY, JSON.stringify(state))
+}
+
+function clearPendingState() {
+  sessionStorage.removeItem(PENDING_KEY)
+}
+
+function loadPendingState(): PendingGeneration | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY)
+    if (!raw) return null
+    const state = JSON.parse(raw) as PendingGeneration
+    if (Date.now() - state.timestamp > 120000) {
+      clearPendingState()
+      return null
+    }
+    return state
+  } catch { return null }
+}
+
+async function pollForResult(pending: PendingGeneration) {
+  isGenerating.value = true
+  const agentMsgId = pending.agentMsgId
+
+  if (!messages.value.find(m => m.id === pending.userMsgId)) {
+    messages.value.push({ id: pending.userMsgId, role: 'user', content: pending.prompt })
+  }
+  if (!messages.value.find(m => m.id === agentMsgId)) {
+    messages.value.push({ id: agentMsgId, role: 'agent', progress: 50, loadingText: '正在等待生成结果...' })
+  }
+  activeMsgId.value = agentMsgId
+
+  const convId = pending.chatId || chatId.value
+  if (!convId) {
+    clearPendingState()
+    isGenerating.value = false
+    return
+  }
+
+  let attempts = 0
+  const maxAttempts = 30
+  while (attempts < maxAttempts) {
+    await new Promise(r => setTimeout(r, 2000))
+    attempts++
+    try {
+      const res = await fetch(`http://localhost:8080/api/student/conversations/${convId}`, {
+        headers: { 'Authorization': `Bearer ${authStore.token}` }
+      })
+      const data = await res.json()
+      if (data.success && data.data?.messages) {
+        const serverMsgs = data.data.messages as Message[]
+        const newAgent = serverMsgs.find(m =>
+          m.role === 'agent' && m.image && m.progress === 100 &&
+          !messages.value.some(existing => existing.generationId === m.generationId && existing.image)
+        )
+        if (newAgent) {
+          const idx = messages.value.findIndex(m => m.id === agentMsgId)
+          if (idx !== -1) {
+            messages.value[idx] = { ...messages.value[idx], ...newAgent, id: agentMsgId }
+          }
+          clearPendingState()
+          isGenerating.value = false
+          return
+        }
+      }
+    } catch {}
+  }
+
+  const idx = messages.value.findIndex(m => m.id === agentMsgId)
+  if (idx !== -1) {
+    messages.value[idx] = {
+      ...messages.value[idx],
+      progress: undefined,
+      loadingText: undefined,
+      content: '生成超时，请刷新页面查看结果或重新生成。'
+    }
+  }
+  clearPendingState()
+  isGenerating.value = false
+}
+
 // Learning step: 1=构思 2=优化 3=生成 4=点评
 const learningStep = computed(() => {
   if (activeMsg.value?.image) return 4
@@ -106,6 +200,12 @@ onMounted(() => {
   const savedDraft = sessionStorage.getItem(draftKey)
   if (savedDraft) {
     promptText.value = savedDraft
+  }
+
+  // Restore pending generation state after refresh
+  const pending = loadPendingState()
+  if (pending && (pending.chatId === chatId.value || (!pending.chatId && !chatId.value))) {
+    pollForResult(pending)
   }
 
   document.addEventListener('mousedown', handleClickOutside)
@@ -293,7 +393,7 @@ const handleSend = async () => {
   if (!promptText.value.trim() && !imageFile.value) return
 
   const currentPrompt = promptText.value
-  
+
   // Add User Message
   const userMsgId = Date.now().toString()
   messages.value.push({
@@ -302,7 +402,7 @@ const handleSend = async () => {
     content: currentPrompt,
     image: imagePreview.value || undefined
   })
-  
+
   imageFile.value = null
   imagePreview.value = null
   isGenerating.value = true
@@ -310,7 +410,7 @@ const handleSend = async () => {
   if (collapseSidebar) {
     collapseSidebar()
   }
-  
+
   // Add Agent Loading Message
   const agentMsgId = (Date.now() + 1).toString()
   messages.value.push({
@@ -319,8 +419,18 @@ const handleSend = async () => {
     progress: 0,
     loadingText: '正在构思视觉元素...'
   })
-  
+
   activeMsgId.value = agentMsgId
+
+  // Save pending state so it survives refresh/tab-switch
+  savePendingState({
+    chatId: chatId.value,
+    agentMsgId,
+    userMsgId,
+    prompt: currentPrompt,
+    modelId: modelId.value,
+    timestamp: Date.now()
+  })
 
   try {
     const endpoint = currentMode.value === 't2i' 
@@ -401,6 +511,7 @@ const handleSend = async () => {
       }
     }
   } finally {
+    clearPendingState()
     isGenerating.value = false
   }
 }

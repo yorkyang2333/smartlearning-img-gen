@@ -313,15 +313,16 @@ public class GenerationController {
     }
 
     private String getSystemPromptForPerspective(String perspective) {
+        String scoringGuide = "评分标准：90-100 优秀（专业水准，几乎无可挑剔）、80-89 良好（整体出色，有小瑕疵）、60-79 中等（基本达标，有明显改进空间）、40-59 待改进（存在较多问题）、0-39 需加强（基础问题突出）。";
         switch (perspective) {
             case "composition":
-                return "你是一个美术导师。请根据提供的图片和原始提示词，从光影和构图的角度进行评审。请用中文回答，返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (针对光影构图的提示词优化建议)。";
+                return "你是一个美术导师。请根据提供的图片和原始提示词，从光影和构图的角度进行评审。" + scoringGuide + "请用中文回答，返回 JSON 格式，包含 score (0-100 整数)、analysis (评审分析文字，需具体说明扣分原因)、promptSuggestion (针对光影构图的提示词优化建议)。";
             case "style":
-                return "你是一个美术导师。请根据提供的图片和原始提示词，从艺术风格的角度进行评审。请用中文回答，返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (针对风格一致性的提示词优化建议)。";
+                return "你是一个美术导师。请根据提供的图片和原始提示词，从艺术风格的角度进行评审。" + scoringGuide + "请用中文回答，返回 JSON 格式，包含 score (0-100 整数)、analysis (评审分析文字，需具体说明扣分原因)、promptSuggestion (针对风格一致性的提示词优化建议)。";
             case "completeness":
-                return "你是一个美术导师。请根据提供的图片和原始提示词，从内容完整性和意图匹配度的角度进行评审。请用中文回答，返回 JSON 格式，包含 score (0-100)、analysis (评审分析文字)、promptSuggestion (补全或修正内容的提示词优化建议)。";
+                return "你是一个美术导师。请根据提供的图片和原始提示词，从内容完整性和意图匹配度的角度进行评审。" + scoringGuide + "请用中文回答，返回 JSON 格式，包含 score (0-100 整数)、analysis (评审分析文字，需具体说明扣分原因)、promptSuggestion (补全或修正内容的提示词优化建议)。";
             default:
-                return "你是一个美术导师。请评价这个作品。请用中文回答，返回 JSON 格式，包含 score, analysis, promptSuggestion。";
+                return "你是一个美术导师。请评价这个作品。" + scoringGuide + "请用中文回答，返回 JSON 格式，包含 score (0-100 整数), analysis, promptSuggestion。";
         }
     }
 
