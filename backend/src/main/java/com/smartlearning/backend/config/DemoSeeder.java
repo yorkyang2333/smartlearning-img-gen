@@ -465,51 +465,51 @@ public class DemoSeeder implements CommandLineRunner {
                 "童话森林里的夜行马戏团，灯笼与星空"
         };
 
-        // 给每个学生开一个对话，撑起 Workspace 列表
-        java.util.Map<String, String> convByStudent = new java.util.HashMap<>();
-        for (User stu : students) {
-            Conversation conv = new Conversation();
-            conv.setUserId(stu.getId());
-            conv.setTitle("自由创作 · " + stu.getDisplayName());
-            convByStudent.put(stu.getId(), conversationRepository.save(conv).getId());
-        }
-
-        // 6 天前 -> 今天 每天创作量（撑起仪表盘趋势图）
-        int[] perDay = {32, 44, 52, 60, 56, 48, 38};
         LocalDateTime now = LocalDateTime.now();
-        int genCounter = 0;
         int promptIdx = 0;
+        int globalGen = 0;
 
-        for (int dayBack = 6; dayBack >= 0; dayBack--) {
-            int count = perDay[6 - dayBack];
-            for (int k = 0; k < count; k++) {
-                User stu = students.get((genCounter * 7 + dayBack) % students.size());
-                String modelId = models[(genCounter + dayBack) % models.length];
+        // 每个学生创建 4~6 个对话，每个对话 2~4 张图，标题 = 首条提示词
+        for (User stu : students) {
+            int convCount = 4 + (Math.abs(stu.getUsername().hashCode()) % 3);
+            for (int c = 0; c < convCount; c++) {
                 String basePrompt = prompts[promptIdx % prompts.length];
-                String prompt = basePrompt + (k % 3 == 0 ? "" : "，更柔和的色调，更克制的对比");
-                String url = seedFor("free-" + dayBack + "-" + k);
-                int hour = 8 + (k * 13) % 14;
-                int minute = (k * 17) % 60;
-                LocalDateTime when = now.minusDays(dayBack)
-                        .withHour(hour).withMinute(minute).withSecond(0).withNano(0);
-                if (dayBack == 0 && when.isAfter(now)) {
-                    when = now.minusMinutes(5L + k);
-                }
+                Conversation conv = new Conversation();
+                conv.setUserId(stu.getId());
+                conv.setTitle(basePrompt);
+                String convId = conversationRepository.save(conv).getId();
 
-                Generation g = new Generation();
-                g.setUserId(stu.getId());
-                g.setModelId(modelId);
-                g.setType("TEXT_TO_IMAGE");
-                g.setPrompt(prompt);
-                g.setOutputImageUrl(url);
-                g.setSize("1024x1024");
-                g.setQuality("standard");
-                g.setDurationMs(7000 + (k % 8) * 600);
-                g.setConversationId(convByStudent.get(stu.getId()));
-                Generation saved = generationRepository.save(g);
-                jdbcTemplate.update("UPDATE generations SET created_at = ? WHERE id = ?",
-                        when, saved.getId());
-                genCounter++;
+                int imgCount = 2 + ((promptIdx + c) % 3);
+                for (int g = 0; g < imgCount; g++) {
+                    int pIdx = (promptIdx + g) % prompts.length;
+                    String prompt = prompts[pIdx] + (g > 0 ? "，更柔和的色调，更克制的对比" : "");
+                    String modelId = models[(globalGen) % models.length];
+                    String url = seedFor("free-" + promptIdx + "-" + g);
+
+                    int dayBack = (globalGen * 3) % 7;
+                    int hour = 8 + (globalGen * 13) % 14;
+                    int minute = (globalGen * 17) % 60;
+                    LocalDateTime when = now.minusDays(dayBack)
+                            .withHour(hour).withMinute(minute).withSecond(0).withNano(0);
+                    if (dayBack == 0 && when.isAfter(now)) {
+                        when = now.minusMinutes(5L + globalGen);
+                    }
+
+                    Generation gen = new Generation();
+                    gen.setUserId(stu.getId());
+                    gen.setModelId(modelId);
+                    gen.setType("TEXT_TO_IMAGE");
+                    gen.setPrompt(prompt);
+                    gen.setOutputImageUrl(url);
+                    gen.setSize("1024x1024");
+                    gen.setQuality("standard");
+                    gen.setDurationMs(7000 + (g % 8) * 600);
+                    gen.setConversationId(convId);
+                    Generation saved = generationRepository.save(gen);
+                    jdbcTemplate.update("UPDATE generations SET created_at = ? WHERE id = ?",
+                            when, saved.getId());
+                    globalGen++;
+                }
                 promptIdx++;
             }
         }
