@@ -21,7 +21,7 @@ public class TutorConfig {
     private String systemPrompt;
 
     @Column(nullable = false)
-    private String modelName = "qwen3.5-plus";
+    private String modelName = "qwen-vl-max";
 
     @Column(name = "api_endpoint_id")
     private String apiEndpointId;

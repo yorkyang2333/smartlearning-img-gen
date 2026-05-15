@@ -34,6 +34,7 @@ const errorMsg = ref<string | null>(null)
 const rootRef = ref<HTMLDivElement | null>(null)
 const autoTextareaRef = ref<HTMLTextAreaElement | null>(null)
 const resultScrollRef = ref<HTMLDivElement | null>(null)
+const isThinking = ref(false)
 
 let abortController: AbortController | null = null
 
@@ -89,11 +90,23 @@ const submit = async () => {
       signal: abortController.signal
     })
 
+    if (!res.ok) {
+      const errText = await res.text()
+      try {
+        const errData = JSON.parse(errText)
+        throw new Error(errData.error || errData.message || `请求失败 (${res.status})`)
+      } catch (e: any) {
+        if (e.message && !e.message.startsWith('Unexpected')) throw e
+        throw new Error(`请求失败 (${res.status})`)
+      }
+    }
+
     if (!res.body) throw new Error('No streaming body')
 
     const reader = res.body.getReader()
     const decoder = new TextDecoder('utf-8')
     let buffer = ''
+    isThinking.value = true
 
     while (true) {
       const { value, done } = await reader.read()
@@ -111,14 +124,17 @@ const submit = async () => {
           if (dataStr === '[DONE]') continue
           try {
             const data = JSON.parse(dataStr)
-            if (data.choices && data.choices[0]?.delta?.content) {
-              props.state.resultText += data.choices[0].delta.content
+            const delta = data.choices?.[0]?.delta
+            if (delta?.content) {
+              isThinking.value = false
+              props.state.resultText += delta.content
               nextTick(() => {
                 if (resultScrollRef.value) resultScrollRef.value.scrollTop = resultScrollRef.value.scrollHeight
               })
             }
           } catch {
             if (!dataStr.startsWith('{')) {
+              isThinking.value = false
               props.state.resultText += dataStr
             }
           }
@@ -127,7 +143,10 @@ const submit = async () => {
     }
   } catch (err: any) {
     if (err.name !== 'AbortError') {
-      errorMsg.value = '网络请求失败'
+      if (!props.state.resultText) {
+        props.state.resultText = `⚠️ ${err.message || '网络请求失败'}`
+      }
+      errorMsg.value = err.message || '网络请求失败'
     }
   } finally {
     props.state.isStreaming = false
@@ -137,10 +156,18 @@ const submit = async () => {
 
 const handleApply = () => {
   emit('apply', props.state.resultText)
+  resetAndClose()
 }
 
 const handleExit = () => {
+  resetAndClose()
+}
+
+const resetAndClose = () => {
   props.state.phase = 'input'
+  props.state.resultText = ''
+  props.state.isStreaming = false
+  emit('close')
 }
 
 const handleRegenerate = () => {
@@ -225,8 +252,14 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="op-result-scroll" ref="resultScrollRef">
+        <div v-if="isThinking && !state.resultText" class="op-thinking">
+          <span class="op-thinking-dot"></span>
+          <span class="op-thinking-dot"></span>
+          <span class="op-thinking-dot"></span>
+          <span class="op-thinking-label">正在分析...</span>
+        </div>
         <div class="op-result-content markdown-body" v-html="renderMarkdown(state.resultText)"></div>
-        <span v-if="state.isStreaming" class="op-cursor"></span>
+        <span v-if="state.isStreaming && state.resultText" class="op-cursor"></span>
       </div>
 
       <div class="op-result-actions">
@@ -447,6 +480,22 @@ onBeforeUnmount(() => {
   animation: opBlink 1s step-end infinite;
 }
 @keyframes opBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+/* Thinking indicator */
+.op-thinking {
+  display: flex; align-items: center; gap: 4px; padding: 8px 0;
+}
+.op-thinking-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--op-accent);
+  animation: opThinkBounce 1.2s ease-in-out infinite;
+}
+.op-thinking-dot:nth-child(2) { animation-delay: 0.15s; }
+.op-thinking-dot:nth-child(3) { animation-delay: 0.3s; }
+.op-thinking-label { font-size: 13px; color: var(--muted); margin-left: 6px; }
+@keyframes opThinkBounce {
+  0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+  30% { opacity: 1; transform: scale(1); }
+}
 
 /* Action bar */
 .op-result-actions {
