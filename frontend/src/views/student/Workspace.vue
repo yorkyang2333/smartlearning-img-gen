@@ -45,6 +45,26 @@ const isParamsCollapsed = ref(false)
 const isOptimizerOpen = ref(false)
 const isTutorOpen = ref(false)
 
+// Optimizer state lifted here so it persists across popover open/close
+interface OptimizerState {
+  phase: 'input' | 'result'
+  resultText: string
+  isStreaming: boolean
+  lastInstruction: string
+  lastTab: 'auto' | 'feedback'
+  lastActual: string
+  lastExpected: string
+}
+const optimizerState = ref<OptimizerState>({
+  phase: 'input',
+  resultText: '',
+  isStreaming: false,
+  lastInstruction: '',
+  lastTab: 'auto',
+  lastActual: '',
+  lastExpected: '',
+})
+
 const collapseSidebar = inject<(() => void) | null>('collapseSidebar', null)
 
 // --- Pending generation persistence ---
@@ -682,6 +702,7 @@ watch(() => activeMsg.value?.image, (newImg, oldImg) => {
             <PromptOptimizerPopover
               v-if="isOptimizerOpen"
               :prompt="promptText"
+              :state="optimizerState"
               @apply="p => { promptText = p }"
               @close="isOptimizerOpen = false"
             />

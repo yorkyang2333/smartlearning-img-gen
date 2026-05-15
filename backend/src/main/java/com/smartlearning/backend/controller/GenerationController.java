@@ -231,6 +231,81 @@ public class GenerationController {
         }
     }
 
+    @PostMapping(value = "/optimize-prompt-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter optimizePromptStream(@RequestBody Map<String, String> request) {
+        SseEmitter emitter = new SseEmitter(180000L);
+
+        try {
+            String prompt = request.getOrDefault("prompt", "").trim();
+            String instruction = request.getOrDefault("instruction", "").trim();
+            String actual = request.getOrDefault("actual", "").trim();
+            String expected = request.getOrDefault("expected", "").trim();
+
+            TutorConfig tutorConfig = getTutorConfig();
+            if (tutorConfig == null || tutorConfig.getModelName() == null || tutorConfig.getModelName().isBlank()) {
+                emitter.send(SseEmitter.event().name("error").data(Map.of("error", "AI 导师未配置")));
+                emitter.complete();
+                return emitter;
+            }
+
+            String systemPrompt;
+            String userMessage;
+
+            if (!actual.isEmpty() && !expected.isEmpty()) {
+                systemPrompt = "你是一个文生图提示词专家。用户已基于现有提示词生成了图片，但结果与预期不符。" +
+                    "请结合用户描述的【实际表现】与【预期效果】，对原始提示词进行针对性优化，" +
+                    "使其更可能产出用户期待的画面。请用中文回答，仅返回优化后的提示词正文，不要任何解释、前缀或引号。";
+                userMessage = "原始提示词：" + prompt + "\n\n实际表现（哪里不符合预期）：" + actual + "\n\n预期效果：" + expected;
+            } else if (!instruction.isEmpty()) {
+                systemPrompt = "你是一个文生图提示词专家。请按照用户给出的优化方向调整原始提示词，" +
+                    "在保留原意的前提下补充细节、艺术风格与画面元素。请用中文回答，仅返回优化后的提示词正文，不要任何解释、前缀或引号。";
+                userMessage = "原始提示词：" + prompt + "\n\n用户的优化指示：" + instruction;
+            } else {
+                systemPrompt = "你是一个文生图专家。请将用户提供的原始提示词优化为更具艺术感、细节更丰富、更容易生成高质量图片的专业提示词。请用中文回答，仅返回优化后的提示词，不要有其他解释。";
+                userMessage = "原始提示词：" + prompt;
+            }
+
+            gatewayAiClient.generateChatStream(
+                systemPrompt,
+                userMessage,
+                tutorConfig.getModelName(),
+                line -> {
+                    try {
+                        emitter.send(line);
+                    } catch (Exception e) {
+                        emitter.completeWithError(e);
+                    }
+                },
+                () -> {
+                    try {
+                        emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                        emitter.complete();
+                    } catch (Exception e) {
+                        emitter.completeWithError(e);
+                    }
+                },
+                err -> {
+                    try {
+                        emitter.send(SseEmitter.event().name("error").data(Map.of("error", err.getMessage())));
+                        emitter.completeWithError(err);
+                    } catch (Exception e) {
+                        emitter.completeWithError(e);
+                    }
+                }
+            );
+
+        } catch (Exception e) {
+            try {
+                emitter.send(SseEmitter.event().name("error").data(Map.of("error", e.getMessage())));
+                emitter.completeWithError(e);
+            } catch (Exception ex) {
+                emitter.completeWithError(ex);
+            }
+        }
+
+        return emitter;
+    }
+
     @PostMapping("/analyze-prompt")
     public ResponseEntity<?> analyzePrompt(@RequestBody Map<String, String> request) {
         try {
