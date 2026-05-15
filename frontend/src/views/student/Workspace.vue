@@ -733,7 +733,7 @@ watch(() => activeMsg.value?.image, (newImg, oldImg) => {
 /* Left Params Panel */
 .workspace-sidebar {
   order: 1;
-  width: 380px;
+  width: 420px;
   min-width: 0;
   flex-shrink: 1;
   display: flex;
