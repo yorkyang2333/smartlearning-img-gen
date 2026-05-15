@@ -565,7 +565,7 @@ const handleLogout = () => {
 
 .main-content {
   flex: 1;
-  padding: 48px;
+  padding: 24px;
   overflow-y: auto;
   height: 100vh;
   background: var(--canvas);

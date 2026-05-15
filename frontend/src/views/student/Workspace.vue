@@ -690,7 +690,7 @@ const handleHistoryClick = (msgId: string) => {
 .workspace-layout {
   display: flex;
   height: 100vh;
-  margin: -48px;
+  margin: -24px;
   background: var(--surface-cream);
   overflow: hidden;
 }
@@ -698,12 +698,12 @@ const handleHistoryClick = (msgId: string) => {
 /* Left Params Panel */
 .workspace-sidebar {
   order: 1;
-  width: 380px;
+  width: 320px;
   min-width: 0;
-  flex-shrink: 0;
+  flex-shrink: 1;
   display: flex;
   flex-direction: column;
-  padding: 24px 0 24px 24px;
+  padding: 20px 0 20px 20px;
   overflow-y: hidden;
   transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -718,10 +718,10 @@ const handleHistoryClick = (msgId: string) => {
 .canvas-area {
   order: 2;
   flex: 1;
-  min-width: 0;
+  min-width: 300px;
   display: flex;
   flex-direction: column;
-  padding: 24px 16px;
+  padding: 20px 12px;
   max-width: 100%;
   transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
@@ -1351,12 +1351,12 @@ const handleHistoryClick = (msgId: string) => {
 /* Tutor Column (Third Column) */
 .tutor-column {
   order: 3;
-  width: 380px;
+  width: 320px;
   min-width: 0;
-  flex-shrink: 0;
+  flex-shrink: 1;
   display: flex;
   flex-direction: column;
-  padding: 24px 24px 24px 0;
+  padding: 20px 20px 20px 0;
 }
 .tutor-column > * {
   flex: 1;
