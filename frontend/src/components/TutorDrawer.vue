@@ -394,7 +394,7 @@ const handleChatKey = (e: KeyboardEvent) => {
 
 /* Header */
 .drawer-header {
-  padding: 20px 24px 0; border-bottom: 1px solid var(--hairline);
+  padding: 16px 16px 0; border-bottom: 1px solid var(--hairline);
   background: var(--surface-card);
 }
 .drawer-title-row {
@@ -432,8 +432,8 @@ const handleChatKey = (e: KeyboardEvent) => {
   flex: 1; overflow-y: auto; 
   display: flex; flex-direction: column;
 }
-.tab-content { 
-  padding: 20px 24px; 
+.tab-content {
+  padding: 16px 16px;
   flex: 1; display: flex; flex-direction: column;
 }
 
@@ -441,14 +441,14 @@ const handleChatKey = (e: KeyboardEvent) => {
 .review-config-panel {
   background: white;
   border: 1px solid var(--hairline);
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 24px;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
   box-shadow: 0 4px 16px rgba(0,0,0,0.02);
 }
 .config-header {
   display: flex; justify-content: space-between; align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 .config-header label {
   font-size: 14px; font-weight: 600; color: var(--ink);
@@ -457,7 +457,7 @@ const handleChatKey = (e: KeyboardEvent) => {
   font-size: 12px; color: var(--muted);
 }
 .perspective-selector {
-  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;
 }
 .p-chip {
   padding: 10px 16px; border-radius: 10px; border: 1px solid var(--hairline);
@@ -489,40 +489,40 @@ const handleChatKey = (e: KeyboardEvent) => {
 }
 
 .review-empty-state {
-  text-align: center; padding: 48px 20px;
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  background: var(--surface-card); border-radius: 16px;
+  text-align: center; padding: 32px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  background: var(--surface-card); border-radius: 12px;
   border: 1px dashed var(--hairline-soft);
 }
 .empty-icon-wrap {
-  width: 56px; height: 56px; border-radius: 28px;
+  width: 44px; height: 44px; border-radius: 22px;
   background: white; color: var(--muted);
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  margin-bottom: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
 }
 .review-empty-state p { margin: 0; font-size: 16px; font-weight: 600; color: var(--ink); }
 .review-empty-state span { font-size: 13px; color: var(--muted); }
 
-.reviews-list { display: flex; flex-direction: column; gap: 16px; }
+.reviews-list { display: flex; flex-direction: column; gap: 12px; }
 .review-card {
   background: white; border-radius: 12px; border: 1px solid var(--hairline);
-  padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03);
   animation: cardIn 0.4s ease-out;
 }
 @keyframes cardIn {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.review-card-top { display: flex; gap: 16px; margin-bottom: 16px; }
+.review-card-top { display: flex; gap: 12px; margin-bottom: 12px; }
 .score-ring-wrap {
-  width: 56px; height: 56px; position: relative; flex-shrink: 0;
+  width: 44px; height: 44px; position: relative; flex-shrink: 0;
 }
 .score-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
 .ring-bg { stroke: var(--hairline); }
 .ring-fg { transition: stroke-dasharray 1s ease-out; }
 .score-num {
   position: absolute; inset: 0; display: flex; align-items: center;
-  justify-content: center; font-size: 15px; font-weight: 700;
+  justify-content: center; font-size: 13px; font-weight: 700;
 }
 .score-high { color: #5db872; }
 .score-mid { color: #d4a017; }
@@ -550,8 +550,6 @@ const handleChatKey = (e: KeyboardEvent) => {
   font-family: var(--font-mono); font-size: 12px;
   color: var(--primary); word-break: break-all;
 }
-.apply-btn { width: 100%; font-size: 13px; height: 36px; }
-
 .apply-btn { width: 100%; font-size: 13px; height: 36px; }
 
 .error-msg {
