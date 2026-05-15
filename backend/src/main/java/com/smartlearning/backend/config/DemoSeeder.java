@@ -481,8 +481,7 @@ public class DemoSeeder implements CommandLineRunner {
 
                 int imgCount = 2 + ((promptIdx + c) % 3);
                 for (int g = 0; g < imgCount; g++) {
-                    int pIdx = (promptIdx + g) % prompts.length;
-                    String prompt = prompts[pIdx] + (g > 0 ? "，更柔和的色调，更克制的对比" : "");
+                    String prompt = basePrompt + (g > 0 ? "，更柔和的色调，更克制的对比" : "");
                     String modelId = models[(globalGen) % models.length];
                     String url = seedFor("free-" + promptIdx + "-" + g);
 
