@@ -99,9 +99,7 @@ npm run dev
 │           └── student/  Workspace, ClassGallery, StudentAssignments, AssignmentDetail, AssignmentPlay
 ├── scripts/gateway/  AI Gateway 启停脚本
 ├── docs/             详细文档
-├── start.sh          一键启动脚本
-├── CLAUDE.md         AI 辅助开发指引
-└── DESIGN.md         设计系统规范
+└── start.sh          一键启动脚本
 ```
 
 ## 架构概览
