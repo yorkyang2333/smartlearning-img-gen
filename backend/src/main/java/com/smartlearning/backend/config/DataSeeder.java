@@ -11,11 +11,13 @@ import com.smartlearning.backend.repository.UserRepository;
 import com.smartlearning.backend.util.ModelConfigUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 @Component
+@Profile("seed")
 @Order(10)
 public class DataSeeder implements CommandLineRunner {
 

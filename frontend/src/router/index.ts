@@ -122,6 +122,11 @@ const router = createRouter({
       component: Gallery
     },
     {
+      path: '/setup',
+      name: 'setup',
+      component: () => import('../views/Setup.vue')
+    },
+    {
       path: '/',
       redirect: '/login'
     }
@@ -131,13 +136,22 @@ const router = createRouter({
 import { useAuthStore } from '../stores/auth'
 
 // Navigation guard
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
-  
+
+  if (to.path === '/login' || to.path === '/setup' || to.path === '/') {
+    const initialized = await authStore.checkSystemStatus()
+    if (!initialized && to.path !== '/setup') {
+      return next('/setup')
+    }
+    if (initialized && to.path === '/setup') {
+      return next('/login')
+    }
+  }
+
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
   } else if (to.meta.role && authStore.user?.role !== to.meta.role) {
-    // If trying to access a route for a different role, redirect to appropriate home
     next(authStore.isTeacher ? '/teacher/dashboard' : '/student/generate')
   } else if (to.path === '/login' && authStore.isAuthenticated) {
     next(authStore.isTeacher ? '/teacher/dashboard' : '/student/generate')
