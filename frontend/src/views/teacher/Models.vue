@@ -67,7 +67,7 @@ const fetchTutorConfig = async () => {
   } catch {}
 }
 
-const tutorModels = computed(() => models.value.filter(m => m.type === 'TEXT_GENERATION' || m.type === 'BOTH'))
+const tutorModels = computed(() => models.value.filter(m => m.type === 'TEXT_GENERATION'))
 const tutorModelOptions = computed(() => {
   const opts = [...tutorModels.value]
   if (tutorFormData.value.modelName && !opts.find(m => m.modelId === tutorFormData.value.modelName)) {
