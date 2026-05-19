@@ -19,6 +19,9 @@ public class Assignment {
     @Column(name = "teacher_id", nullable = false)
     private String teacherId;
 
+    @Column(name = "class_group_id")
+    private String classGroupId;
+
     @Column(nullable = false)
     private String title;
 

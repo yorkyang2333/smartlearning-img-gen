@@ -11,5 +11,7 @@ import java.util.List;
 public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByUsername(String username);
     List<User> findByTeacherId(String teacherId);
+    List<User> findByTeacherIdAndClassGroupId(String teacherId, String classGroupId);
+    List<User> findByTeacherIdAndClassGroupIdIsNull(String teacherId);
     long countByRole(String role);
 }

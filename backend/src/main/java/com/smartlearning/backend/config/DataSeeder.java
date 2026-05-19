@@ -1,8 +1,10 @@
 package com.smartlearning.backend.config;
 
+import com.smartlearning.backend.entity.ClassGroup;
 import com.smartlearning.backend.entity.Model;
 import com.smartlearning.backend.entity.TutorConfig;
 import com.smartlearning.backend.entity.User;
+import com.smartlearning.backend.repository.ClassGroupRepository;
 import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.repository.TutorConfigRepository;
 import com.smartlearning.backend.repository.UserRepository;
@@ -27,6 +29,9 @@ public class DataSeeder implements CommandLineRunner {
     private TutorConfigRepository tutorConfigRepository;
 
     @Autowired
+    private ClassGroupRepository classGroupRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     @Override
@@ -49,6 +54,15 @@ public class DataSeeder implements CommandLineRunner {
             student.setRole("STUDENT");
             student.setTeacherId(teacher.getId());
             student.setIsActive(true);
+
+            // Create default class and assign student
+            ClassGroup defaultClass = new ClassGroup();
+            defaultClass.setName("默认班级");
+            defaultClass.setTeacherId(teacher.getId());
+            defaultClass.setSortOrder(0);
+            classGroupRepository.save(defaultClass);
+
+            student.setClassGroupId(defaultClass.getId());
             userRepository.save(student);
 
             System.out.println("✅ 已自动创建测试账号：");

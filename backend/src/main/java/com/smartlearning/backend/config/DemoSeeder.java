@@ -1,6 +1,7 @@
 package com.smartlearning.backend.config;
 
 import com.smartlearning.backend.entity.Assignment;
+import com.smartlearning.backend.entity.ClassGroup;
 import com.smartlearning.backend.entity.Conversation;
 import com.smartlearning.backend.entity.Generation;
 import com.smartlearning.backend.entity.Model;
@@ -8,6 +9,7 @@ import com.smartlearning.backend.entity.Submission;
 import com.smartlearning.backend.entity.Template;
 import com.smartlearning.backend.entity.User;
 import com.smartlearning.backend.repository.AssignmentRepository;
+import com.smartlearning.backend.repository.ClassGroupRepository;
 import com.smartlearning.backend.repository.ConversationRepository;
 import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.ModelRepository;
@@ -45,6 +47,7 @@ public class DemoSeeder implements CommandLineRunner {
     @Autowired private ConversationRepository conversationRepository;
     @Autowired private TemplateRepository templateRepository;
     @Autowired private ModelRepository modelRepository;
+    @Autowired private ClassGroupRepository classGroupRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -67,13 +70,15 @@ public class DemoSeeder implements CommandLineRunner {
 
         ensureModels();
         User teacher = ensureTeacher();
-        List<User> students = seedStudents(teacher);
+        List<ClassGroup> classes = seedClasses(teacher);
+        List<User> students = seedStudents(teacher, classes);
         seedTemplates(teacher);
         List<Assignment> assignments = seedAssignments(teacher);
         seedSubmissions(students, assignments);
         seedFreeGenerations(students);
 
         System.out.println("✅ 演示数据已注入：");
+        System.out.println("  · 班级 " + classes.size() + " 个");
         System.out.println("  · 学生 " + students.size() + " 人（默认密码 123456）");
         System.out.println("  · 作业 " + assignments.size() + " 个（含进行中/已结束/限时挑战）");
         System.out.println("  · 提交 " + submissionRepository.count() + " 条 / 生成记录 " + generationRepository.count() + " 条");
@@ -93,6 +98,7 @@ public class DemoSeeder implements CommandLineRunner {
             jdbcTemplate.update(
                 "DELETE FROM templates WHERE teacher_id = ? AND title LIKE '[演示]%'",
                 t.getId());
+            jdbcTemplate.update("DELETE FROM class_groups WHERE teacher_id = ?", t.getId());
         });
 
         List<String> usernames = new ArrayList<>();
@@ -146,6 +152,27 @@ public class DemoSeeder implements CommandLineRunner {
         modelRepository.save(m);
     }
 
+    // ---------- Classes ----------
+    private List<ClassGroup> seedClasses(User teacher) {
+        List<ClassGroup> classes = new ArrayList<>();
+
+        ClassGroup c1 = new ClassGroup();
+        c1.setName("高一(3)班");
+        c1.setTeacherId(teacher.getId());
+        c1.setDescription("美术特长班");
+        c1.setSortOrder(0);
+        classes.add(classGroupRepository.save(c1));
+
+        ClassGroup c2 = new ClassGroup();
+        c2.setName("高一(4)班");
+        c2.setTeacherId(teacher.getId());
+        c2.setDescription("普通班");
+        c2.setSortOrder(1);
+        classes.add(classGroupRepository.save(c2));
+
+        return classes;
+    }
+
     // ---------- Users ----------
     private User ensureTeacher() {
         return userRepository.findByUsername("teacher").orElseGet(() -> {
@@ -159,9 +186,10 @@ public class DemoSeeder implements CommandLineRunner {
         });
     }
 
-    private List<User> seedStudents(User teacher) {
+    private List<User> seedStudents(User teacher, List<ClassGroup> classes) {
         List<User> list = new ArrayList<>();
-        for (String[] row : ROSTER) {
+        for (int i = 0; i < ROSTER.length; i++) {
+            String[] row = ROSTER[i];
             User u = userRepository.findByUsername(row[0]).orElseGet(User::new);
             u.setUsername(row[0]);
             u.setDisplayName(row[1]);
@@ -170,6 +198,9 @@ public class DemoSeeder implements CommandLineRunner {
             u.setIsActive(true);
             if (u.getPasswordHash() == null) {
                 u.setPasswordHash(passwordEncoder.encode("123456"));
+            }
+            if (!classes.isEmpty()) {
+                u.setClassGroupId(classes.get(i < 20 ? 0 : 1).getId());
             }
             list.add(userRepository.save(u));
         }

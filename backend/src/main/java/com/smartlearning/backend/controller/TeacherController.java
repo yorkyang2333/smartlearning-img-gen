@@ -1,7 +1,9 @@
 package com.smartlearning.backend.controller;
 
 import com.smartlearning.backend.entity.Assignment;
+import com.smartlearning.backend.entity.ClassGroup;
 import com.smartlearning.backend.repository.AssignmentRepository;
+import com.smartlearning.backend.repository.ClassGroupRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -71,6 +73,9 @@ public class TeacherController {
 
     @Autowired
     private SubmissionRepository submissionRepository;
+
+    @Autowired
+    private ClassGroupRepository classGroupRepository;
 
     private String getTeacherId() {
         UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
@@ -360,11 +365,78 @@ public class TeacherController {
     }
 
 
+    // --- CLASS GROUPS ---
+    @GetMapping("/classes")
+    public ResponseEntity<List<ClassGroup>> getClasses() {
+        return ResponseEntity.ok(classGroupRepository.findByTeacherIdOrderBySortOrderAsc(getTeacherId()));
+    }
+
+    @PostMapping("/classes")
+    public ResponseEntity<?> createClass(@RequestBody Map<String, Object> body) {
+        String name = (String) body.get("name");
+        if (name == null || name.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "班级名称不能为空"));
+        }
+        ClassGroup classGroup = new ClassGroup();
+        classGroup.setName(name.trim());
+        classGroup.setTeacherId(getTeacherId());
+        classGroup.setDescription((String) body.get("description"));
+        if (body.containsKey("sortOrder") && body.get("sortOrder") != null) {
+            classGroup.setSortOrder((Integer) body.get("sortOrder"));
+        }
+        return ResponseEntity.ok(classGroupRepository.save(classGroup));
+    }
+
+    @PutMapping("/classes/{id}")
+    public ResponseEntity<?> updateClass(@PathVariable String id, @RequestBody Map<String, Object> body) {
+        ClassGroup classGroup = classGroupRepository.findByIdAndTeacherId(id, getTeacherId())
+            .orElse(null);
+        if (classGroup == null) {
+            return ResponseEntity.status(404).body(Map.of("error", "班级不存在"));
+        }
+        if (body.containsKey("name")) {
+            String name = (String) body.get("name");
+            if (name != null && !name.trim().isEmpty()) {
+                classGroup.setName(name.trim());
+            }
+        }
+        if (body.containsKey("description")) {
+            classGroup.setDescription((String) body.get("description"));
+        }
+        if (body.containsKey("sortOrder") && body.get("sortOrder") != null) {
+            classGroup.setSortOrder((Integer) body.get("sortOrder"));
+        }
+        return ResponseEntity.ok(classGroupRepository.save(classGroup));
+    }
+
+    @DeleteMapping("/classes/{id}")
+    public ResponseEntity<?> deleteClass(@PathVariable String id) {
+        ClassGroup classGroup = classGroupRepository.findByIdAndTeacherId(id, getTeacherId())
+            .orElse(null);
+        if (classGroup == null) {
+            return ResponseEntity.status(404).body(Map.of("error", "班级不存在"));
+        }
+        List<User> students = userRepository.findByTeacherIdAndClassGroupId(getTeacherId(), id);
+        for (User s : students) {
+            s.setClassGroupId(null);
+            userRepository.save(s);
+        }
+        classGroupRepository.delete(classGroup);
+        return ResponseEntity.ok(Map.of("success", true));
+    }
+
     // --- STUDENTS ---
     @GetMapping("/students")
-    public ResponseEntity<List<User>> getStudents() {
-        List<User> students = userRepository.findByTeacherId(getTeacherId());
-        // Clean password hash before sending to frontend
+    public ResponseEntity<List<User>> getStudents(@RequestParam(required = false) String classGroupId) {
+        String teacherId = getTeacherId();
+        List<User> students;
+        if (classGroupId == null) {
+            students = userRepository.findByTeacherId(teacherId);
+        } else if ("unassigned".equals(classGroupId)) {
+            students = userRepository.findByTeacherIdAndClassGroupIdIsNull(teacherId);
+        } else {
+            students = userRepository.findByTeacherIdAndClassGroupId(teacherId, classGroupId);
+        }
         students.forEach(s -> s.setPasswordHash(null));
         return ResponseEntity.ok(students);
     }
@@ -374,22 +446,37 @@ public class TeacherController {
         if (userRepository.findByUsername(body.get("username")).isPresent()) {
             return ResponseEntity.badRequest().body(Map.of("error", "账号已存在"));
         }
+        String teacherId = getTeacherId();
         User student = new User();
         student.setUsername(body.get("username"));
         student.setDisplayName(body.get("displayName"));
         student.setPasswordHash(passwordEncoder.encode(body.get("password")));
         student.setRole("STUDENT");
-        student.setTeacherId(getTeacherId());
+        student.setTeacherId(teacherId);
+        if (body.get("classGroupId") != null && !body.get("classGroupId").isEmpty()) {
+            String cgId = body.get("classGroupId");
+            if (classGroupRepository.findByIdAndTeacherId(cgId, teacherId).isPresent()) {
+                student.setClassGroupId(cgId);
+            }
+        }
         User saved = userRepository.save(student);
         saved.setPasswordHash(null);
         return ResponseEntity.ok(saved);
     }
 
     @PostMapping("/students/batch")
-    public ResponseEntity<?> batchCreateStudents(@RequestBody Map<String, List<Map<String, String>>> body) {
-        List<Map<String, String>> studentsList = body.get("students");
+    public ResponseEntity<?> batchCreateStudents(@RequestBody Map<String, Object> body) {
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> studentsList = (List<Map<String, String>>) body.get("students");
         if (studentsList == null || studentsList.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("error", "列表为空"));
+        }
+        String teacherId = getTeacherId();
+        String classGroupId = body.containsKey("classGroupId") ? (String) body.get("classGroupId") : null;
+        if (classGroupId != null && !classGroupId.isEmpty()) {
+            if (classGroupRepository.findByIdAndTeacherId(classGroupId, teacherId).isEmpty()) {
+                classGroupId = null;
+            }
         }
         List<User> savedList = new ArrayList<>();
         for (Map<String, String> s : studentsList) {
@@ -399,7 +486,10 @@ public class TeacherController {
                 student.setDisplayName(s.get("displayName"));
                 student.setPasswordHash(passwordEncoder.encode(s.get("password")));
                 student.setRole("STUDENT");
-                student.setTeacherId(getTeacherId());
+                student.setTeacherId(teacherId);
+                if (classGroupId != null && !classGroupId.isEmpty()) {
+                    student.setClassGroupId(classGroupId);
+                }
                 savedList.add(userRepository.save(student));
             }
         }
@@ -408,12 +498,11 @@ public class TeacherController {
 
     @PutMapping("/students/{studentId}")
     public ResponseEntity<?> updateStudent(@PathVariable String studentId, @RequestBody Map<String, Object> body) {
-        System.out.println("DEBUG: inside updateStudent for " + studentId);
+        String teacherId = getTeacherId();
         User student = userRepository.findById(studentId).orElseThrow();
-        // if (!student.getTeacherId().equals(getTeacherId())) {
-        //     System.out.println("DEBUG: 403 returned");
-        //     return ResponseEntity.status(403).build();
-        // }
+        if (!student.getTeacherId().equals(teacherId)) {
+            return ResponseEntity.status(403).build();
+        }
         if (body.containsKey("displayName")) {
             student.setDisplayName((String) body.get("displayName"));
         }
@@ -426,9 +515,46 @@ public class TeacherController {
                 student.setPasswordHash(passwordEncoder.encode(pwd));
             }
         }
+        if (body.containsKey("classGroupId")) {
+            Object cgVal = body.get("classGroupId");
+            if (cgVal == null || ((String) cgVal).isEmpty()) {
+                student.setClassGroupId(null);
+            } else {
+                String cgId = (String) cgVal;
+                if (classGroupRepository.findByIdAndTeacherId(cgId, teacherId).isPresent()) {
+                    student.setClassGroupId(cgId);
+                }
+            }
+        }
         User saved = userRepository.save(student);
         saved.setPasswordHash(null);
         return ResponseEntity.ok(saved);
+    }
+
+    @PutMapping("/students/batch-move")
+    public ResponseEntity<?> batchMoveStudents(@RequestBody Map<String, Object> body) {
+        String teacherId = getTeacherId();
+        @SuppressWarnings("unchecked")
+        List<String> studentIds = (List<String>) body.get("studentIds");
+        Object cgVal = body.get("classGroupId");
+        String classGroupId = cgVal != null ? cgVal.toString() : null;
+
+        if (classGroupId != null && !classGroupId.isEmpty()) {
+            if (classGroupRepository.findByIdAndTeacherId(classGroupId, teacherId).isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "班级不存在"));
+            }
+        }
+
+        int count = 0;
+        for (String sid : studentIds) {
+            User student = userRepository.findById(sid).orElse(null);
+            if (student != null && student.getTeacherId().equals(teacherId)) {
+                student.setClassGroupId(classGroupId != null && !classGroupId.isEmpty() ? classGroupId : null);
+                userRepository.save(student);
+                count++;
+            }
+        }
+        return ResponseEntity.ok(Map.of("success", true, "count", count));
     }
 
     @DeleteMapping("/students/{studentId}")
