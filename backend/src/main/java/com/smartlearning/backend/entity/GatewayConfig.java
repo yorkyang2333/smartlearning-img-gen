@@ -21,7 +21,7 @@ public class GatewayConfig {
     private Boolean enabled = true;
 
     @Column(nullable = false)
-    private String baseUrl = "http://localhost:4000";
+    private String baseUrl = "https://ai-generating.com";
 
     @Column(columnDefinition = "TEXT")
     private String apiKey;

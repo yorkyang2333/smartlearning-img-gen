@@ -70,26 +70,25 @@ public class DataSeeder implements CommandLineRunner {
             System.out.println("学生账号 - 用户名: student, 密码: 123456");
 
             // Create Default Models
-            modelRepository.save(createModel("DALL-E 3 (生图)", "dall-e-3", "TEXT_TO_IMAGE", "openai", "高质量AI图像生成模型"));
             modelRepository.save(createModel("GPT Image 2", "gpt-image-2", "BOTH", "openai", "优质AI图像生成与编辑"));
-            modelRepository.save(createModel("Gemini 3.1 Flash Image", "gemini/gemini-3.1-flash-image-preview", "TEXT_TO_IMAGE", "google", "Google Gemini 的高速生图模型"));
-            modelRepository.save(createModel("DeepSeek V4 Flash", "deepseek-v4-flash", "TEXT_GENERATION", "deepseek", "高速文本分析与导师对话"));
-            modelRepository.save(createModel("通义千问 VL", "qwen-vl-max", "TEXT_GENERATION", "alibaba", "原生多模态导师对话与作品评审"));
-            modelRepository.save(createModel("通义千问 3.5", "qwen3.5-plus", "TEXT_GENERATION", "alibaba", "高质量中文对话与导师辅导"));
+            modelRepository.save(createModel("DALL-E 3", "dall-e-3", "TEXT_TO_IMAGE", "openai", "高质量AI图像生成模型"));
+            modelRepository.save(createModel("FLUX Schnell", "flux-schnell", "TEXT_TO_IMAGE", "stability", "快速高质量生图"));
+            modelRepository.save(createModel("FLUX Dev", "flux-dev", "TEXT_TO_IMAGE", "stability", "高质量生图（开发版）"));
             modelRepository.save(createModel("GPT-4o", "gpt-4o", "TEXT_GENERATION", "openai", "多模态分析与导师对话"));
-            modelRepository.save(createModel("Claude 3.5 Sonnet", "claude-3-5-sonnet-latest", "TEXT_GENERATION", "anthropic", "长文本分析与教学反馈"));
+            modelRepository.save(createModel("Claude Sonnet 4.6", "claude-sonnet-4-6", "TEXT_GENERATION", "anthropic", "长文本分析与教学反馈"));
+            modelRepository.save(createModel("DeepSeek Chat", "deepseek-chat", "TEXT_GENERATION", "deepseek", "高速文本分析与导师对话"));
 
             // Set up Default Tutor Config
             TutorConfig tutorConfig = new TutorConfig();
             tutorConfig.setTeacherId(teacher.getId());
             tutorConfig.setEnabled(true);
-            tutorConfig.setModelName("qwen-vl-max");
+            tutorConfig.setModelName("gpt-4o");
             tutorConfig.setApiEndpointId(null);
             tutorConfig.setSystemPrompt("你是一个专业、耐心、富有启发性的AI美术导师。请始终用中文、以温和鼓励的语气指导学生进行艺术创作。");
             tutorConfigRepository.save(tutorConfig);
 
             System.out.println("✅ 已自动配置默认模型目录和 AI 导师。");
-            System.out.println("⚠️ 请通过环境变量 LITELLM_BASE_URL / LITELLM_API_KEY 连接 AI Gateway 网关。");
+            System.out.println("⚠️ 请在教师管理页面中配置 AI API 连接（URL 和 Key）。");
         }
     }
 

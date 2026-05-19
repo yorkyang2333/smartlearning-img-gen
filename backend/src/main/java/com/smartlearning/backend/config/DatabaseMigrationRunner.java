@@ -90,14 +90,21 @@ public class DatabaseMigrationRunner implements CommandLineRunner {
         }
 
         try {
-            if (!gatewayConfigRepository.existsById("default")) {
+            gatewayConfigRepository.findById("default").ifPresentOrElse(config -> {
+                if ("http://localhost:4000".equals(config.getBaseUrl())) {
+                    config.setBaseUrl("https://ai-generating.com");
+                    config.setApiKey("");
+                    gatewayConfigRepository.save(config);
+                    System.out.println("Migrated gateway config baseUrl to https://ai-generating.com");
+                }
+            }, () -> {
                 GatewayConfig config = new GatewayConfig();
                 config.setId("default");
                 gatewayConfigRepository.save(config);
-                System.out.println("Successfully created default AI Gateway config row.");
-            }
+                System.out.println("Successfully created default AI API config row.");
+            });
         } catch (Exception e) {
-            System.err.println("AI Gateway config bootstrap warning: " + e.getMessage());
+            System.err.println("AI API config bootstrap warning: " + e.getMessage());
         }
 
         try {

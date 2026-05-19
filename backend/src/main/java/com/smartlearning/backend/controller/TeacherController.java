@@ -33,7 +33,6 @@ import com.smartlearning.backend.repository.GenerationRepository;
 import com.smartlearning.backend.repository.ModelRepository;
 import com.smartlearning.backend.service.AssignmentService;
 import com.smartlearning.backend.service.GatewayConfigService;
-import com.smartlearning.backend.service.GatewayModelSyncService;
 import com.smartlearning.backend.util.ModelConfigUtil;
 
 @RestController
@@ -64,9 +63,6 @@ public class TeacherController {
 
     @Autowired
     private ModelRepository modelRepository;
-
-    @Autowired
-    private GatewayModelSyncService gatewayModelSyncService;
 
     @Autowired
     private GatewayConfigService gatewayConfigService;
@@ -276,93 +272,6 @@ public class TeacherController {
         return ResponseEntity.ok(payload);
     }
 
-    @GetMapping("/channels")
-    public ResponseEntity<Map<String, Object>> getChannels() {
-        try {
-            GatewayConfigService.ResolvedGatewayConfig config = gatewayConfigService.getResolvedConfig();
-            if (!config.enabled()) {
-                return ResponseEntity.ok(Map.of("success", true, "data", List.of()));
-            }
-            String baseUrl = config.baseUrl();
-            org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-            com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-
-            // Step 1: Login to New API to get session cookie + user ID
-            org.springframework.http.HttpHeaders loginHeaders = new org.springframework.http.HttpHeaders();
-            loginHeaders.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
-            Map<String, String> loginBody = Map.of("username", "root", "password", "12345678");
-            org.springframework.http.HttpEntity<Map<String, String>> loginEntity = new org.springframework.http.HttpEntity<>(loginBody, loginHeaders);
-            org.springframework.http.ResponseEntity<String> loginResponse = restTemplate.exchange(
-                baseUrl + "/api/user/login", org.springframework.http.HttpMethod.POST, loginEntity, String.class
-            );
-
-            // Extract session cookie
-            String sessionCookie = "";
-            java.util.List<String> cookies = loginResponse.getHeaders().get("Set-Cookie");
-            if (cookies != null) {
-                for (String c : cookies) {
-                    if (c.startsWith("session=")) {
-                        sessionCookie = c.split(";")[0]; // "session=xxx"
-                        break;
-                    }
-                }
-            }
-
-            // Extract user ID from login response (New API requires New-Api-User header)
-            String userId = "1"; // default root user ID
-            com.fasterxml.jackson.databind.JsonNode loginRoot = mapper.readTree(
-                loginResponse.getBody() != null ? loginResponse.getBody() : "{}"
-            );
-            if (loginRoot.has("data") && loginRoot.get("data").has("id")) {
-                userId = String.valueOf(loginRoot.get("data").get("id").asInt());
-            }
-
-            // Step 2: Get channel list with session cookie + New-Api-User header
-            org.springframework.http.HttpHeaders chHeaders = new org.springframework.http.HttpHeaders();
-            if (!sessionCookie.isEmpty()) {
-                chHeaders.set("Cookie", sessionCookie);
-            }
-            chHeaders.set("New-Api-User", userId);
-            org.springframework.http.HttpEntity<Void> chEntity = new org.springframework.http.HttpEntity<>(chHeaders);
-            org.springframework.http.ResponseEntity<String> response = restTemplate.exchange(
-                baseUrl + "/api/channel/?p=0&page_size=100", org.springframework.http.HttpMethod.GET, chEntity, String.class
-            );
-
-            com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(
-                response.getBody() != null ? response.getBody() : "{}"
-            );
-            if (root.has("success") && root.get("success").asBoolean()) {
-                List<Map<String, Object>> channels = new ArrayList<>();
-                // New API returns data.items (paginated) instead of flat data array
-                com.fasterxml.jackson.databind.JsonNode dataNode = root.get("data");
-                com.fasterxml.jackson.databind.JsonNode itemsNode = null;
-                if (dataNode != null && dataNode.has("items")) {
-                    itemsNode = dataNode.get("items");
-                } else if (dataNode != null && dataNode.isArray()) {
-                    // Fallback for One API compat
-                    itemsNode = dataNode;
-                }
-                if (itemsNode != null && itemsNode.isArray()) {
-                    for (com.fasterxml.jackson.databind.JsonNode ch : itemsNode) {
-                        Map<String, Object> item = new HashMap<>();
-                        item.put("id", ch.has("id") ? ch.get("id").asInt() : 0);
-                        item.put("name", ch.has("name") ? ch.get("name").asText() : "");
-                        item.put("type", ch.has("type") ? ch.get("type").asInt() : 0);
-                        item.put("status", ch.has("status") ? ch.get("status").asInt() : 0);
-                        item.put("models", ch.has("models") ? ch.get("models").asText() : "");
-                        item.put("responseTime", ch.has("response_time") ? ch.get("response_time").asInt() : 0);
-                        item.put("testTime", ch.has("test_time") ? ch.get("test_time").asLong() : 0);
-                        item.put("balance", ch.has("balance") ? ch.get("balance").asDouble() : 0);
-                        channels.add(item);
-                    }
-                }
-                return ResponseEntity.ok(Map.of("success", true, "data", channels));
-            }
-            return ResponseEntity.ok(Map.of("success", true, "data", List.of()));
-        } catch (Exception e) {
-            return ResponseEntity.ok(Map.of("success", false, "error", e.getMessage() != null ? e.getMessage() : "获取渠道列表失败", "data", List.of()));
-        }
-    }
 
 
     // --- CLASS GROUPS ---
@@ -624,16 +533,6 @@ public class TeacherController {
         return ResponseEntity.ok().build();
     }
     // --- MODELS ---
-    @PostMapping("/models/sync")
-    public ResponseEntity<Map<String, Object>> syncModels() {
-        try {
-            return ResponseEntity.ok(gatewayModelSyncService.syncModels());
-        } catch (Exception e) {
-            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
-            return ResponseEntity.badRequest().body(Map.of("success", false, "error", msg));
-        }
-    }
-
     @GetMapping("/models")
     public ResponseEntity<List<java.util.Map<String, Object>>> getModels() {
         List<com.smartlearning.backend.entity.Model> models = modelRepository.findAllByOrderBySortOrderAsc();

@@ -72,7 +72,7 @@ public class NewApiGatewayClient implements GatewayAiClient {
             );
             return resolveAsyncImageResponse(response.getBody(), configInfo);
         } catch (Exception e) {
-            throw new RuntimeException("Image generation failed via AI Gateway: " + e.getMessage());
+            throw new RuntimeException("Image generation failed: " + e.getMessage());
         }
     }
 
@@ -120,7 +120,7 @@ public class NewApiGatewayClient implements GatewayAiClient {
             );
             return resolveAsyncImageResponse(response.getBody(), configInfo);
         } catch (Exception e) {
-            throw new RuntimeException("Image edit failed via AI Gateway: " + e.getMessage());
+            throw new RuntimeException("Image edit failed: " + e.getMessage());
         }
     }
 
@@ -144,7 +144,7 @@ public class NewApiGatewayClient implements GatewayAiClient {
             );
             return response.getBody();
         } catch (Exception e) {
-            throw new RuntimeException("Chat generation failed via AI Gateway: " + e.getMessage());
+            throw new RuntimeException("Chat generation failed: " + e.getMessage());
         }
     }
 
@@ -173,7 +173,7 @@ public class NewApiGatewayClient implements GatewayAiClient {
             );
             return response.getBody();
         } catch (Exception e) {
-            throw new RuntimeException("Multimodal chat generation failed via AI Gateway: " + e.getMessage());
+            throw new RuntimeException("Multimodal chat generation failed: " + e.getMessage());
         }
     }
 
@@ -252,7 +252,7 @@ public class NewApiGatewayClient implements GatewayAiClient {
     private GatewayConfigService.ResolvedGatewayConfig requireEnabledConfig() {
         GatewayConfigService.ResolvedGatewayConfig config = gatewayConfigService.getResolvedConfig();
         if (!config.enabled()) {
-            throw new RuntimeException("AI Gateway 网关当前已关闭，请先在平台配置中启用。");
+            throw new RuntimeException("AI API 当前已关闭，请先在管理页面中配置并启用。");
         }
         return config;
     }

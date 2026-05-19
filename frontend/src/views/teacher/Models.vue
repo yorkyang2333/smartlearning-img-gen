@@ -11,21 +11,12 @@ type ModelRecord = {
   provider: string; description?: string; config?: string
   isActive?: boolean; sortOrder?: number
 }
-type ChannelRecord = {
-  id: number; name: string; type: number; status: number
-  models: string; responseTime: number; testTime: number; balance: number
-}
 
 const models = ref<ModelRecord[]>([])
-const channels = ref<ChannelRecord[]>([])
 const modelsLoading = ref(true)
-const isSyncing = ref(false)
-const syncMessage = ref('')
-const syncDetails = ref<any[]>([])
-const showSyncDetails = ref(false)
 
-const gatewayFormData = ref({ enabled: true, baseUrl: 'http://localhost:4000', apiKey: '' })
-const gatewayResolvedBaseUrl = ref('http://localhost:4000')
+const gatewayFormData = ref({ enabled: true, baseUrl: 'https://ai-generating.com', apiKey: '' })
+const gatewayResolvedBaseUrl = ref('https://ai-generating.com')
 const gatewayUpdatedAt = ref('')
 const isSavingGateway = ref(false)
 const gatewayMessage = ref('')
@@ -52,16 +43,6 @@ const fetchModels = async () => {
   } finally { modelsLoading.value = false }
 }
 
-const fetchChannels = async () => {
-  try {
-    const res = await fetch(`${API}/channels`, { headers: headers() })
-    if (res.ok) {
-      const data = await res.json()
-      if (data.success) channels.value = data.data || []
-    }
-  } catch {}
-}
-
 const fetchGatewayConfig = async () => {
   try {
     const res = await fetch(`${API}/gateway-config`, { headers: headers() })
@@ -69,7 +50,7 @@ const fetchGatewayConfig = async () => {
     const data = await res.json()
     gatewayFormData.value = {
       enabled: data.enabled ?? true,
-      baseUrl: data.baseUrl || 'http://localhost:4000',
+      baseUrl: data.baseUrl || 'https://ai-generating.com',
       apiKey: data.apiKey || ''
     }
     gatewayResolvedBaseUrl.value = data.resolvedBaseUrl || gatewayFormData.value.baseUrl
@@ -119,7 +100,7 @@ const parseSizes = (config?: string) => {
 }
 const sizeSummary = (model: ModelRecord) => {
   const s = parseSizes(model.config)
-  if (s.length === 0) return '由网关处理'
+  if (s.length === 0) return '默认'
   if (s.length <= 3) return s.join(' / ')
   return `${s.slice(0, 3).join(' / ')} 等 ${s.length} 种`
 }
@@ -128,17 +109,8 @@ const typeLabel = (type: string) => {
   return m[type] || type
 }
 const providerLabel = (p?: string) => {
-  const m: Record<string, string> = { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google', deepseek: 'DeepSeek', alibaba: 'Alibaba', meta: 'Meta', other: '其它' }
+  const m: Record<string, string> = { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google', deepseek: 'DeepSeek', alibaba: 'Alibaba', stability: 'Stability', meta: 'Meta', other: '其它' }
   return m[p || ''] || p || '其它'
-}
-const channelTypeLabel = (t: number) => {
-  const m: Record<number, string> = { 1: 'OpenAI', 3: 'Azure', 14: 'Anthropic', 15: 'Baidu', 17: 'Ali', 18: 'Xunfei', 24: 'Google Gemini', 28: 'Mistral', 31: 'Ollama', 33: 'AWS', 34: 'Cohere', 40: 'Cloudflare', 999: '自定义' }
-  return m[t] || `类型${t}`
-}
-const channelStatusClass = (s: number) => {
-  if (s === 1) return 'status-ok'
-  if (s === 2) return 'status-off'
-  return 'status-err'
 }
 
 const handleModelToggle = async (model: ModelRecord, currentEnabled: boolean) => {
@@ -182,34 +154,15 @@ const handleModelSubmit = async (e: Event) => {
   } catch (err: any) { alert(`保存失败: ${err.message}`) }
 }
 
-const safeJson = async (res: Response) => {
-  const text = await res.text()
-  if (!text || !text.trim()) return null
-  try { return JSON.parse(text) } catch { return null }
-}
-
-const handleSyncModels = async () => {
-  isSyncing.value = true; syncMessage.value = ''; syncDetails.value = []; showSyncDetails.value = true
-  try {
-    const res = await fetch(`${API}/models/sync`, { method: 'POST', headers: headers() })
-    const data = await safeJson(res)
-    if (!res.ok || !data?.success) throw new Error(data?.error || `同步失败 (HTTP ${res.status})`)
-    syncMessage.value = `同步完成：新增 ${data.created || 0} 个，更新 ${data.updated || 0} 个，共扫描 ${data.totalSynced || 0} 个模型`
-    syncDetails.value = data.models || []
-    await fetchModels()
-  } catch (err: any) { syncMessage.value = `同步失败：${err.message}` }
-  finally { isSyncing.value = false }
-}
-
 const handleGatewaySubmit = async (e: Event) => {
   e.preventDefault(); isSavingGateway.value = true; gatewayMessage.value = ''
   try {
     const res = await fetch(`${API}/gateway-config`, { method: 'PUT', headers: jsonHeaders(), body: JSON.stringify(gatewayFormData.value) })
-    const data = await safeJson(res)
+    const text = await res.text()
+    const data = text ? JSON.parse(text) : null
     if (!res.ok || data?.success === false) throw new Error(data?.error || `保存失败`)
     if (data) { gatewayResolvedBaseUrl.value = data.resolvedBaseUrl || gatewayFormData.value.baseUrl; gatewayUpdatedAt.value = data.updatedAt || '' }
     gatewayMessage.value = '配置保存成功'
-    await fetchChannels()
   } catch (err: any) { gatewayMessage.value = `保存失败：${err.message}` }
   finally { isSavingGateway.value = false; setTimeout(() => gatewayMessage.value = '', 3000) }
 }
@@ -225,7 +178,7 @@ const handleTutorSubmit = async (e: Event) => {
 
 onMounted(async () => {
   await fetchGatewayConfig()
-  await Promise.all([fetchModels(), fetchChannels()])
+  await fetchModels()
   await fetchTutorConfig()
 })
 </script>
@@ -241,51 +194,27 @@ onMounted(async () => {
     <header class="hero-band">
       <div class="hero-text-col">
         <h1 class="hero-title">模型与配置</h1>
-        <p class="hero-sub">通过 AI Gateway 网关统一接入大模型，<br>管理集成渠道、生图目录以及智能导师引擎参数。</p>
+        <p class="hero-sub">直连 AI API 平台统一接入大模型，<br>管理生图目录以及智能导师引擎参数。</p>
       </div>
       <div class="hero-actions-col">
-        <button class="btn-secondary" @click="handleSyncModels" :disabled="isSyncing">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-          {{ isSyncing ? '同步中...' : '同步模型' }}
-        </button>
         <button class="btn-primary" @click="openModelModal()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          手动添加
+          添加模型
         </button>
       </div>
     </header>
 
-    <!-- Sync progress panel -->
-    <div v-if="showSyncDetails" class="sync-panel">
-      <div class="sync-panel-header">
-        <div class="sync-status-row">
-          <div v-if="isSyncing" class="sync-pulse"><span class="pulse-dot"></span> 正在探测网关节点并映射模型...</div>
-          <span v-else-if="syncMessage" :class="syncMessage.includes('失败') ? 'msg-error' : 'msg-success'">{{ syncMessage }}</span>
-        </div>
-        <button class="btn-icon" @click="showSyncDetails = false" title="关闭">✕</button>
-      </div>
-      <div v-if="syncDetails.length > 0" class="sync-detail-list">
-        <div v-for="item in syncDetails" :key="item.modelId" class="sync-detail-item">
-          <span class="sync-badge" :class="item.isNew ? 'badge-new' : 'badge-exist'">{{ item.isNew ? 'NEW' : 'EXISTING' }}</span>
-          <span class="sync-model-name">{{ item.name }}</span>
-          <span class="sync-model-id">{{ item.modelId }}</span>
-          <span class="sync-model-type">{{ typeLabel(item.type) }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- ============ SECTION 2: INFRASTRUCTURE (DARK & TILES) ============ -->
+    <!-- ============ SECTION 2: API CONNECTION ============ -->
     <section class="section-block">
       <div class="section-head">
-        <h2 class="section-title">基础设施架构</h2>
-        <p class="section-desc">配置核心网关连接参数，监控上游 API 渠道节点的健康状态。</p>
+        <h2 class="section-title">API 连接配置</h2>
+        <p class="section-desc">配置 AI API 平台的连接参数。</p>
       </div>
 
-      <div class="gateway-grid">
-        <!-- Left: config form (DARK MOCKUP) -->
+      <div class="gateway-single">
         <form class="card-light" @submit="handleGatewaySubmit">
           <div class="card-top">
-            <h3 class="card-label">网关直连配置</h3>
+            <h3 class="card-label">API 连接</h3>
             <label class="switch-wrap">
               <input v-model="gatewayFormData.enabled" type="checkbox" class="switch-input" />
               <span class="switch-track"></span>
@@ -294,11 +223,11 @@ onMounted(async () => {
           <div class="card-inner">
             <div class="field">
               <label class="field-label">Base URL</label>
-              <input type="url" class="field-input" v-model="gatewayFormData.baseUrl" placeholder="http://localhost:4000" />
+              <input type="url" class="field-input" v-model="gatewayFormData.baseUrl" placeholder="https://ai-generating.com" />
             </div>
             <div class="field">
               <label class="field-label">API Key</label>
-              <input type="password" class="field-input" v-model="gatewayFormData.apiKey" placeholder="留空表示网关无需鉴权" />
+              <input type="password" class="field-input" v-model="gatewayFormData.apiKey" placeholder="请输入 API Key (Bearer Token)" />
             </div>
             <div class="gateway-meta">
               <span>ACTIVE: <span class="cell-mono-light">{{ gatewayResolvedBaseUrl }}</span></span>
@@ -306,35 +235,10 @@ onMounted(async () => {
             </div>
             <div class="card-actions">
               <span v-if="gatewayMessage" :class="gatewayMessage.includes('失败') ? 'msg-error' : 'msg-success'">{{ gatewayMessage }}</span>
-              <button type="submit" class="btn-secondary btn-sm" :disabled="isSavingGateway">{{ isSavingGateway ? 'Saving...' : '保存参数配置' }}</button>
+              <button type="submit" class="btn-secondary btn-sm" :disabled="isSavingGateway">{{ isSavingGateway ? 'Saving...' : '保存配置' }}</button>
             </div>
           </div>
         </form>
-
-        <!-- Right: channel list (CONNECTOR TILES) -->
-        <div class="channel-tiles-wrapper">
-          <div class="card-top-transparent">
-            <h3 class="section-title-sm">活跃集成节点</h3>
-            <span class="channel-count">{{ channels.length }} 个节点</span>
-          </div>
-          <div class="channel-list-area">
-            <div v-if="channels.length === 0" class="empty-hint">
-              <p>暂无活跃的渠道数据。<br>请先保存网关配置并到 New API 控制台录入。</p>
-            </div>
-            <div v-else class="connector-tiles-grid">
-              <div v-for="ch in channels" :key="ch.id" class="connector-tile">
-                <div class="tile-header">
-                  <div class="tile-title">{{ ch.name || `Channel #${ch.id}` }}</div>
-                  <div class="channel-status-dot" :class="channelStatusClass(ch.status)"></div>
-                </div>
-                <div class="tile-meta">
-                  <span class="channel-type-tag">{{ channelTypeLabel(ch.type) }}</span>
-                  <span v-if="ch.responseTime > 0" class="channel-latency">{{ ch.responseTime }}ms</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -353,7 +257,7 @@ onMounted(async () => {
       <div v-if="models.length === 0" class="empty-card">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
         <h3>模型库为空</h3>
-        <p>请点击顶部“同步模型”从网关抓取或手动添加。</p>
+        <p>请点击顶部”添加模型”手动添加可用模型。</p>
       </div>
 
       <!-- Image models -->
@@ -501,8 +405,9 @@ onMounted(async () => {
               <label class="field-label">服务提供商</label>
               <select class="field-input" v-model="modelFormData.provider">
                 <option value="openai">OpenAI</option><option value="anthropic">Anthropic</option>
-                <option value="google">Google</option><option value="deepseek">DeepSeek</option>
-                <option value="alibaba">Alibaba</option><option value="meta">Meta</option><option value="other">自定义渠道</option>
+                <option value="google">Google</option><option value="stability">Stability (FLUX)</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="alibaba">Alibaba</option><option value="meta">Meta</option><option value="other">其它</option>
               </select>
             </div>
           </div>
@@ -548,21 +453,6 @@ onMounted(async () => {
 .btn-ghost-coral { background:none; border:none; color:rgba(255,255,255,0.7); cursor:pointer; font-size:13px; font-family:var(--font-inter); }
 .btn-ghost-coral:hover { color:white; }
 
-/* ===== SYNC PANEL ===== */
-.sync-panel { background:var(--surface-card); border-radius:var(--radius-lg); padding:32px; margin-bottom:48px; border:none; }
-.sync-panel-header { display:flex; justify-content:space-between; align-items:center; }
-.sync-pulse { display:flex; align-items:center; gap:8px; font-size:14px; color:var(--accent-teal); }
-.pulse-dot { width:8px; height:8px; border-radius:50%; background:var(--accent-teal); animation:pulse 1.5s infinite; }
-@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
-.sync-detail-list { margin-top:16px; display:flex; flex-direction:column; gap:8px; max-height:240px; overflow-y:auto; }
-.sync-detail-item { display:flex; align-items:center; gap:12px; font-size:14px; padding:8px 0; border-bottom:1px solid var(--hairline-soft); }
-.sync-badge { padding:2px 8px; border-radius:var(--radius-pill); font-size:11px; font-weight:600; letter-spacing:1px; }
-.badge-new { background:var(--primary); color:white; }
-.badge-exist { background:var(--surface-cream-strong); color:var(--muted); }
-.sync-model-name { font-weight:500; color:var(--ink); }
-.sync-model-id { font-family:var(--font-mono); font-size:13px; color:var(--muted); }
-.sync-model-type { color:var(--muted-soft); font-size:12px; margin-left:auto; text-transform:uppercase; letter-spacing:0.5px; }
-
 /* ===== SECTION BLOCKS ===== */
 .section-block { margin-bottom:96px; }
 .section-head { margin-bottom:32px; }
@@ -570,8 +460,8 @@ onMounted(async () => {
 .section-desc { font-size:16px; color:var(--muted); margin:0; line-height:1.55; }
 .section-title-sm { margin:0; font-size:22px; font-family:var(--font-serif); font-weight:400; color:var(--ink); letter-spacing:-0.5px; }
 
-/* ===== GATEWAY GRID (INFRASTRUCTURE) ===== */
-.gateway-grid { display:grid; grid-template-columns:1fr 1fr; gap:32px; align-items:start; }
+/* ===== GATEWAY SINGLE (API CONFIG) ===== */
+.gateway-single { max-width:560px; }
 
 /* ===== LIGHT CARD (GATEWAY) ===== */
 .card-light { background:var(--surface-card); border-radius:var(--radius-lg); padding:32px; color:var(--ink); border:1px solid var(--hairline); }
@@ -624,15 +514,6 @@ onMounted(async () => {
 
 .field-textarea-coral { width:100%; padding:14px; border:1px solid rgba(255,255,255,0.3); border-radius:var(--radius-md); background:rgba(255,255,255,0.1); color:white; font-size:14px; font-family:var(--font-mono); resize:vertical; line-height:1.6; transition:border-color 0.15s; }
 .field-textarea-coral:focus { outline:none; border-color:white; }
-
-/* ===== CHANNELS ===== */
-.channel-status-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.status-ok { background:var(--success); box-shadow:0 0 0 2px rgba(93,184,114,0.2); }
-.status-off { background:var(--muted-soft); }
-.status-err { background:var(--error); }
-.channel-type-tag { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; padding:2px 8px; background:var(--canvas); border-radius:var(--radius-xs); color:var(--muted); border:1px solid var(--hairline); }
-.channel-latency { font-size:12px; color:var(--accent-teal); font-family:var(--font-mono); font-weight:500; }
-.empty-hint { color:var(--muted); font-size:15px; padding:32px 0; line-height:1.6; }
 
 /* ===== MODEL TABLE (DIRECTORY) ===== */
 .table-group { margin-bottom:48px; }
@@ -703,8 +584,7 @@ onMounted(async () => {
 @media (max-width: 900px) {
   .hero-band { flex-direction:column; align-items:flex-start; gap:32px; padding:64px 0; }
   .hero-title { font-size:40px; }
-  .gateway-grid { grid-template-columns:1fr; }
-  .form-row, .coral-form-grid { grid-template-columns:1fr; }
+  .form-row { grid-template-columns:1fr; }
   .hero-actions-col { width:100%; }
 }
 </style>

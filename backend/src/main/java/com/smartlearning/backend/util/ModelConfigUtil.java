@@ -67,7 +67,19 @@ public final class ModelConfigUtil {
         }
 
         if (lowerModelId.contains("gpt-image") || lowerModelId.contains("chatgpt-image")) {
-            return List.of("1024x1024", "1536x1024", "1024x1536");
+            return List.of("1024x1024", "1536x1024", "1024x1536", "2048x2048");
+        }
+
+        if (lowerModelId.contains("flux")) {
+            return List.of("1024x1024", "1024x768", "768x1024", "1536x1024", "1024x1536");
+        }
+
+        if (lowerModelId.contains("ideogram")) {
+            return List.of("1024x1024", "1344x768", "768x1344", "1152x896", "896x1152");
+        }
+
+        if (lowerModelId.contains("midjourney") || lowerModelId.contains("mj")) {
+            return List.of("1024x1024", "1792x1024", "1024x1792");
         }
 
         if (isGeminiImageModel(modelId)) {
@@ -120,6 +132,7 @@ public final class ModelConfigUtil {
             || lowerModelId.contains("flux")
             || lowerModelId.contains("midjourney")
             || lowerModelId.contains("mj")
+            || lowerModelId.contains("ideogram")
             || lowerModelId.contains("imagen");
     }
 

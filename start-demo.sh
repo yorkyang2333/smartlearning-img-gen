@@ -26,19 +26,18 @@ for arg in "$@"; do
 done
 
 echo "================================================="
-echo "🎬 晋彩智绘 演示模式启动"
+echo "晋彩智绘 演示模式启动"
 echo "================================================="
 
 # ---------- 依赖检查 ----------
 need_cmd() {
     if ! command -v "$1" &> /dev/null; then
-        echo "❌ 未检测到 $1，请先安装。"
+        echo "未检测到 $1，请先安装。"
         exit 1
     fi
 }
 need_cmd mvn
 need_cmd npm
-need_cmd docker
 
 # ---------- 可选：清库 ----------
 if [ "$RESET_DB" = true ]; then
@@ -64,48 +63,40 @@ fi
 
 # ---------- 进程清理 ----------
 cleanup() {
-    echo -e "\n🛑 正在关闭演示进程..."
-    if [ -x "$ROOT_DIR/scripts/gateway/stop_gateway.sh" ]; then
-        "$ROOT_DIR/scripts/gateway/stop_gateway.sh" >/dev/null 2>&1 || true
-    fi
+    echo -e "\n正在关闭演示进程..."
     kill $(jobs -p) 2>/dev/null
-    echo "✅ 演示已关闭。"
+    echo "演示已关闭。"
     exit 0
 }
 trap cleanup SIGINT SIGTERM
 
-# ---------- 1) AI Gateway ----------
-echo "⏳ [1/3] 启动 AI Gateway (http://localhost:4000)..."
-"$ROOT_DIR/scripts/gateway/start_gateway.sh"
-
-# ---------- 2) Backend (dev + demo profile) ----------
-echo "⏳ [2/3] 启动后端 Spring Boot (profiles=dev,demo, http://localhost:8080)..."
+# ---------- 1) Backend (dev + demo profile) ----------
+echo "[1/2] 启动后端 Spring Boot (profiles=dev,demo, http://localhost:8080)..."
 cd "$ROOT_DIR/backend"
 mvn spring-boot:run -Dspring-boot.run.profiles=dev,demo -DskipTests &
 cd "$ROOT_DIR"
 
-# ---------- 3) Frontend ----------
-echo "⏳ [3/3] 启动前端 Vue 3 (http://localhost:5173)..."
+# ---------- 2) Frontend ----------
+echo "[2/2] 启动前端 Vue 3 (http://localhost:5173)..."
 cd "$ROOT_DIR/frontend"
 if [ ! -d "node_modules" ]; then
-    echo "   📦 首次运行，安装前端依赖..."
+    echo "   首次运行，安装前端依赖..."
     npm install
 fi
 npm run dev &
 cd "$ROOT_DIR"
 
 echo "================================================="
-echo "✅ 所有服务已启动"
-echo "🌐 前端:        http://localhost:5173"
-echo "🔧 后端 API:    http://localhost:8080"
-echo "🛰  AI Gateway: http://localhost:4000  (root / 12345678)"
+echo "所有服务已启动"
+echo "前端:        http://localhost:5173"
+echo "后端 API:    http://localhost:8080"
 echo ""
-echo "👤 演示账号（密码均为 123456）"
+echo "演示账号（密码均为 123456）"
 echo "   教师: teacher"
 echo "   学生: student / linyutong / zhangzixuan / wangzihan / chensiyuan"
 echo "         liuxinyi / zhouhaoran / wuyutong / zhengmingxuan / zhaowanqing / sunruotong"
 echo ""
-echo "🛑 按 Ctrl+C 关闭全部服务"
+echo "按 Ctrl+C 关闭全部服务"
 echo "================================================="
 
 wait

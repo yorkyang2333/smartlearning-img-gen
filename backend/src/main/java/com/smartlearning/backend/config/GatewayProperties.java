@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class GatewayProperties {
 
-    @Value("${gateway.base-url:http://localhost:4000}")
+    @Value("${gateway.base-url:https://ai-generating.com}")
     private String baseUrl;
 
     @Value("${gateway.api-key:}")
@@ -17,7 +17,7 @@ public class GatewayProperties {
 
     public String getBaseUrl() {
         if (baseUrl == null || baseUrl.isBlank()) {
-            return "http://localhost:4000";
+            return "https://ai-generating.com";
         }
         return baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
