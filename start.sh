@@ -41,8 +41,11 @@ cleanup() {
     if [ -x "./scripts/gateway/stop_gateway.sh" ]; then
         ./scripts/gateway/stop_gateway.sh >/dev/null 2>&1 || true
     fi
-    # 杀掉所有当前脚本启动的后台子进程
+    # 杀掉子进程并屏蔽它们的 shutdown 输出
+    exec 1>/dev/null 2>/dev/null
     kill $(jobs -p) 2>/dev/null
+    wait 2>/dev/null
+    exec 1>/dev/tty 2>/dev/tty
     echo "✅ 服务已安全关闭。"
     exit
 }
@@ -70,7 +73,6 @@ if [ ! -d "node_modules" ]; then
 fi
 
 echo "🚀 前端即将启动 (http://localhost:5173)..."
-# 保持前端运行日志在前台显示
 npm run dev &
 FRONTEND_PID=$!
 cd ..
