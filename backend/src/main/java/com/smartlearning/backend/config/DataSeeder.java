@@ -76,15 +76,14 @@ public class DataSeeder implements CommandLineRunner {
             modelRepository.save(createModel("DALL-E 3", "dall-e-3", "TEXT_TO_IMAGE", "openai", "高质量AI图像生成模型"));
             modelRepository.save(createModel("FLUX Schnell", "flux-schnell", "TEXT_TO_IMAGE", "stability", "快速高质量生图"));
             modelRepository.save(createModel("FLUX Dev", "flux-dev", "TEXT_TO_IMAGE", "stability", "高质量生图（开发版）"));
-            modelRepository.save(createModel("GPT-4o", "gpt-4o", "TEXT_GENERATION", "openai", "多模态分析与导师对话"));
-            modelRepository.save(createModel("Claude Sonnet 4.6", "claude-sonnet-4-6", "TEXT_GENERATION", "anthropic", "长文本分析与教学反馈"));
+            modelRepository.save(createModel("Gemini 3.1 Flash Lite", "gemini-3.1-flash-lite", "TEXT_GENERATION", "google", "极速文本分析与导师对话"));
             modelRepository.save(createModel("DeepSeek Chat", "deepseek-chat", "TEXT_GENERATION", "deepseek", "高速文本分析与导师对话"));
 
             // Set up Default Tutor Config
             TutorConfig tutorConfig = new TutorConfig();
             tutorConfig.setTeacherId(teacher.getId());
             tutorConfig.setEnabled(true);
-            tutorConfig.setModelName("gpt-4o");
+            tutorConfig.setModelName("gemini-3.1-flash-lite");
             tutorConfig.setApiEndpointId(null);
             tutorConfig.setSystemPrompt("你是一个专业、耐心、富有启发性的AI美术导师。请始终用中文、以温和鼓励的语气指导学生进行艺术创作。");
             tutorConfigRepository.save(tutorConfig);

@@ -15,7 +15,7 @@ const displayName = ref('')
 const password = ref('')
 const confirmPassword = ref('')
 
-const apiBaseUrl = ref('https://ai-generating.com')
+const apiBaseUrl = ref('')
 const apiKey = ref('')
 
 interface PresetModel {
@@ -32,8 +32,8 @@ const presetModels = ref<PresetModel[]>([
   { name: 'DALL-E 3', modelId: 'dall-e-3', type: 'TEXT_TO_IMAGE', provider: 'openai', description: '高质量AI图像生成模型', selected: true },
   { name: 'FLUX Schnell', modelId: 'flux-schnell', type: 'TEXT_TO_IMAGE', provider: 'stability', description: '快速高质量生图', selected: false },
   { name: 'FLUX Dev', modelId: 'flux-dev', type: 'TEXT_TO_IMAGE', provider: 'stability', description: '高质量生图（开发版）', selected: false },
-  { name: 'GPT-4o', modelId: 'gpt-4o', type: 'TEXT_GENERATION', provider: 'openai', description: '多模态分析与导师对话', selected: true },
-  { name: 'Claude Sonnet 4.6', modelId: 'claude-sonnet-4-6', type: 'TEXT_GENERATION', provider: 'anthropic', description: '长文本分析与教学反馈', selected: false },
+  { name: 'Gemini 3.1 Flash Lite', modelId: 'gemini-3.1-flash-lite', type: 'TEXT_GENERATION', provider: 'google', description: '极速文本分析与导师对话', selected: true },
+  { name: 'DeepSeek Chat', modelId: 'deepseek-chat', type: 'TEXT_GENERATION', provider: 'deepseek', description: '高速文本分析与导师对话', selected: false },
   { name: 'DeepSeek Chat', modelId: 'deepseek-chat', type: 'TEXT_GENERATION', provider: 'deepseek', description: '高速文本分析与导师对话', selected: false },
 ])
 
@@ -186,7 +186,7 @@ function typeLabel(type: string) {
           <div class="field-group">
             <div class="field">
               <label for="s-url">API Base URL</label>
-              <input v-model="apiBaseUrl" type="url" id="s-url" placeholder="https://ai-generating.com" />
+              <input v-model="apiBaseUrl" type="url" id="s-url" placeholder="https://your-api-gateway.com" />
             </div>
             <div class="field">
               <label for="s-key">API Key</label>

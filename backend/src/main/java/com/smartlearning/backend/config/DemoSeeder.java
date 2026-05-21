@@ -129,8 +129,8 @@ public class DemoSeeder implements CommandLineRunner {
         upsertModel("deepseek-v4-flash", "深度思考 V4", "TEXT_GENERATION", "deepseek", "高速文本分析与导师对话");
         upsertModel("qwen-vl-max", "通义千问 VL", "TEXT_GENERATION", "alibaba", "原生多模态导师对话与作品评审");
         upsertModel("qwen3.5-plus", "通义千问 3.5", "TEXT_GENERATION", "alibaba", "高质量中文对话与导师辅导");
-        upsertModel("gpt-4o", "智析多模态 4o", "TEXT_GENERATION", "openai", "多模态分析与导师对话");
-        upsertModel("claude-3-5-sonnet-latest", "文思长文本", "TEXT_GENERATION", "anthropic", "长文本分析与教学反馈");
+        upsertModel("gemini-3.1-flash-lite", "闪思 Lite", "TEXT_GENERATION", "google", "极速文本分析与导师对话");
+        upsertModel("deepseek-chat", "深度思考", "TEXT_GENERATION", "deepseek", "高速文本分析与导师对话");
     }
 
     private void upsertModel(String modelId, String name, String type, String provider, String desc) {
